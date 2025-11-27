@@ -1,0 +1,252 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{a4paper,left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{Soft Actor-Critic算法及其应用}
+\author{Tuomas Haarnoja$^{*\dagger\ddagger}$, Sehoon Ha$^{\ddagger}$, Aurick Zhou$^{*\dagger}$, Jie Tan$^{\ddagger}$, Kristian Hartikainen$^{*\dagger}$, Vikash Kumar$^{\ddagger}$, Pieter Abbeel$^{\dagger}$, Henry Zhu$^{\dagger}$, George Tucker$^{\ddagger}$, Abhishek Gupta$^{\dagger}$, Sergey Levine$^{\dagger\ddagger}$\\
+$^{\dagger}$UC Berkeley, $^{\ddagger}$Google Brain, $^{*}$同等贡献}
+\date{arXiv:1812.05905v2 [cs.LG] 2019年1月29日}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+无模型深度强化学习（RL）算法已成功应用于一系列具有挑战性的顺序决策和控制任务。然而，这些方法通常面临两个主要挑战：高样本复杂性和对超参数的脆弱性。这两个挑战都限制了此类方法在现实世界领域的适用性。在本文中，我们描述了软演员-评论家（Soft Actor-Critic, SAC），这是我们最近引入的基于最大熵强化学习（Maximum Entropy Reinforcement Learning）（Maximum Entropy Reinforcement Learning）框架的离策略（off-policy）演员-评论家（Actor-Critic）算法。在这个框架中，演员旨在同时最大化期望回报和熵；也就是说，在尽可能随机地行动的同时成功完成任务。我们扩展SAC以纳入一系列加速训练并提高超参数稳定性的修改，包括自动调整温度超参数的约束公式。我们在一系列基准任务以及具有挑战性的现实世界任务（如四足机器人的运动学和灵巧手的机器人操作）上系统地评估了SAC。通过这些改进，SAC达到了最先进的性能，在样本效率和渐近性能方面优于先前的在策略（on-policy）和离策略（off-policy）方法。此外，我们证明，与其他离策略（off-policy）算法相比，我们的方法非常稳定，在不同随机种子下实现了相似的性能。这些结果表明SAC是学习现实世界机器人任务的有希望的候选方法。
+\end{abstract}
+
+\section{引言}
+
+无模型深度强化学习（RL）算法已应用于一系列具有挑战性的领域，从游戏到机器人控制。RL与高容量函数逼近器（Function Approximator）（如神经网络（Neural Network））的结合有望自动化广泛的决策和控制任务，但这些方法在现实世界领域的广泛采用受到两个主要挑战的阻碍。首先，无模型深度RL方法在样本复杂度方面非常昂贵。即使相对简单的任务也可能需要数百万步的数据收集，而具有高维观察的复杂行为可能需要更多。其次，这些方法通常对超参数很脆弱：学习率、探索常数和其他设置必须针对不同的问题设置仔细设置才能获得良好的结果。这两个挑战严重限制了无模型深度RL在现实世界任务中的适用性。
+
+深度RL方法样本效率差的一个原因是在策略（on-policy）学习：一些最常用的深度RL算法，如TRPO、PPO或A3C，需要为（几乎）每次策略更新收集新样本。这很快变得非常昂贵，因为学习有效策略所需的梯度步数和每步样本数随着任务复杂性而增加。离策略（off-policy）算法旨在重用过去的经验。这对于传统的策略梯度（Policy Gradient）公式不可行，但对于基于Q学习（Q-learning）的方法相对直接。不幸的是，离策略（off-policy）学习与高维、非线性函数逼近（使用神经网络（Neural Network））的结合对稳定性和收敛性提出了重大挑战。这一挑战在连续状态和动作空间中进一步加剧，其中通常使用单独的演员网络（Actor Network）来执行Q学习中的最大化。
+
+在本文中，我们介绍了基于最大熵（Maximum Entropy）框架的软演员-评论家（Soft Actor-Critic, SAC）算法。在本文的前几节中，我们总结了SAC算法，描述了设计选择背后的推理，并展示了关键的理论结果。不幸的是，SAC可能对温度超参数很脆弱。与传统的强化学习不同，在传统强化学习中，最优策略独立于奖励函数的缩放，在最大熵强化学习（Maximum Entropy Reinforcement Learning）中，缩放因子必须通过选择合适的温度来补偿，而次优温度可能严重降低性能。为了解决这个问题，我们设计了一种基于梯度的自动温度调整方法，该方法调整访问状态上的期望熵以匹配目标值。尽管这个修改在技术上很简单，但我们发现在实践中它很大程度上消除了每个任务超参数调整的需要。最后，我们展示了经验结果，表明软演员-评论家（Soft Actor-Critic）在性能和样本效率方面都优于先前的离策略（off-policy）和在策略（on-policy）方法，包括最近引入的双延迟深度确定性（Twin Delayed Deep Deterministic, TD3）策略梯度（Policy Gradient）算法。我们还在现实世界的挑战性任务上评估了我们的方法，例如四足机器人的运动学和从图像观察进行灵巧手的机器人操作。
+
+\section{相关工作}
+
+最大熵强化学习（Maximum Entropy Reinforcement Learning）（Maximum Entropy Reinforcement Learning）推广了期望回报RL目标，尽管原始目标可以在零温度极限下恢复。更重要的是，最大熵公式在探索和鲁棒性方面提供了实质性改进：如Ziebart所讨论的，最大熵策略（Maximum Entropy Policy）在面对模型和估计误差时是鲁棒的，并且如所证明的，它们通过获得多样化的行为来改善探索。先前的工作已经提出了执行在策略（on-policy）学习与熵最大化的无模型深度RL算法，以及基于软Q学习（Soft Q-learning）及其变体的离策略（off-policy）方法。然而，在策略（on-policy）变体由于上述原因而样本复杂度差，而离策略（off-policy）变体在连续动作空间中需要复杂的近似推理过程。
+
+我们的软演员-评论家（Soft Actor-Critic）算法结合了三个关键要素：具有独立策略和价值函数网络的演员-评论家（Actor-Critic）架构，能够重用先前收集的数据以提高效率的离策略（off-policy）公式，以及熵最大化以鼓励稳定性和探索。我们在本节中回顾了利用其中一些想法的先前工作。演员-评论家（Actor-Critic）算法通常从策略迭代（Policy Iteration）开始推导，策略迭代在策略评估（Policy Evaluation，计算策略的价值函数）和策略改进（Policy Improvement，使用价值函数获得更好的策略）之间交替。在大规模强化学习问题中，通常不切实际地将这些步骤中的任何一个运行到收敛，而是联合优化价值函数和策略。在这种情况下，策略被称为演员（Actor），价值函数被称为评论家（Critic）。许多演员-评论家（Actor-Critic）算法建立在标准的在策略（on-policy）策略梯度（Policy Gradient）公式上以更新演员，其中许多也考虑策略的熵，但不是最大化熵，而是将其用作正则化器。在策略（on-policy）训练倾向于提高稳定性，但导致样本复杂度差。
+
+已经努力通过纳入离策略（off-policy）样本和使用高阶方差减少技术来提高样本效率，同时保持鲁棒性。然而，完全离策略（off-policy）算法仍然获得更好的效率。一个特别流行的离策略（off-policy）演员-评论家（Actor-Critic）方法DDPG（Deep Deterministic Policy Gradient），它是确定性策略梯度（Deterministic Policy Gradient）算法的深度变体，使用Q函数（Q-function）估计器来启用离策略（off-policy）学习，以及最大化该Q函数（Q-function）的确定性演员（Deterministic Actor）。因此，这种方法既可以被视为确定性演员（Deterministic Actor）-评论家（Actor-Critic）算法，也可以被视为近似Q学习（Q-learning）算法。不幸的是，确定性演员（Deterministic Actor）网络（Actor Network）和Q函数（Q-function）之间的相互作用通常使DDPG极难稳定且对超参数设置很脆弱。因此，很难将DDPG扩展到复杂的高维任务，而在策略（on-policy）策略梯度（Policy Gradient）方法在这些设置中仍然倾向于产生最佳结果。我们的方法将离策略（off-policy）演员-评论家（Actor-Critic）训练与随机演员（Stochastic Actor）相结合，并进一步旨在通过熵最大化目标最大化该演员的熵。我们发现这实际上导致了一个相当更稳定和可扩展的算法，在实践中超过了DDPG的效率和最终性能。
+
+最大熵强化学习（Maximum Entropy Reinforcement Learning）（Maximum Entropy Reinforcement Learning）优化策略以同时最大化期望回报和策略的期望熵。这个框架已在许多上下文中使用，从逆强化学习（Inverse Reinforcement Learning）（Inverse Reinforcement Learning）到最优控制（Optimal Control）（Optimal Control）。最大后验策略优化（Maximum a Posteriori Policy Optimization, MPO）利用概率观点，通过期望最大化（Expectation Maximization, EM）（Expectation Maximization）优化标准RL目标。在引导策略搜索（Guided Policy Search, GPS）中，最大熵公式用于学习复杂操作任务。
+
+\section{最大熵强化学习（Maximum Entropy Reinforcement Learning）}
+
+在标准的强化学习设置中，目标是学习一个策略，该策略在遵循该策略时最大化期望奖励的总和$\mathbb{E}_{(s_t,a_t) \sim \rho_\pi}[r(s_t, a_t)]$，我们的目标是学习一个策略$\pi(a_t|s_t)$来最大化该目标。最大熵（Maximum Entropy）目标通过用熵项增强标准目标来推广标准目标，使得最优策略还旨在在每个访问状态最大化其熵：
+\begin{equation}
+\pi^* = \arg\max_\pi \mathbb{E}_{(s_t,a_t) \sim \rho_\pi} \left[ \sum_t r(s_t, a_t) + \alpha H(\pi(\cdot|s_t)) \right],
+\end{equation}
+其中$\alpha$是温度参数，它确定熵项相对于奖励的相对重要性，从而控制最优策略的随机性。尽管最大熵目标（Maximum Entropy Objective）不同于传统强化学习中使用的标准最大期望回报目标，但传统目标可以在$\alpha \to 0$的极限下恢复。如果我们希望将传统或最大熵RL目标扩展到无限视野问题，引入折扣因子$\gamma$以确保期望奖励（和熵）的总和是有限的也很方便。在策略搜索算法的上下文中，使用折扣因子实际上是一个有些微妙的选择，并且写下使用折扣因子时优化的精确目标是非平凡的。我们在附录A中包含了折扣的无限视野目标，但我们将在以下推导和最终算法中使用折扣$\gamma$。
+
+最大熵目标（Maximum Entropy Objective）具有许多概念和实践优势。首先，策略被激励进行更广泛的探索，同时放弃明显没有希望的方向。其次，策略可以捕获多种近最优行为模式。在多个动作看起来同样有吸引力的问题设置中，策略将对这些动作分配相等的概率质量。在实践中，我们观察到使用此目标的探索改进，正如先前工作所报告的，并且我们观察到它比优化传统RL目标函数的最先进方法显著提高了学习速度。
+
+这种类型的优化问题已在许多先前的工作中探索过。这些先前的方法提出了直接求解最优Q函数（Q-function），从中可以恢复最优策略。在下一节中，我们讨论如何通过策略迭代（Policy Iteration）公式设计软演员-评论家（Soft Actor-Critic）算法，其中我们评估当前策略的Q函数（Q-function）并通过离策略（off-policy）梯度更新更新策略。尽管这样的算法先前已针对传统强化学习提出，但据我们所知，我们的方法是最大熵强化学习（Maximum Entropy Reinforcement Learning）（Maximum Entropy Reinforcement Learning）框架中的第一个离策略（off-policy）演员-评论家（Actor-Critic）方法。
+
+\section{从软策略迭代到软演员-评论家}
+
+我们的离策略（off-policy）软演员-评论家（Soft Actor-Critic）算法可以从策略迭代（Policy Iteration）方法的最大熵（Maximum Entropy）变体开始推导。我们将首先展示这个推导，验证相应的算法从其密度类收敛到最优策略，然后基于这个理论提出一个实用的深度强化学习算法。在本节中，我们将温度视为常数，然后在第5节中提出SAC的扩展，该扩展自动调整温度以在期望中匹配熵目标。
+
+\subsection{软策略迭代}
+
+我们将从推导软策略迭代（Soft Policy Iteration）开始，这是一个学习最优最大熵（Maximum Entropy）策略的通用算法，在最大熵框架中的策略评估（Policy Evaluation）和策略改进（Policy Improvement）之间交替。我们的推导基于表格设置，以启用理论分析和收敛保证，我们在下一节中将此方法扩展到一般连续设置。我们将展示软策略迭代收敛到一组策略中的最优策略，这些策略可能对应于，例如，一组参数化密度。
+
+在软策略迭代（Soft Policy Iteration）的策略评估（Policy Evaluation）步骤中，我们希望根据最大熵（Maximum Entropy）目标计算策略$\pi$的值。对于固定策略，软Q值（Soft Q-value）可以迭代计算，从任何函数$Q: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$开始，并重复应用修改的Bellman（贝尔曼）备份算子（Bellman（贝尔曼） Backup Operator）$\mathcal{T}^\pi$，由下式给出：
+\begin{equation}
+\mathcal{T}^\pi Q(s_t, a_t) \triangleq r(s_t, a_t) + \gamma \mathbb{E}_{s_{t+1} \sim p} [V(s_{t+1})],
+\end{equation}
+其中
+\begin{equation}
+V(s_t) = \mathbb{E}_{a_t \sim \pi} [Q(s_t, a_t) - \alpha \log \pi(a_t|s_t)]
+\end{equation}
+是软状态价值函数（Soft State Value Function）。我们可以通过重复应用$\mathcal{T}^\pi$获得任何策略$\pi$的软Q函数（Q-function）（Soft Q-function），如下所述。
+
+\textbf{引理1（软策略评估，Soft Policy Evaluation）}。考虑方程2中的软Bellman（贝尔曼）备份算子（Soft Bellman（贝尔曼） Backup Operator）$\mathcal{T}^\pi$和映射$Q^0: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$，其中$|\mathcal{A}| < \infty$，并定义$Q^{k+1} = \mathcal{T}^\pi Q^k$。那么序列$Q^k$将在$k \to \infty$时收敛到$\pi$的软Q函数（Q-function）（Soft Q-function）。
+
+在策略改进（Policy Improvement）步骤中，我们更新策略朝向新软Q函数（Q-function）（Soft Q-function）的指数。这种特定的更新选择可以保证在软值方面产生改进的策略。由于在实践中我们更喜欢易于处理的策略，我们还将策略限制到某个策略集$\Pi$，这可能对应于，例如，参数化的分布族，如高斯分布。为了考虑$\pi \in \Pi$的约束，我们将改进的策略投影到期望的策略集。虽然在原则上我们可以选择任何投影，但使用在Kullback-Leibler散度（Kullback-Leibler Divergence, KL散度）方面定义的信息投影将很方便。换句话说，在策略改进步骤中，对于每个状态，我们根据以下方式更新策略：
+\begin{equation}
+\pi_{\text{new}} = \arg\min_{\pi' \in \Pi} D_{\text{KL}} \left( \pi'(\cdot|s_t) \middle\| \frac{\exp(\frac{1}{\alpha} Q^{\pi_{\text{old}}}(s_t, \cdot))}{Z^{\pi_{\text{old}}}(s_t)} \right).
+\end{equation}
+配分函数$Z^{\pi_{\text{old}}}(s_t)$归一化分布，虽然它在一般情况下是难以处理的，但它不会对新策略的梯度做出贡献，因此可以忽略。对于这个投影，我们可以展示新的投影策略在最大熵目标（Maximum Entropy Objective）方面具有比旧策略更高的值。我们在引理2中形式化这个结果。
+
+\textbf{引理2（软策略改进）}。设$\pi_{\text{old}} \in \Pi$，并设$\pi_{\text{new}}$是方程4中定义的极小化问题的优化器。那么对于所有$(s_t, a_t) \in \mathcal{S} \times \mathcal{A}$，其中$|\mathcal{A}| < \infty$，有$Q^{\pi_{\text{new}}}(s_t, a_t) \geq Q^{\pi_{\text{old}}}(s_t, a_t)$。
+
+完整的软策略迭代（Soft Policy Iteration）算法在软策略评估（Soft Policy Evaluation）和软策略改进（Soft Policy Improvement）步骤之间交替，它将可证明地收敛到$\Pi$中策略的最优最大熵（Maximum Entropy）策略（定理1）。尽管这个算法将可证明地找到最优解，但我们只能在表格情况下以精确形式执行它。因此，我们接下来将算法近似用于连续域，其中我们需要依赖函数逼近器（Function Approximator）来表示Q值，并且运行两个步骤直到收敛在计算上太昂贵。这种近似产生了一个新的实用算法，称为软演员-评论家（Soft Actor-Critic）。
+
+\textbf{定理1（软策略迭代，Soft Policy Iteration）}。从任何$\pi \in \Pi$重复应用软策略评估（Soft Policy Evaluation）和软策略改进（Soft Policy Improvement）将收敛到策略$\pi^*$，使得对于所有$\pi \in \Pi$和$(s_t, a_t) \in \mathcal{S} \times \mathcal{A}$，有$Q^{\pi^*}(s_t, a_t) \geq Q^\pi(s_t, a_t)$，假设$|\mathcal{A}| < \infty$。
+
+\subsection{软演员-评论家}
+
+如上所述，大型连续域要求我们推导软策略迭代（Soft Policy Iteration）的实用近似。为此，我们将为软Q函数（Q-function）（Soft Q-function）和策略使用函数逼近器（Function Approximator），并且不是运行评估和改进直到收敛，而是在使用随机梯度下降（Stochastic Gradient Descent）优化两个网络之间交替。我们将考虑参数化的软Q函数（Q-function）（Soft Q-function）$Q_\theta(s_t, a_t)$和易于处理的策略$\pi_\phi(a_t|s_t)$。这些网络的参数是$\theta$和$\phi$。例如，软Q函数（Q-function）可以建模为表达性神经网络（Neural Network），策略可以建模为高斯分布，其均值和协方差由神经网络（Neural Network）给出。我们接下来将推导这些参数向量的更新规则。
+
+软Q函数（Q-function）（Soft Q-function）参数可以训练以最小化软Bellman（贝尔曼）残差（Soft Bellman（贝尔曼） Residual）：
+\begin{equation}
+J_Q(\theta) = \mathbb{E}_{(s_t,a_t) \sim \mathcal{D}} \left[ \frac{1}{2} \left( Q_\theta(s_t, a_t) - \left( r(s_t, a_t) + \gamma \mathbb{E}_{s_{t+1} \sim p} [V_{\bar{\theta}}(s_{t+1})] \right) \right)^2 \right],
+\end{equation}
+其中价值函数通过方程3通过软Q函数（Q-function）参数隐式参数化，并且可以使用随机梯度进行优化：
+\begin{equation}
+\hat{\nabla}_\theta J_Q(\theta) = \nabla_\theta Q_\theta(a_t, s_t) \left( Q_\theta(s_t, a_t) - (r(s_t, a_t) + \gamma (Q_{\bar{\theta}}(s_{t+1}, a_{t+1}) - \alpha \log (\pi_\phi(a_{t+1}|s_{t+1})))) \right).
+\end{equation}
+更新使用参数$\bar{\theta}$的目标软Q函数（Q-function），这些参数作为软Q函数（Q-function）权重的指数移动平均获得，这已被证明可以稳定训练。最后，策略参数可以通过直接最小化方程4中的期望KL散度来学习（乘以$\alpha$并忽略常数对数配分函数和$\alpha$）：
+\begin{equation}
+J_\pi(\phi) = \mathbb{E}_{s_t \sim \mathcal{D}} \mathbb{E}_{a_t \sim \pi_\phi} [\alpha \log (\pi_\phi(a_t|s_t)) - Q_\theta(s_t, s_t)].
+\end{equation}
+
+有几种最小化$J_\pi$的选项。策略梯度（Policy Gradient）方法的典型解决方案是使用似然比梯度估计器（Likelihood Ratio Gradient Estimator），它不需要通过策略和目标密度网络反向传播梯度。然而，在我们的情况下，目标密度是Q函数（Q-function），它由神经网络（Neural Network）表示并且可以微分，因此应用重参数化（Reparameterization）技巧（Reparameterization Trick）很方便，从而产生较低方差的估计器。为此，我们使用神经网络（Neural Network）变换重参数化（Reparameterization）策略：
+\begin{equation}
+a_t = f_\phi(\epsilon_t; s_t),
+\end{equation}
+其中$\epsilon_t$是输入噪声向量，从某个固定分布采样，例如球形高斯。我们现在可以将方程7中的目标重写为：
+\begin{equation}
+J_\pi(\phi) = \mathbb{E}_{s_t \sim \mathcal{D}, \epsilon_t \sim \mathcal{N}} [\alpha \log \pi_\phi(f_\phi(\epsilon_t; s_t)|s_t) - Q_\theta(s_t, f_\phi(\epsilon_t; s_t))],
+\end{equation}
+其中$\pi_\phi$根据$f_\phi$隐式定义。我们可以用以下方式近似方程9的梯度：
+\begin{equation}
+\hat{\nabla}_\phi J_\pi(\phi) = \nabla_\phi \alpha \log (\pi_\phi(a_t|s_t)) + (\nabla_{a_t} \alpha \log (\pi_\phi(a_t|s_t)) - \nabla_{a_t} Q(s_t, a_t)) \nabla_\phi f_\phi(\epsilon_t; s_t),
+\end{equation}
+其中$a_t$在$f_\phi(\epsilon_t; s_t)$处评估。这个无偏梯度估计器将DDPG（Deep Deterministic Policy Gradient）风格的策略梯度（Policy Gradient）扩展到任何易于处理的随机策略。
+
+\section{最大熵RL的自动熵调整}
+
+在上一节中，我们推导了一个实用的离策略（off-policy）算法，用于学习给定温度的最大熵（Maximum Entropy）策略。不幸的是，选择最优温度是非平凡的，并且温度需要为每个任务进行调整。与其要求用户手动设置温度，我们可以通过制定不同的最大熵强化学习（Maximum Entropy Reinforcement Learning）（Maximum Entropy Reinforcement Learning）目标来自动化这个过程，其中熵被视为约束。奖励的大小不仅在任务之间不同，而且还取决于策略，策略在训练期间随时间改进。由于最优熵取决于这个大小，这使得温度调整特别困难：熵可能在任务之间和训练期间不可预测地变化，因为策略变得更好。简单地强制熵为固定值是一个糟糕的解决方案，因为策略应该能够在最优动作不确定的区域中自由探索更多，但在具有明确好坏动作区别的状态中保持更确定性。相反，我们制定一个约束优化问题，其中策略的平均熵被约束，而不同状态的熵可以变化。类似的方法在MPO（Maximum a Posteriori Policy Optimization）中采用，其中策略被约束为保持接近先前的策略。我们展示这个约束优化的对偶导致软演员-评论家（Soft Actor-Critic）更新，以及对偶变量的额外更新，该变量起温度的作用。我们的公式还使得可以使用更表达的策略来学习熵，这些策略可以建模多模态分布，例如基于归一化流（Normalizing Flow）的策略，对于这些策略，不存在熵的封闭形式表达式。
+
+我们的目标是找到一个具有最大期望回报的随机策略，该策略满足最小期望熵约束。形式上，我们想要解决约束优化问题：
+\begin{equation}
+\max_{\pi_{0:T}} \mathbb{E}_{\rho_\pi} \left[ \sum_{t=0}^T r(s_t, a_t) \right] \quad \text{s.t.} \quad \mathbb{E}_{(s_t,a_t) \sim \rho_\pi} [-\log(\pi_t(a_t|s_t))] \geq \mathcal{H} \quad \forall t
+\end{equation}
+其中$\mathcal{H}$是期望的最小期望熵。注意，对于完全观察的MDP，优化期望回报的策略是确定性的，因此我们期望这个约束通常是紧的，不需要对熵施加上界。
+
+由于时间$t$的策略只能影响未来的目标值，我们可以采用（近似）动态规划（Dynamic Programming）方法，通过时间向后求解策略。我们将目标重写为迭代最大化，从最后的时间步开始，我们将约束最大化改为对偶问题。使用强对偶性（Strong Duality），我们可以求解最优对偶变量，并递归地优化约束优化问题。解与第4节中描述的策略和软Q函数（Q-function）更新一起构成我们算法的核心，并且在理论上，精确求解它们递归地优化方程11中的最优熵约束最大期望回报目标，但在实践中，我们需要求助于函数逼近器（Function Approximator）和随机梯度下降。
+
+\section{实用算法}
+
+我们的算法使用两个软Q函数（Q-function）（Soft Q-function）来减轻策略改进（Policy Improvement）步骤中的正偏差，这已知会降低基于价值的方法的性能。特别是，我们参数化两个软Q函数（Q-function），参数为$\theta_i$，并独立训练它们以优化$J_Q(\theta_i)$。然后，我们使用软Q函数（Q-function）的最小值用于方程6中的随机梯度和方程10中的策略梯度，如Fujimoto等人所提出的。尽管我们的算法可以学习具有挑战性的任务，包括21维Humanoid，仅使用单个Q函数（Q-function），但我们发现两个软Q函数（Q-function）显著加速训练，特别是在更困难的任务上。
+
+除了软Q函数（Q-function）（Soft Q-function）和策略之外，我们还通过最小化方程17中的对偶目标来学习$\alpha$。这可以通过近似对偶梯度下降（Dual Gradient Descent）来完成。对偶梯度下降（Dual Gradient Descent）在对偶变量上交替优化拉格朗日（Lagrangian）（Lagrangian）关于原始变量到收敛，然后在对偶变量上采取梯度步。虽然完全优化关于原始变量是不切实际的，但执行不完整优化（即使对于单个梯度步）的截断版本可以在凸性假设下显示收敛。虽然这样的假设不适用于非线性函数逼近器（Function Approximator）（如神经网络（Neural Network））的情况，但我们发现这种方法在实践中仍然有效。因此，我们使用以下目标计算$\alpha$的梯度：
+\begin{equation}
+J(\alpha) = \mathbb{E}_{a_t \sim \pi_t} [-\alpha \log \pi_t(a_t|s_t) - \alpha \bar{\mathcal{H}}].
+\end{equation}
+
+最终算法在算法1中列出。该方法在当前策略从环境收集经验和使用从重放池（Replay Buffer）采样的批次中的随机梯度更新函数逼近器（Function Approximator）之间交替。使用来自重放池（Replay Buffer）的离策略（off-policy）数据是可行的，因为价值估计器和策略都可以完全在离策略（off-policy）数据上训练。该算法对策略的参数化是不可知的，只要它可以为任何任意状态-动作元组进行评估。
+
+\begin{algorithm}
+\caption{软演员-评论家}
+\begin{algorithmic}[1]
+\STATE \textbf{输入：} $\theta_1, \theta_2, \phi$ \COMMENT{初始参数}
+\STATE $\bar{\theta}_1 \leftarrow \theta_1, \bar{\theta}_2 \leftarrow \theta_2$ \COMMENT{初始化目标网络权重}
+\STATE $\mathcal{D} \leftarrow \emptyset$ \COMMENT{初始化空的重放池}
+\FOR{每次迭代}
+    \FOR{每个环境步}
+        \STATE $a_t \sim \pi_\phi(a_t|s_t)$ \COMMENT{从策略采样动作}
+        \STATE $s_{t+1} \sim p(s_{t+1}|s_t, a_t)$ \COMMENT{从环境采样转移}
+        \STATE $\mathcal{D} \leftarrow \mathcal{D} \cup \{(s_t, a_t, r(s_t, a_t), s_{t+1})\}$ \COMMENT{将转移存储到重放池}
+    \ENDFOR
+    \FOR{每个梯度步}
+        \STATE $\theta_i \leftarrow \theta_i - \lambda_Q \hat{\nabla}_{\theta_i} J_Q(\theta_i)$ for $i \in \{1, 2\}$ \COMMENT{更新Q函数（Q-function）参数}
+        \STATE $\phi \leftarrow \phi - \lambda_\pi \hat{\nabla}_\phi J_\pi(\phi)$ \COMMENT{更新策略权重}
+        \STATE $\alpha \leftarrow \alpha - \lambda \hat{\nabla}_\alpha J(\alpha)$ \COMMENT{调整温度}
+        \STATE $\bar{\theta}_i \leftarrow \tau \theta_i + (1-\tau)\bar{\theta}_i$ for $i \in \{1, 2\}$ \COMMENT{更新目标网络权重}
+    \ENDFOR
+\ENDFOR
+\STATE \textbf{输出：} $\theta_1, \theta_2, \phi$ \COMMENT{优化的参数}
+\end{algorithmic}
+\end{algorithm}
+
+\section{实验}
+
+我们实验评估的目标是了解我们方法的样本复杂度和稳定性如何与先前的离策略（off-policy）和在策略（on-policy）深度强化学习算法进行比较。我们在OpenAI gym基准套件的一系列具有挑战性的连续控制任务上，以及在Humanoid任务的rllab实现上，将我们的方法与先前的技术进行比较。虽然更容易的任务可以通过广泛的不同算法解决，但更复杂的基准，如21维Humanoid（rllab），需要更仔细的算法设计。
+
+我们的实验表明，SAC在样本效率和最终性能方面都优于先前的在策略（on-policy）和离策略（off-policy）方法。特别是，SAC在学习温度变体方面表现最佳，这证明了自动温度调整的重要性。我们还展示了SAC在现实世界任务上的应用，包括四足机器人的运动学和从图像观察进行灵巧手的机器人操作。
+
+\section{结论}
+
+我们介绍了软演员-评论家（Soft Actor-Critic, SAC），一种基于最大熵强化学习（Maximum Entropy Reinforcement Learning）（Maximum Entropy Reinforcement Learning）框架的离策略（off-policy）演员-评论家（Actor-Critic）算法。SAC结合了三个关键要素：演员-评论家（Actor-Critic）架构、离策略（off-policy）学习和熵最大化。我们展示了SAC在样本效率和渐近性能方面都优于先前的在策略（on-policy）和离策略（off-policy）方法。此外，我们证明了SAC非常稳定，在不同随机种子下实现了相似的性能，这使其成为现实世界机器人任务学习的有希望的候选方法。
+
+\section{致谢}
+
+感谢所有为这项工作做出贡献的研究人员和工程师。
+
+\appendix
+
+\section{无限视野折扣最大熵目标（Maximum Entropy Objective）}
+
+折扣最大熵（Maximum Entropy）目标的精确定义因以下事实而复杂化：当对策略梯度（Policy Gradient）方法使用折扣因子时，我们通常不对状态分布进行折扣，只对奖励进行折扣。从这个意义上说，折扣策略梯度（Policy Gradient）通常不优化真正的折扣目标。相反，它们优化平均奖励，折扣用于减少方差。然而，我们可以定义在折扣因子下优化的目标，该目标对应于最大化来自每个状态-动作元组的未来状态的折扣期望奖励和熵，按其当前策略下的概率$\rho_\pi$加权。
+
+\section{证明}
+
+\subsection{引理1}
+
+\textbf{引理1（软策略评估，Soft Policy Evaluation）}。考虑方程2中的软Bellman（贝尔曼）备份算子（Soft Bellman（贝尔曼） Backup Operator）$\mathcal{T}^\pi$和映射$Q^0: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$，其中$|\mathcal{A}| < \infty$，并定义$Q^{k+1} = \mathcal{T}^\pi Q^k$。那么序列$Q^k$将在$k \to \infty$时收敛到$\pi$的软Q值（Soft Q-value）。
+
+\textbf{证明}。定义熵增强奖励为$r^\pi(s_t, a_t) \triangleq r(s_t, a_t) + \mathbb{E}_{s_{t+1} \sim p} [H(\pi(\cdot|s_{t+1}))]$，并将更新规则重写为：
+\begin{equation}
+Q(s_t, a_t) \leftarrow r^\pi(s_t, a_t) + \gamma \mathbb{E}_{s_{t+1} \sim p, a_{t+1} \sim \pi} [Q(s_{t+1}, a_{t+1})]
+\end{equation}
+并应用策略评估的标准收敛结果。假设$|\mathcal{A}| < \infty$需要保证熵增强奖励是有界的。
+
+\subsection{引理2}
+
+\textbf{引理2（软策略改进）}。设$\pi_{\text{old}} \in \Pi$，并设$\pi_{\text{new}}$是方程4中定义的极小化问题的优化器。那么对于所有$(s_t, a_t) \in \mathcal{S} \times \mathcal{A}$，其中$|\mathcal{A}| < \infty$，有$Q^{\pi_{\text{new}}}(s_t, a_t) \geq Q^{\pi_{\text{old}}}(s_t, a_t)$。
+
+\textbf{证明}。设$\pi_{\text{old}} \in \Pi$，并设$Q^{\pi_{\text{old}}}$和$V^{\pi_{\text{old}}}$是对应的软状态-动作价值和软状态价值，并设$\pi_{\text{new}}$定义为：
+\begin{equation}
+\pi_{\text{new}}(\cdot|s_t) = \arg\min_{\pi' \in \Pi} D_{\text{KL}} \left( \pi'(\cdot|s_t) \middle\| \exp(Q^{\pi_{\text{old}}}(s_t, \cdot) - \log Z^{\pi_{\text{old}}}(s_t)) \right) = \arg\min_{\pi' \in \Pi} J^{\pi_{\text{old}}}(\pi'(\cdot|s_t)).
+\end{equation}
+必须是$J^{\pi_{\text{old}}}(\pi_{\text{new}}(\cdot|s_t)) \leq J^{\pi_{\text{old}}}(\pi_{\text{old}}(\cdot|s_t))$的情况，因为我们可以总是选择$\pi_{\text{new}} = \pi_{\text{old}} \in \Pi$。因此，通过重复应用软Bellman（贝尔曼）方程和方程23中的界限，我们可以证明$Q^{\pi_{\text{old}}}(s_t, a_t) \leq Q^{\pi_{\text{new}}}(s_t, a_t)$。从引理1可以得出收敛到$Q^{\pi_{\text{new}}}$。
+
+\subsection{定理1}
+
+\textbf{定理1（软策略迭代，Soft Policy Iteration）}。对任何$\pi \in \Pi$重复应用软策略评估（Soft Policy Evaluation）和软策略改进（Soft Policy Improvement）将收敛到策略$\pi^*$，使得对于所有$\pi \in \Pi$和$(s_t, a_t) \in \mathcal{S} \times \mathcal{A}$，有$Q^{\pi^*}(s_t, a_t) \geq Q^\pi(s_t, a_t)$，假设$|\mathcal{A}| < \infty$。
+
+\textbf{证明}。设$\pi_i$是迭代$i$的策略。根据引理2，序列$Q^{\pi_i}$单调递增。由于对于$\pi \in \Pi$，$Q^\pi$在上方有界（奖励和熵都有界），序列收敛到某个$\pi^*$。我们仍然需要展示$\pi^*$确实是最优的。在收敛时，必须是$J^{\pi^*}(\pi^*(\cdot|s_t)) < J^{\pi^*}(\pi(\cdot|s_t))$对于所有$\pi \in \Pi$，$\pi \neq \pi^*$的情况。使用与引理2证明中相同的迭代论证，我们得到$Q^{\pi^*}(s_t, a_t) > Q^\pi(s_t, a_t)$对于所有$(s_t, a_t) \in \mathcal{S} \times \mathcal{A}$，也就是说，$\Pi$中任何其他策略的软值低于收敛策略的软值。因此$\pi^*$在$\Pi$中是最优的。
+
+\section{强制动作边界}
+
+我们使用无界高斯作为动作分布。然而，在实践中，动作需要被限制到有限区间。为此，我们对高斯样本应用可逆压缩函数（Invertible Squashing Function, tanh），并采用变量变化公式（Change of Variables Formula）（Change of Variables Formula）来计算有界动作的似然。换句话说，设$u \in \mathbb{R}^D$是随机变量，$\mu(u|s)$是对应的具有无限支持密度的随机变量。那么$a = \tanh(u)$，其中tanh按元素应用，是一个在$(-1, 1)$中支持的随机变量，其密度由下式给出：
+\begin{equation}
+\pi(a|s) = \mu(u|s) \det \left( \frac{da}{du} \right)^{-1}.
+\end{equation}
+由于雅可比矩阵（Jacobian Matrix）$da/du = \text{diag}(1 - \tanh^2(u))$是对角的，对数似然具有简单的形式：
+\begin{equation}
+\log \pi(a|s) = \log \mu(u|s) - \sum_{i=1}^D \log(1 - \tanh^2(u_i)),
+\end{equation}
+其中$u_i$是$u$的第$i$个元素。
+
+\section{超参数}
+
+表1列出了图1中比较评估使用的常见SAC参数。
+
+\begin{table}[h]
+\centering
+\caption{SAC超参数}
+\begin{tabular}{lc}
+\toprule
+参数 & 值 \\
+\midrule
+优化器 & Adam \\
+学习率 & $3 \times 10^{-4}$ \\
+折扣（$\gamma$） & 0.99 \\
+重放缓冲区大小 & $10^6$ \\
+隐藏层数（所有网络） & 2 \\
+每层隐藏单元数 & 256 \\
+每个小批次的样本数 & 256 \\
+熵目标 & $-\dim(\mathcal{A})$（例如，HalfCheetah-v1为-6） \\
+非线性 & ReLU \\
+目标平滑系数（$\tau$） & 0.005 \\
+目标更新间隔 & 1 \\
+梯度步数 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}

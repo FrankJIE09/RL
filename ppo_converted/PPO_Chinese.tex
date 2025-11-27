@@ -1,0 +1,352 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{a4paper,left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{近端策略优化（Policy Optimization）（Proximal Policy Optimization, PPO）算法}
+\author{John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, Oleg Klimov\\
+OpenAI\\
+\{joschu, filip, prafulla, alec, oleg\}@openai.com}
+\date{arXiv:1707.06347v2 [cs.LG] 2017年8月28日}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+我们提出了一类新的强化学习策略梯度（Policy Gradient）方法，这些方法在通过与环境的交互进行数据采样和使用随机梯度上升优化"代理"目标函数之间交替进行。标准的策略梯度（Policy Gradient）方法对每个数据样本执行一次梯度更新，而我们提出了一种新的目标函数，使得能够进行多个小批量更新周期。我们称之为近端策略优化（Policy Optimization）（Proximal Policy Optimization, PPO）的新方法具有信任域策略优化（Policy Optimization）（Trust Region Policy Optimization, TRPO）的一些优点，但实现起来要简单得多，更通用，并且具有更好的样本复杂度（经验上）。我们的实验在包括模拟机器人运动学和Atari游戏在内的一系列基准任务上测试了PPO（Proximal Policy Optimization），结果表明PPO（Proximal Policy Optimization）优于其他在线策略梯度（Policy Gradient）方法，并且在样本复杂度、简单性和运行时间之间取得了良好的平衡。
+\end{abstract}
+
+\section{引言}
+
+近年来，已经提出了几种不同的使用神经网络函数逼近器的强化学习方法。主要的竞争者是深度Q学习（Deep Q-Learning）~\cite{mnih2015human}、"普通"策略梯度（Policy Gradient）方法~\cite{mnih2016asynchronous}，以及信任域/自然策略梯度（Trust Region/Natural Policy Gradient）（Trust Region/Natural Policy Gradient）方法~\cite{schulman2015trust}。然而，在开发一种可扩展（适用于大型模型和并行实现）、数据高效且鲁棒（即，无需超参数调整即可在各种问题上成功）的方法方面仍有改进空间。Q学习（Q-Learning）（带函数逼近）在许多简单问题上失败\footnote{虽然DQN在像Arcade Learning Environment~\cite{bellemare2015arcade}这样具有离散动作空间的游戏环境中表现良好，但尚未证明在OpenAI Gym~\cite{brockman2016openai}和Duan等人~\cite{duan2016benchmarking}描述的连续控制基准上表现良好。}且理解不足，普通策略梯度（Policy Gradient）方法具有较差的数据效率和鲁棒性；而信任域策略优化（Policy Optimization）（Trust Region Policy Optimization, TRPO）相对复杂，并且与包含噪声（如dropout）或参数共享（在策略和价值函数（Value Function）之间，或与辅助任务）的架构不兼容。
+
+本文通过引入一种算法来改善当前状况，该算法在仅使用一阶优化的情况下实现了TRPO（Trust Region Policy Optimization）的数据效率和可靠性能。我们提出了一种带有裁剪概率比的新目标，它形成了策略性能的悲观估计（即下界）。为了优化策略，我们在从策略中采样数据和在采样数据上执行多个优化周期之间交替进行。我们的实验比较了各种不同版本的代理目标的性能，发现带有裁剪概率比的版本表现最好。我们还将PPO（Proximal Policy Optimization）与文献中的几种先前算法进行了比较。在连续控制任务上，它的表现优于我们比较的算法。在Atari上，它在样本复杂度方面显著优于A2C（Advantage Actor-Critic），与ACER（Actor-Critic with Experience Replay）类似，但简单得多。
+
+\section{背景：策略优化（Policy Optimization）}
+
+\subsection{策略梯度（Policy Gradient）方法}
+
+策略梯度（Policy Gradient）方法通过计算策略梯度（Policy Gradient）的估计器并将其插入随机梯度上升算法来工作。最常用的梯度估计器具有以下形式：
+\begin{equation}
+\hat{g} = \hat{\mathbb{E}}_t \left[ \nabla_\theta \log \pi_\theta(a_t | s_t) \hat{A}_t \right]
+\end{equation}
+其中$\pi_\theta$是随机策略，$\hat{A}_t$是时间步$t$的优势函数（Advantage Function）估计器。这里，期望$\hat{\mathbb{E}}_t[\cdots]$表示在有限样本批次上的经验平均值，在采样和优化之间交替的算法中。使用自动微分软件的实现通过构造一个目标函数来工作，该目标函数的梯度是策略梯度（Policy Gradient）估计器；通过微分目标函数获得估计器$\hat{g}$：
+\begin{equation}
+L^{PG}(\theta) = \hat{\mathbb{E}}_t \left[ \log \pi_\theta(a_t | s_t) \hat{A}_t \right]
+\end{equation}
+虽然使用相同轨迹对损失$L^{PG}$执行多个优化步骤很有吸引力，但这样做没有充分理由，并且经验上它经常导致破坏性的大策略更新（Policy Update）（见第6.1节；结果未显示，但与"无裁剪或惩罚"设置相似或更差）。
+
+\subsection{信任域方法（Trust Region Methods）}
+
+在TRPO（Trust Region Policy Optimization）~\cite{schulman2015trust}中，在策略更新（Policy Update）大小的约束下最大化目标函数（"代理"目标）。具体来说，
+\begin{align}
+\maximize_\theta \quad & \hat{\mathbb{E}}_t \left[ \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{old}}(a_t | s_t)} \hat{A}_t \right] \\
+\text{subject to} \quad & \hat{\mathbb{E}}_t \left[ \text{KL}[\pi_{\theta_{old}}(\cdot | s_t), \pi_\theta(\cdot | s_t)] \right] \leq \delta
+\end{align}
+这里，$\theta_{old}$是更新前的策略参数向量。在对目标进行线性近似和对约束进行二次近似后，可以使用共轭梯度算法（Conjugate Gradient Algorithm）有效地近似解决这个问题。
+
+证明TRPO（Trust Region Policy Optimization）的理论实际上建议使用惩罚而不是约束，即解决无约束优化问题：
+\begin{equation}
+\maximize_\theta \quad \hat{\mathbb{E}}_t \left[ \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{old}}(a_t | s_t)} \hat{A}_t - \beta \text{KL}[\pi_{\theta_{old}}(\cdot | s_t), \pi_\theta(\cdot | s_t)] \right]
+\end{equation}
+对于某个系数$\beta$。这是因为某个代理目标（计算状态上的最大KL而不是平均值）形成了策略$\pi$性能的下界（即悲观界）。TRPO（Trust Region Policy Optimization）使用硬约束而不是惩罚，因为很难选择一个在不同问题上表现良好的$\beta$值——甚至在一个问题内，其特征在学习过程中会发生变化。因此，为了实现我们的目标，即一个模拟TRPO（Trust Region Policy Optimization）单调改进的一阶算法，实验表明，简单地选择一个固定的惩罚系数$\beta$并使用SGD（Stochastic Gradient Descent）优化惩罚目标方程(5)是不够的；需要额外的修改。
+
+\section{裁剪代理目标}
+
+令$r_t(\theta)$表示概率比$r_t(\theta) = \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{old}}(a_t | s_t)}$，因此$r(\theta_{old}) = 1$。TRPO（Trust Region Policy Optimization）最大化"代理"目标：
+\begin{equation}
+L^{CPI}(\theta) = \hat{\mathbb{E}}_t \left[ \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{old}}(a_t | s_t)} \hat{A}_t \right] = \hat{\mathbb{E}}_t \left[ r_t(\theta) \hat{A}_t \right]
+\end{equation}
+上标$CPI$指的是保守策略迭代（Policy Iteration）（Conservative Policy Iteration, CPI）~\cite{kakade2002approximately}，其中提出了这个目标。没有约束，最大化$L^{CPI}$会导致过大的策略更新（Policy Update）；因此，我们现在考虑如何修改目标，以惩罚将$r_t(\theta)$移离1的策略变化。
+
+我们提出的主要目标如下：
+\begin{equation}
+L^{CLIP}(\theta) = \hat{\mathbb{E}}_t \left[ \min(r_t(\theta) \hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t) \right]
+\end{equation}
+其中$\epsilon$是一个超参数，例如$\epsilon = 0.2$。这个目标的动机如下。$\min$内的第一项是$L^{CPI}$。第二项$\text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t$通过裁剪概率比来修改代理目标，这消除了将$r_t$移出区间$[1-\epsilon, 1+\epsilon]$的动机。最后，我们取裁剪和未裁剪目标的最小值，因此最终目标是未裁剪目标的下界（即悲观界）。通过这种方案，我们只在概率比的变化会使目标改善时忽略它，而在它使目标变差时包含它。注意$L^{CLIP}(\theta) = L^{CPI}(\theta)$在$\theta_{old}$附近的一阶（即$r = 1$处），然而，当$\theta$远离$\theta_{old}$时，它们变得不同。图1绘制了$L^{CLIP}$中的单个项（即单个$t$）；注意概率比$r$根据优势是正还是负在$1-\epsilon$或$1+\epsilon$处被裁剪。
+
+图2提供了关于代理目标$L^{CLIP}$的另一个直觉来源。它显示了当我们沿着策略更新（Policy Update）方向插值时，几个目标如何变化，该方向是通过在连续控制问题上进行近端策略优化（Policy Optimization）（Proximal Policy Optimization, PPO（Proximal Policy Optimization））（我们即将介绍的算法）获得的。我们可以看到$L^{CLIP}$是$L^{CPI}$的下界，对过大的策略更新（Policy Update）有惩罚。
+
+\section{自适应KL惩罚系数}
+
+另一种方法，可以作为裁剪代理目标的替代方案，或与它一起使用，是使用KL散度（Kullback-Leibler Divergence）的惩罚，并自适应惩罚系数，以便我们在每次策略更新（Policy Update）时达到某个目标KL散度（Kullback-Leibler Divergence）值$d_{targ}$。在我们的实验中，我们发现KL惩罚的表现不如裁剪代理目标，但我们在这里包含它是因为它是一个重要的基线。
+
+在这个算法的最简单实例化中，我们在每次策略更新（Policy Update）中执行以下步骤：
+\begin{itemize}
+\item 使用几个小批量SGD（Stochastic Gradient Descent）周期，优化KL惩罚目标：
+\begin{equation}
+L^{KLPEN}(\theta) = \hat{\mathbb{E}}_t \left[ \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{old}}(a_t | s_t)} \hat{A}_t - \beta \text{KL}[\pi_{\theta_{old}}(\cdot | s_t), \pi_\theta(\cdot | s_t)] \right]
+\end{equation}
+\item 计算$d = \hat{\mathbb{E}}_t \left[ \text{KL}[\pi_{\theta_{old}}(\cdot | s_t), \pi_\theta(\cdot | s_t)] \right]$
+\begin{itemize}
+\item 如果$d < d_{targ}/1.5$，则$\beta \leftarrow \beta/2$
+\item 如果$d > d_{targ} \times 1.5$，则$\beta \leftarrow \beta \times 2$
+\end{itemize}
+\end{itemize}
+更新后的$\beta$用于下一次策略更新（Policy Update）。通过这种方案，我们偶尔会看到KL散度（Kullback-Leibler Divergence）与$d_{targ}$显著不同的策略更新（Policy Update），但这些很少见，$\beta$会快速调整。上面的参数1.5和2是启发式选择的，但算法对它们不太敏感。$\beta$的初始值是另一个超参数，但在实践中不重要，因为算法会快速调整它。
+
+\section{算法}
+
+前面各节的代理损失可以通过对典型策略梯度（Policy Gradient）实现的微小更改来计算和微分。对于使用自动微分的实现，只需构造损失$L^{CLIP}$或$L^{KLPEN}$而不是$L^{PG}$，并在此目标上执行多个随机梯度上升步骤。
+
+大多数计算方差减少的优势函数（Advantage Function）估计器的技术都使用学习的状态价值函数（State Value Function）$V(s)$；例如，广义优势估计~\cite{schulman2015high}，或~\cite{mnih2016asynchronous}中的有限视野估计器。如果使用在策略和价值函数（Value Function）之间共享参数的神经网络架构，我们必须使用结合策略代理和价值函数（Value Function）误差项的损失函数。这个目标可以通过添加熵奖励来进一步增强，以确保充分的探索，如过去的工作所建议的~\cite{williams1992simple, mnih2016asynchronous}。结合这些项，我们获得以下目标，每次迭代（近似）最大化：
+\begin{equation}
+L_t^{CLIP+VF+S}(\theta) = \hat{\mathbb{E}}_t \left[ L_t^{CLIP}(\theta) - c_1 L_t^{VF}(\theta) + c_2 S[\pi_\theta](s_t) \right]
+\end{equation}
+其中$c_1$、$c_2$是系数，$S$表示熵奖励，$L_t^{VF}$是平方误差损失$(V_\theta(s_t) - V_t^{targ})^2$。
+
+一种策略梯度（Policy Gradient）实现风格，在~\cite{mnih2016asynchronous}中推广，非常适合与循环神经网络（Recurrent Neural Network, RNN）一起使用，运行策略$T$个时间步（其中$T$远小于回合长度），并使用收集的样本进行更新。这种风格需要一个不查看时间步$T$之后的优势估计器。~\cite{mnih2016asynchronous}使用的估计器是：
+\begin{equation}
+\hat{A}_t = -V(s_t) + r_t + \gamma r_{t+1} + \cdots + \gamma^{T-t+1} r_{T-1} + \gamma^{T-t} V(s_T)
+\end{equation}
+其中$t$指定给定长度$T$轨迹段内$[0, T]$中的时间索引。推广这个选择，我们可以使用广义优势估计的截断版本，当$\lambda = 1$时简化为方程(10)：
+\begin{align}
+\hat{A}_t &= \delta_t + (\gamma\lambda)\delta_{t+1} + \cdots + (\gamma\lambda)^{T-t+1} \delta_{T-1} \\
+\delta_t &= r_t + \gamma V(s_{t+1}) - V(s_t)
+\end{align}
+
+使用固定长度轨迹段的近端策略优化（Policy Optimization）（Proximal Policy Optimization, PPO（Proximal Policy Optimization））（PPO（Proximal Policy Optimization））算法如下所示。每次迭代，$N$个（并行）参与者中的每一个收集$T$个时间步的数据。然后我们在这些$N T$个时间步的数据上构造代理损失，并使用小批量SGD（Mini-batch Stochastic Gradient Descent）（或通常为了更好的性能，Adam（Adaptive Moment Estimation）~\cite{kingma2014adam}）优化它，进行$K$个周期。
+
+\begin{algorithm}
+\caption{PPO（Proximal Policy Optimization），演员-评论家（Actor-Critic）风格}
+\begin{algorithmic}[1]
+\FOR{iteration=1, 2, \ldots}
+    \FOR{actor=1, 2, \ldots, N}
+        \STATE 在环境中运行策略$\pi_{\theta_{old}}$，持续$T$个时间步
+        \STATE 计算优势估计$\hat{A}_1, \ldots, \hat{A}_T$
+    \ENDFOR
+    \STATE 关于$\theta$优化代理$L$，进行$K$个周期，小批量大小为$M \leq N T$
+    \STATE $\theta_{old} \leftarrow \theta$
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\section{实验}
+
+\subsection{代理目标的比较}
+
+首先，我们在不同超参数下比较几种不同的代理目标。这里，我们将代理目标$L^{CLIP}$与几种自然变体和消融版本进行比较。
+
+无裁剪或惩罚：
+\begin{equation}
+L_t(\theta) = r_t(\theta) \hat{A}_t
+\end{equation}
+
+裁剪：
+\begin{equation}
+L_t(\theta) = \min(r_t(\theta) \hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_t)
+\end{equation}
+
+KL惩罚（固定或自适应）：
+\begin{equation}
+L_t(\theta) = r_t(\theta) \hat{A}_t - \beta \text{KL}[\pi_{\theta_{old}}, \pi_\theta]
+\end{equation}
+
+对于KL惩罚，可以使用固定惩罚系数$\beta$或使用目标KL值$d_{targ}$的自适应系数，如第4节所述。注意我们也尝试了对数空间中的裁剪，但发现性能没有更好。
+
+因为我们正在为每个算法变体搜索超参数，我们选择了一个计算成本低的基准来测试算法。即，我们使用了在OpenAI Gym~\cite{brockman2016openai}中实现的7个模拟机器人任务\footnote{HalfCheetah, Hopper, InvertedDoublePendulum, InvertedPendulum, Reacher, Swimmer, 和Walker2d，都是"-v1"版本}，它们使用MuJoCo~\cite{todorov2012mujoco}物理引擎。我们在每个任务上进行一百万时间步的训练。除了用于裁剪（$\epsilon$）和KL惩罚（$\beta$、$d_{targ}$）的超参数（我们搜索这些）之外，其他超参数在表3中提供。
+
+为了表示策略，我们使用了一个具有两个64单元隐藏层和tanh非线性的全连接MLP（Multi-Layer Perceptron），输出高斯分布的均值，具有可变标准差，遵循~\cite{schulman2015trust, duan2016benchmarking}。我们不在策略和价值函数（Value Function）之间共享参数（因此系数$c_1$无关），并且我们不使用熵奖励。
+
+每个算法在所有7个环境上运行，每个环境有3个随机种子。我们通过计算最后100个回合的平均总奖励来对算法的每次运行进行评分。我们对每个环境的分数进行平移和缩放，使得随机策略的分数为0，最佳结果设置为1，并在21次运行上平均以产生每个算法设置的单个标量。
+
+结果如表1所示。注意，对于没有裁剪或惩罚的设置，分数为负，因为对于一个环境（half cheetah），它导致非常负的分数，这比初始随机策略更差。
+
+\begin{table}[h]
+\centering
+\caption{连续控制基准的结果。每个算法/超参数设置的平均归一化分数（在7个环境上运行21次算法）。$\beta$初始化为1。}
+\begin{tabular}{lc}
+\toprule
+算法 & 平均归一化分数 \\
+\midrule
+无裁剪或惩罚 & -0.39 \\
+裁剪，$\epsilon = 0.1$ & 0.76 \\
+裁剪，$\epsilon = 0.2$ & 0.82 \\
+裁剪，$\epsilon = 0.3$ & 0.70 \\
+自适应KL $d_{targ} = 0.003$ & 0.68 \\
+自适应KL $d_{targ} = 0.01$ & 0.74 \\
+自适应KL $d_{targ} = 0.03$ & 0.71 \\
+固定KL，$\beta = 0.3$ & 0.62 \\
+固定KL，$\beta = 1.$ & 0.71 \\
+固定KL，$\beta = 3.$ & 0.72 \\
+固定KL，$\beta = 10.$ & 0.69 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{与连续域中其他算法的比较}
+
+接下来，我们将PPO（Proximal Policy Optimization）（使用第3节的"裁剪"代理目标）与文献中其他几种被认为对连续问题有效的方法进行比较。我们与以下算法的调优实现进行了比较：信任域（Trust Region）策略优化（Policy Optimization）~\cite{schulman2015trust}、交叉熵方法（Cross-Entropy Method, CEM）~\cite{szita2006learning}、具有自适应步长的普通策略梯度（Policy Gradient）\footnote{在每批数据之后，根据原始和更新策略的KL散度（Kullback-Leibler Divergence）调整Adam（Adaptive Moment Estimation）步长，使用类似于第4节所示的规则。实现可在https://github.com/berkeleydeeprlcourse/homework/tree/master/hw4获得。}、A2C（Advantage Actor-Critic）~\cite{mnih2016asynchronous}、带信任域（Trust Region）的A2C（Advantage Actor-Critic）~\cite{wang2016sample}。A2C（Advantage Actor-Critic）代表优势演员评论家（Advantage Actor-Critic），是A3C（Asynchronous Advantage Actor-Critic）的同步版本，我们发现它的性能与异步版本相同或更好。对于PPO（Proximal Policy Optimization），我们使用上一节的超参数，$\epsilon = 0.2$。我们看到PPO（Proximal Policy Optimization）在几乎所有连续控制环境上都优于先前的方法。
+
+图3显示了在几个MuJoCo环境上训练一百万时间步的几种算法的比较。
+
+\subsection{连续域中的展示：人形机器人跑步和转向}
+
+为了展示PPO（Proximal Policy Optimization）在高维连续控制问题上的性能，我们在涉及3D人形机器人的一组问题上进行训练，机器人必须跑步、转向并从地面上站起来，可能在被立方体击中时。我们测试的三个任务是（1）RoboschoolHumanoid：仅向前运动，（2）RoboschoolHumanoidFlagrun：目标位置每200个时间步或每当达到目标时随机变化，（3）RoboschoolHumanoidFlagrunHarder，其中机器人被立方体击中并需要从地面上站起来。见图5了解学习策略的静止帧，见图4了解三个任务上的学习曲线。超参数在表4中提供。在并行工作中，Heess等人~\cite{heess2017emergence}使用PPO（Proximal Policy Optimization）的自适应KL变体（第4节）学习3D机器人的运动策略。
+
+\subsection{与Atari域中其他算法的比较}
+
+我们还在Arcade Learning Environment~\cite{bellemare2015arcade}基准上运行了PPO（Proximal Policy Optimization），并与A2C（Advantage Actor-Critic）~\cite{mnih2016asynchronous}和ACER（Actor-Critic with Experience Replay）~\cite{wang2016sample}的调优实现进行了比较。对于所有三种算法，我们使用了与~\cite{mnih2016asynchronous}中相同的策略网络（Policy Network）架构。PPO（Proximal Policy Optimization）的超参数在表5中提供。对于其他两种算法，我们使用了调优以在此基准上最大化性能的超参数。
+
+所有49个游戏的结果表和学习曲线在附录B中提供。我们考虑以下两个评分指标：（1）整个训练期间每回合的平均奖励（有利于快速学习），和（2）训练最后100个回合的平均奖励（有利于最终性能）。表2显示了每种算法"获胜"的游戏数量，其中我们通过在三轮试验中平均评分指标来计算获胜者。
+
+\begin{table}[h]
+\centering
+\caption{每种算法"获胜"的游戏数量，其中评分指标在三轮试验中平均。}
+\begin{tabular}{lcc}
+\toprule
+ & (1) 训练期间平均回合奖励 & (2) 最后100回合平均奖励 \\
+\midrule
+A2C（Advantage Actor-Critic） & 1 & 1 \\
+ACER（Actor-Critic with Experience Replay） & 18 & 28 \\
+PPO（Proximal Policy Optimization） & 30 & 19 \\
+平局 & 0 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{结论}
+
+我们引入了近端策略优化（Policy Optimization）（Proximal Policy Optimization, PPO（Proximal Policy Optimization）），一类策略优化（Policy Optimization）方法，使用多个随机梯度上升周期来执行每次策略更新（Policy Update）。这些方法具有信任域（Trust Region）方法的稳定性和可靠性，但实现起来要简单得多，只需要对普通策略梯度（Policy Gradient）实现进行几行代码更改，适用于更一般的设置（例如，当使用策略和价值函数（Value Function）的联合架构时），并具有更好的整体性能。
+
+\section{致谢}
+
+感谢OpenAI的Rocky Duan、Peter Chen和其他人的深刻评论。
+
+\appendix
+
+\section{超参数}
+
+\begin{table}[h]
+\centering
+\caption{用于MuJoCo一百万时间步基准的PPO（Proximal Policy Optimization）超参数}
+\begin{tabular}{lc}
+\toprule
+超参数 & 值 \\
+\midrule
+视野（$T$） & 2048 \\
+Adam（Adaptive Moment Estimation）步长 & $3 \times 10^{-4}$ \\
+周期数 & 10 \\
+小批量大小 & 64 \\
+折扣（$\gamma$） & 0.99 \\
+GAE参数（$\lambda$） & 0.95 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{用于Roboschool实验的PPO（Proximal Policy Optimization）超参数。Adam（Adaptive Moment Estimation）步长根据KL散度（Kullback-Leibler Divergence）的目标值进行调整。}
+\begin{tabular}{lc}
+\toprule
+超参数 & 值 \\
+\midrule
+视野（$T$） & 512 \\
+Adam（Adaptive Moment Estimation）步长 & $*$ \\
+周期数 & 15 \\
+小批量大小 & 4096 \\
+折扣（$\gamma$） & 0.99 \\
+GAE参数（$\lambda$） & 0.95 \\
+参与者数量 & 32（运动），128（flagrun） \\
+动作分布的对数标准差 & LinearAnneal($-0.7, -1.6$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{用于Atari实验的PPO（Proximal Policy Optimization）超参数。$\alpha$在学习过程中从1线性退火到0。}
+\begin{tabular}{lc}
+\toprule
+超参数 & 值 \\
+\midrule
+视野（$T$） & 128 \\
+Adam（Adaptive Moment Estimation）步长 & $2.5 \times 10^{-4} \times \alpha$ \\
+周期数 & 3 \\
+小批量大小 & $32 \times 8$ \\
+折扣（$\gamma$） & 0.99 \\
+GAE参数（$\lambda$） & 0.95 \\
+参与者数量 & 8 \\
+裁剪参数$\epsilon$ & $0.1 \times \alpha$ \\
+VF系数$c_1$（方程(9)） & 1 \\
+熵系数$c_2$（方程(9)） & 0.01 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{更多Atari游戏上的性能}
+
+这里我们包含了PPO（Proximal Policy Optimization）与A2C（Advantage Actor-Critic）在更大的49个Atari游戏集合上的比较。图6显示了三个随机种子中每一个的学习曲线，而表6显示了平均性能。
+
+\begin{table}[h]
+\centering
+\caption{PPO（Proximal Policy Optimization）和A2C（Advantage Actor-Critic）在Atari游戏上40M游戏帧（10M时间步）后的平均最终分数（最后100回合）。}
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+游戏 & A2C（Advantage Actor-Critic） & ACER（Actor-Critic with Experience Replay） & PPO（Proximal Policy Optimization） \\
+\midrule
+Alien & 1141.7 & 1655.4 & 1850.3 \\
+Amidar & 380.8 & 827.6 & 674.6 \\
+Assault & 1562.9 & 4653.8 & 4971.9 \\
+Asterix & 3176.3 & 6801.2 & 4532.5 \\
+Asteroids & 1653.3 & 2389.3 & 2097.5 \\
+Atlantis & 729265.3 & 1841376.0 & 2311815.0 \\
+BankHeist & 1095.3 & 1177.5 & 1280.6 \\
+BattleZone & 3080.0 & 8983.3 & 17366.7 \\
+BeamRider & 3031.7 & 3863.3 & 1590.0 \\
+Bowling & 30.1 & 33.3 & 40.1 \\
+Boxing & 17.7 & 98.9 & 94.6 \\
+Breakout & 303.0 & 456.4 & 274.8 \\
+Centipede & 3496.5 & 8904.8 & 4386.4 \\
+ChopperCommand & 1171.7 & 5287.7 & 3516.3 \\
+CrazyClimber & 107770.0 & 132461.0 & 110202.0 \\
+DemonAttack & 6639.1 & 38808.3 & 11378.4 \\
+DoubleDunk & -16.2 & -13.2 & -14.9 \\
+Enduro & 0.0 & 0.0 & 758.3 \\
+FishingDerby & 20.6 & 34.7 & 17.8 \\
+Freeway & 0.0 & 0.0 & 32.5 \\
+Frostbite & 261.8 & 285.6 & 314.2 \\
+Gopher & 1500.9 & 37802.3 & 2932.9 \\
+Gravitar & 194.0 & 225.3 & 737.2 \\
+IceHockey & -6.4 & -5.9 & -4.2 \\
+Jamesbond & 52.3 & 261.8 & 560.7 \\
+Kangaroo & 45.3 & 50.0 & 9928.7 \\
+Krull & 8367.4 & 7268.4 & 7942.3 \\
+KungFuMaster & 24900.3 & 27599.3 & 23310.3 \\
+MontezumaRevenge & 0.0 & 0.3 & 42.0 \\
+MsPacman & 1626.9 & 2718.5 & 2096.5 \\
+NameThisGame & 5961.2 & 8488.0 & 6254.9 \\
+Pitfall & -55.0 & -16.9 & -32.9 \\
+Pong & 19.7 & 20.7 & 20.7 \\
+PrivateEye & 91.3 & 182.0 & 69.5 \\
+Qbert & 10065.7 & 15316.6 & 14293.3 \\
+Riverraid & 7653.5 & 9125.1 & 8393.6 \\
+RoadRunner & 32810.0 & 35466.0 & 25076.0 \\
+Robotank & 2.2 & 2.5 & 5.5 \\
+Seaquest & 1714.3 & 1739.5 & 1204.5 \\
+SpaceInvaders & 744.5 & 1213.9 & 942.5 \\
+StarGunner & 26204.0 & 49817.7 & 32689.0 \\
+Tennis & -22.2 & -17.6 & -14.8 \\
+TimePilot & 2898.0 & 4175.7 & 4342.0 \\
+Tutankham & 206.8 & 280.8 & 254.4 \\
+UpNDown & 17369.8 & 145051.4 & 95445.0 \\
+Venture & 0.0 & 0.0 & 0.0 \\
+VideoPinball & 19735.9 & 156225.6 & 37389.0 \\
+WizardOfWor & 859.0 & 2308.3 & 4185.3 \\
+Zaxxon & 16.3 & 29.0 & 5008.7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+注意：图6（显示所有49个Atari游戏的学习曲线）由于篇幅限制未在此处包含，但可以在原始论文中找到。
+
+\end{document}
