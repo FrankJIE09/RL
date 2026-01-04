@@ -1,0 +1,216 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\geometry{top=0cm, bottom=5cm, left=5cm, right=5cm}
+
+\title{贝尔曼方程公式集}
+\subtitle{重要公式汇总}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{价值函数基础}
+
+\subsection{状态价值函数}
+
+\textbf{状态价值函数定义}：
+\begin{equation}
+v_\pi(s) \doteq \mathbb{E}_\pi[G_t | S_t = s] = \mathbb{E}_\pi\left[\sum_{k=0}^\infty \gamma^k R_{t+k+1} \Big| S_t = s\right]
+\label{eq:state_value}
+\end{equation}
+
+\subsection{动作价值函数}
+
+\textbf{动作价值函数定义}：
+\begin{equation}
+q_\pi(s, a) \doteq \mathbb{E}_\pi[G_t | S_t = s, A_t = a] = \mathbb{E}_\pi\left[\sum_{k=0}^\infty \gamma^k R_{t+k+1} \Big| S_t = s, A_t = a\right]
+\label{eq:action_value}
+\end{equation}
+
+\subsection{价值函数之间的关系}
+
+\textbf{状态价值到动作价值}：
+\begin{equation}
+v_\pi(s) = \sum_{a \in \mathcal{A}(s)} \pi(a | s) q_\pi(s, a)
+\label{eq:v_to_q}
+\end{equation}
+
+\textbf{动作价值到状态价值}：
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\label{eq:q_to_v}
+\end{equation}
+
+\section{状态价值函数的贝尔曼方程}
+
+\subsection{回报分解}
+
+\textbf{回报分解}：
+\begin{equation}
+G_t = R_{t+1} + \gamma G_{t+1}
+\end{equation}
+
+\subsection{状态价值函数的贝尔曼方程}
+
+\textbf{状态价值函数的贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \sum_{a \in \mathcal{A}(s)} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\label{eq:bellman_v}
+\end{equation}
+
+\subsection{矩阵形式}
+
+\textbf{矩阵形式的贝尔曼方程}：
+\begin{equation}
+\mathbf{v}_\pi = \mathbf{r}_\pi + \gamma \mathbf{P}_\pi \mathbf{v}_\pi
+\label{eq:bellman_matrix}
+\end{equation}
+
+\textbf{矩阵形式的解}：
+\begin{equation}
+\mathbf{v}_\pi = (\mathbf{I} - \gamma \mathbf{P}_\pi)^{-1} \mathbf{r}_\pi
+\label{eq:bellman_solution}
+\end{equation}
+
+\section{动作价值函数的贝尔曼方程}
+
+\textbf{动作价值函数的贝尔曼方程}：
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi(s', a')\right]
+\label{eq:bellman_q}
+\end{equation}
+
+\section{最优贝尔曼方程}
+
+\subsection{最优价值函数}
+
+\textbf{最优状态价值函数}：
+\begin{equation}
+v_*(s) \doteq \max_\pi v_\pi(s)
+\label{eq:optimal_v}
+\end{equation}
+
+\textbf{最优动作价值函数}：
+\begin{equation}
+q_*(s, a) \doteq \max_\pi q_\pi(s, a)
+\label{eq:optimal_q}
+\end{equation}
+
+\subsection{最优状态价值函数的贝尔曼方程}
+
+\textbf{最优状态价值函数的贝尔曼方程}：
+\begin{equation}
+v_*(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\label{eq:bellman_optimal_v}
+\end{equation}
+
+\subsection{最优动作价值函数的贝尔曼方程}
+
+\textbf{最优动作价值函数的贝尔曼方程}：
+\begin{equation}
+q_*(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \max_{a'} q_*(s', a')\right]
+\label{eq:bellman_optimal_q}
+\end{equation}
+
+\subsection{最优策略}
+
+\textbf{贪婪策略}：
+\begin{equation}
+\pi_*(a | s) = \begin{cases}
+1, & \text{如果 } a = \arg\max_{a'} q_*(s, a') \\
+0, & \text{否则}
+\end{cases}
+\label{eq:greedy_policy}
+\end{equation}
+
+\section{贝尔曼方程的求解}
+
+\subsection{解析解}
+
+\textbf{矩阵形式的解}：
+\begin{equation}
+\mathbf{v}_\pi = (\mathbf{I} - \gamma \mathbf{P}_\pi)^{-1} \mathbf{r}_\pi
+\label{eq:bellman_solution}
+\end{equation}
+
+\subsection{迭代求解}
+
+\textbf{价值迭代}：
+\begin{equation}
+v_{k+1}(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\label{eq:value_iteration}
+\end{equation}
+
+\textbf{策略评估迭代}：
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\textbf{策略改进}：
+\begin{equation}
+\pi'(a | s) = \begin{cases}
+1, & \text{如果 } a = \arg\max_{a'} \sum_{s', r} p(s', r | s, a') [r + \gamma v_\pi(s')] \\
+0, & \text{否则}
+\end{cases}
+\end{equation}
+
+\section{贝尔曼方程的应用}
+
+\subsection{在时序差分学习中的应用}
+
+\textbf{TD更新}：
+\begin{equation}
+v(s) \leftarrow v(s) + \alpha [r + \gamma v(s') - v(s)]
+\end{equation}
+
+\subsection{在Q学习中的应用}
+
+\textbf{Q学习更新}：
+\begin{equation}
+q(s, a) \leftarrow q(s, a) + \alpha \left[r + \gamma \max_{a'} q(s', a') - q(s, a)\right]
+\end{equation}
+
+\subsection{在深度强化学习中的应用}
+
+\textbf{DQN损失函数}：
+\begin{equation}
+\mathcal{L} = \mathbb{E}\left[\left(r + \gamma \max_{a'} q(s', a'; \theta^-) - q(s, a; \theta)\right)^2\right]
+\end{equation}
+
+\section{贝尔曼方程的扩展}
+
+\subsection{多步贝尔曼方程}
+
+\textbf{$n$ 步贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi\left[\sum_{k=0}^{n-1} \gamma^k R_{t+k+1} + \gamma^n v_\pi(S_{t+n}) \Big| S_t = s\right]
+\end{equation}
+
+\subsection{平均奖励贝尔曼方程}
+
+\textbf{平均奖励贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r - \rho_\pi + v_\pi(s')]
+\end{equation}
+
+\subsection{部分可观测MDP中的贝尔曼方程}
+
+\textbf{POMDP贝尔曼方程}：
+\begin{equation}
+v_\pi(b) = \sum_{a} \pi(a | b) \sum_{o, r} p(o, r | b, a) [r + \gamma v_\pi(b')]
+\end{equation}
+
+\end{document}
+

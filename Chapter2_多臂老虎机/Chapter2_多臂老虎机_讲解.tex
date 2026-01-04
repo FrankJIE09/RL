@@ -1,0 +1,275 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+
+\geometry{margin=2.5cm}
+
+\title{第2章：多臂老虎机（Multi-armed Bandits）讲解}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{章节概述}
+
+第2章介绍了强化学习中最基本的探索与利用问题。多臂老虎机问题是一个简化的强化学习场景，它不涉及多个状态，只关注如何在不同动作之间进行选择以最大化累积奖励。
+
+\section{核心概念}
+
+\subsection{评估性反馈 vs 指导性反馈}
+
+\begin{itemize}
+    \item \textbf{评估性反馈（Evaluative Feedback）}：告诉我们采取的动作有多好，但不告诉我们这是否是最佳或最差动作
+    \item \textbf{指导性反馈（Instructive Feedback）}：告诉我们应该采取的正确动作，与实际上采取的动作无关
+\end{itemize}
+
+强化学习使用评估性反馈，这创造了\textbf{探索与利用的冲突}。
+
+\subsection{k-臂老虎机问题}
+
+\textbf{问题定义}：
+\begin{itemize}
+    \item 有 $k$ 个不同的动作可以选择
+    \item 每次选择动作后，会收到一个数值奖励
+    \item 奖励来自一个依赖于所选动作的平稳概率分布
+    \item 目标是在一段时间内最大化期望总奖励
+\end{itemize}
+
+\textbf{关键符号}：
+\begin{itemize}
+    \item $q_*(a)$：动作 $a$ 的真实价值（期望奖励）
+    \item $Q_t(a)$：在时间步 $t$ 对动作 $a$ 的估计价值
+    \item $A_t$：在时间步 $t$ 选择的动作
+    \item $R_t$：在时间步 $t$ 收到的奖励
+\end{itemize}
+
+\subsection{探索与利用}
+
+\begin{itemize}
+    \item \textbf{利用（Exploitation）}：选择当前估计价值最高的动作（贪婪动作）
+    \item \textbf{探索（Exploration）}：选择非贪婪动作，以改进对它们价值的估计
+\end{itemize}
+
+\textbf{核心冲突}：不可能同时探索和利用，必须在两者之间取得平衡。
+
+\section{主要方法}
+
+\subsection{动作-价值方法（Action-value Methods）}
+
+\textbf{样本平均方法}：
+\begin{equation}
+Q_t(a) = \frac{\text{所有在时间 } t \text{ 之前选择动作 } a \text{ 的奖励之和}}{\text{在时间 } t \text{ 之前选择动作 } a \text{ 的次数}}
+\end{equation}
+
+\textbf{贪婪动作选择}：
+\begin{equation}
+A_t = \arg\max_a Q_t(a)
+\end{equation}
+
+\textbf{$\varepsilon$-贪婪方法}：
+\begin{itemize}
+    \item 以概率 $1-\varepsilon$ 选择贪婪动作
+    \item 以概率 $\varepsilon$ 随机选择动作
+\end{itemize}
+
+\textbf{优点}：
+\begin{itemize}
+    \item 简单易实现
+    \item 在极限情况下，所有动作都会被无限次采样
+    \item 所有 $Q_t(a)$ 都会收敛到 $q_*(a)$
+\end{itemize}
+
+\subsection{10-臂测试平台}
+
+\textbf{实验设置}：
+\begin{itemize}
+    \item 2000 个随机生成的 10-臂老虎机问题
+    \item 每个动作的真实价值 $q_*(a)$ 从均值为 0、方差为 1 的正态分布中选择
+    \item 实际奖励从均值为 $q_*(A_t)$、方差为 1 的正态分布中选择
+\end{itemize}
+
+\textbf{实验结果}：
+\begin{itemize}
+    \item 贪婪方法在长期表现更差，因为它经常陷入次优动作
+    \item $\varepsilon$-贪婪方法最终表现更好，因为它们继续探索
+    \item $\varepsilon = 0.1$ 的方法探索更多，通常更早找到最优动作
+    \item $\varepsilon = 0.01$ 的方法改进更慢，但最终可能表现更好
+\end{itemize}
+
+\subsection{增量实现}
+
+\textbf{增量更新公式}：
+\begin{equation}
+Q_{n+1} = Q_n + \frac{1}{n}[R_n - Q_n]
+\end{equation}
+
+\textbf{通用形式}：
+\begin{equation}
+\text{新估计} \leftarrow \text{旧估计} + \text{步长}[\text{目标} - \text{旧估计}]
+\end{equation}
+
+这种方法只需要常数内存和常数计算量。
+
+\subsection{跟踪非平稳问题}
+
+对于非平稳问题，使用\textbf{常数步长参数}：
+\begin{equation}
+Q_{n+1} = Q_n + \alpha[R_n - Q_n]
+\end{equation}
+
+其中 $\alpha \in (0, 1]$ 是常数。
+
+\textbf{指数近因加权平均}：
+\begin{equation}
+Q_{n+1} = (1-\alpha)^n Q_1 + \sum_{i=1}^n \alpha(1-\alpha)^{n-i} R_i
+\end{equation}
+
+\textbf{收敛条件}（随机逼近理论）：
+\begin{enumerate}
+    \item $\sum_{n=1}^{\infty} \alpha_n(a) = \infty$
+    \item $\sum_{n=1}^{\infty} \alpha_n^2(a) < \infty$
+\end{enumerate}
+
+\subsection{乐观初始值}
+
+\textbf{思想}：将初始动作价值估计设置为乐观值（如 +5），鼓励探索。
+
+\textbf{优点}：
+\begin{itemize}
+    \item 即使总是选择贪婪动作，系统也会进行大量探索
+    \item 所有动作在价值估计收敛前都会被尝试多次
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item 不适合非平稳问题
+    \item 探索驱动力是暂时的
+\end{itemize}
+
+\subsection{上置信界动作选择（UCB）}
+
+\textbf{UCB 动作选择}：
+\begin{equation}
+A_t = \arg\max_a \left[ Q_t(a) + c\sqrt{\frac{\ln t}{N_t(a)}} \right]
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\ln t$：$t$ 的自然对数
+    \item $N_t(a)$：在时间 $t$ 之前动作 $a$ 被选择的次数
+    \item $c > 0$：控制探索程度的参数
+\end{itemize}
+
+\textbf{思想}：
+\begin{itemize}
+    \item 平方根项是对动作价值估计不确定性的度量
+    \item 被最大化的量是动作真实价值的上界
+    \item 每次选择动作 $a$，不确定性减少
+    \item 每次选择其他动作，不确定性增加
+\end{itemize}
+
+\textbf{优点}：在 10-臂测试平台上通常表现良好
+
+\textbf{缺点}：
+\begin{itemize}
+    \item 比 $\varepsilon$-贪婪更难扩展到更一般的强化学习设置
+    \item 处理非平稳问题需要更复杂的方法
+    \item 处理大状态空间时不实用
+\end{itemize}
+
+\subsection{梯度老虎机算法}
+
+\textbf{思想}：学习每个动作的数值偏好 $H_t(a)$，而不是估计动作价值。
+
+\textbf{动作选择}（soft-max 分布）：
+\begin{equation}
+\Pr\{A_t = a\} = \frac{e^{H_t(a)}}{\sum_{b=1}^k e^{H_t(b)}} = \pi_t(a)
+\end{equation}
+
+\textbf{更新规则}：
+\begin{align}
+H_{t+1}(A_t) &= H_t(A_t) + \alpha[R_t - \bar{R}_t][1 - \pi_t(A_t)] \\
+H_{t+1}(a) &= H_t(a) - \alpha[R_t - \bar{R}_t]\pi_t(a), \quad \text{对所有 } a \neq A_t
+\end{align}
+
+其中：
+\begin{itemize}
+    \item $\alpha > 0$：步长参数
+    \item $\bar{R}_t$：到时间 $t$ 为止所有奖励的平均值（基线）
+\end{itemize}
+
+\textbf{理论保证}：梯度老虎机算法是随机梯度上升的一个实例。
+
+\subsection{关联搜索（上下文老虎机）}
+
+\textbf{关联搜索任务}：
+\begin{itemize}
+    \item 涉及试错学习以搜索最佳动作
+    \item 将这些动作与它们最佳的情况关联起来
+    \item 也称为\textbf{上下文老虎机（Contextual Bandits）}
+\end{itemize}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 介于 $k$-臂老虎机问题和完整强化学习问题之间
+    \item 像完整强化学习问题一样涉及学习策略
+    \item 像 $k$-臂老虎机问题一样，每个动作只影响即时奖励
+\end{itemize}
+
+\subsection{总结}
+
+本章介绍了几种平衡探索与利用的简单方法：
+
+\begin{enumerate}
+    \item \textbf{$\varepsilon$-贪婪方法}：随机选择一小部分时间
+    \item \textbf{UCB 方法}：确定性选择，但通过微妙地偏向采样较少的动作来实现探索
+    \item \textbf{梯度老虎机算法}：估计动作偏好而非动作价值，使用 soft-max 分布
+    \item \textbf{乐观初始值}：即使贪婪方法也会显著探索
+\end{enumerate}
+
+\textbf{参数研究}：在 10-臂测试平台上，UCB 似乎表现最好。
+
+\section{关键要点}
+
+\begin{enumerate}
+    \item \textbf{探索与利用的平衡}是强化学习的核心挑战
+    \item \textbf{$\varepsilon$-贪婪方法}简单有效，是实践中常用的方法
+    \item \textbf{UCB 方法}在理论上有更好的性能保证
+    \item \textbf{梯度方法}提供了另一种学习动作偏好的视角
+    \item 这些简单方法为后续章节的完整强化学习问题奠定了基础
+\end{enumerate}
+
+\section{练习题要点}
+
+\begin{itemize}
+    \item \textbf{练习 2.1}：理解 $\varepsilon$-贪婪动作选择的概率计算
+    \item \textbf{练习 2.2}：分析具体序列中哪些时间步发生了随机选择
+    \item \textbf{练习 2.3}：比较不同方法的长期性能
+    \item \textbf{练习 2.5}：编程实现非平稳问题的实验
+    \item \textbf{练习 2.8}：理解 UCB 算法中的性能尖峰现象
+\end{itemize}
+
+\section{与后续章节的联系}
+
+本章介绍的方法将在后续章节中扩展到：
+\begin{itemize}
+    \item 完整强化学习问题（第3章及以后）
+    \item 多状态、多动作的决策问题
+    \item 延迟奖励和长期规划
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：Reinforcement Learning: An Introduction (2nd Edition), Chapter 2
+
+\end{document}
+
+

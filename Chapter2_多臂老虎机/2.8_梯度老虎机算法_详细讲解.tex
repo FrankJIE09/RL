@@ -1,0 +1,542 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+
+\geometry{margin=2.5cm}
+
+\title{2.8 梯度老虎机算法（Gradient Bandit Algorithms）详细讲解}
+\author{}
+\date{}
+
+\newtheorem{theorem}{定理}
+\newtheorem{proof}{证明}
+
+\begin{document}
+
+\maketitle
+
+\section{章节概述}
+
+本节介绍了一种不同于之前方法的新思路：不是估计动作价值，而是学习每个动作的\textbf{数值偏好（numerical preference）}。这种方法基于\textbf{随机梯度上升（stochastic gradient ascent）}的思想，为后续的策略梯度方法奠定了基础。
+
+\section{核心思想}
+
+\subsection{从动作价值到动作偏好}
+
+\textbf{之前的方法}：
+\begin{itemize}
+    \item 估计每个动作的价值 $Q_t(a)$
+    \item 根据价值估计选择动作（如 $\varepsilon$-贪婪、UCB）
+\end{itemize}
+
+\textbf{梯度方法}：
+\begin{itemize}
+    \item 学习每个动作的数值偏好 $H_t(a)$
+    \item 偏好值越大，该动作被选择的概率越大
+    \item \textbf{关键点}：偏好值本身没有奖励意义的解释，只有相对偏好才重要
+\end{itemize}
+
+\subsection{为什么使用偏好而不是价值？}
+
+\textbf{优势}：
+\begin{itemize}
+    \item 偏好值可以任意平移（加常数）而不影响动作概率
+    \item 更适合表示动作之间的相对关系
+    \item 为后续的策略梯度方法提供理论基础
+\end{itemize}
+
+\section{Soft-Max 分布（Gibbs/Boltzmann 分布）}
+
+\subsection{动作选择概率}
+
+根据 soft-max 分布，动作 $a$ 被选择的概率为：
+\begin{equation}
+\pi_t(a) = \Pr\{A_t = a\} = \frac{e^{H_t(a)}}{\sum_{b=1}^k e^{H_t(b)}}
+\end{equation}
+
+\textbf{关键特性}：
+\begin{itemize}
+    \item 所有动作的概率和为 1：$\sum_a \pi_t(a) = 1$
+    \item 偏好值越大，被选择的概率越大
+    \item 如果所有偏好值都加上常数 $C$，概率分布不变
+    \item 初始时，通常设置 $H_1(a) = 0$（对所有 $a$），使得所有动作等概率
+\end{itemize}
+
+\subsection{Soft-Max 的直观理解}
+
+\textbf{温度参数视角}（虽然这里没有显式温度）：
+\begin{itemize}
+    \item 当偏好值差异很大时，分布接近确定性（一个动作概率接近1）
+    \item 当偏好值差异很小时，分布接近均匀分布
+\end{itemize}
+
+\textbf{与 sigmoid 函数的关系}：
+\begin{itemize}
+    \item 对于两个动作的情况，soft-max 等价于 sigmoid 函数
+    \item 这是练习 2.9 的内容
+\end{itemize}
+
+\subsection{数学性质}
+
+\textbf{归一化}：
+\begin{equation}
+\sum_{a=1}^k \pi_t(a) = \frac{\sum_{a=1}^k e^{H_t(a)}}{\sum_{b=1}^k e^{H_t(b)}} = 1
+\end{equation}
+
+\textbf{平移不变性}：
+如果对所有 $a$，$H_t(a) \leftarrow H_t(a) + C$，则：
+\begin{align}
+\pi_t(a) &= \frac{e^{H_t(a) + C}}{\sum_b e^{H_t(b) + C}} \\
+         &= \frac{e^C \cdot e^{H_t(a)}}{e^C \cdot \sum_b e^{H_t(b)}} \\
+         &= \frac{e^{H_t(a)}}{\sum_b e^{H_t(b)}}
+\end{align}
+概率分布保持不变！
+
+\section{更新规则详解}
+
+\subsection{基本更新公式}
+
+在时间步 $t$，选择动作 $A_t$ 并收到奖励 $R_t$ 后，更新规则为：
+
+\textbf{对于被选择的动作}：
+\begin{equation}
+H_{t+1}(A_t) = H_t(A_t) + \alpha[R_t - \bar{R}_t][1 - \pi_t(A_t)]
+\end{equation}
+
+\textbf{对于未被选择的动作}（所有 $a \neq A_t$）：
+\begin{equation}
+H_{t+1}(a) = H_t(a) - \alpha[R_t - \bar{R}_t]\pi_t(a)
+\end{equation}
+
+\textbf{参数说明}：
+\begin{itemize}
+    \item $\alpha > 0$：步长参数
+    \item $\bar{R}_t$：到时间 $t$ 为止所有奖励的平均值（基线）
+    \item $\pi_t(a)$：在时间 $t$ 选择动作 $a$ 的概率
+\end{itemize}
+
+\subsection{更新规则的直观理解}
+
+\textbf{被选择的动作 $A_t$}：
+\begin{itemize}
+    \item 如果 $R_t > \bar{R}_t$（奖励高于基线）：
+    \begin{itemize}
+        \item $H_{t+1}(A_t) = H_t(A_t) + \text{正数} \times [1 - \pi_t(A_t)]$
+        \item 偏好值增加，未来被选择的概率增加
+    \end{itemize}
+    \item 如果 $R_t < \bar{R}_t$（奖励低于基线）：
+    \begin{itemize}
+        \item $H_{t+1}(A_t) = H_t(A_t) + \text{负数} \times [1 - \pi_t(A_t)]$
+        \item 偏好值减少，未来被选择的概率减少
+    \end{itemize}
+\end{itemize}
+
+\textbf{未被选择的动作 $a$}：
+\begin{itemize}
+    \item 如果 $R_t > \bar{R}_t$：
+    \begin{itemize}
+        \item $H_{t+1}(a) = H_t(a) - \text{正数} \times \pi_t(a)$
+        \item 偏好值减少（相对于被选择的动作）
+    \end{itemize}
+    \item 如果 $R_t < \bar{R}_t$：
+    \begin{itemize}
+        \item $H_{t+1}(a) = H_t(a) - \text{负数} \times \pi_t(a)$
+        \item 偏好值增加（相对于被选择的动作）
+    \end{itemize}
+\end{itemize}
+
+\textbf{关键洞察}：
+\begin{itemize}
+    \item 被选择的动作和未被选择的动作向相反方向更新
+    \item 这保证了概率分布始终归一化
+\end{itemize}
+
+\subsection{基线（Baseline）的作用}
+
+\textbf{基线 $\bar{R}_t$ 的重要性}：
+
+\begin{enumerate}
+    \item \textbf{减少方差}：
+    \begin{itemize}
+        \item 基线不改变期望更新（理论上）
+        \item 但显著减少更新的方差
+        \item 提高收敛速度
+    \end{itemize}
+    
+    \item \textbf{适应奖励尺度}：
+    \begin{itemize}
+        \item 如果所有奖励都加上常数 $C$，基线自动适应
+        \item 算法性能不受影响
+        \item 如图 2.5 所示，当奖励均值从 0 变为 +4 时，有基线的算法性能不变
+    \end{itemize}
+    
+    \item \textbf{无基线的情况}：
+    \begin{itemize}
+        \item 如果 $\bar{R}_t = 0$（常数），性能会显著下降
+        \item 特别是在奖励均值不为 0 的情况下
+    \end{itemize}
+\end{enumerate}
+
+\textbf{基线的计算}：
+\begin{itemize}
+    \item 可以使用增量更新（如 2.4 节）
+    \item 对于非平稳问题，可以使用常数步长（如 2.5 节）
+\end{itemize}
+
+\section{理论证明：作为随机梯度上升}
+
+\subsection{性能度量}
+
+\textbf{期望奖励}：
+\begin{equation}
+\mathbb{E}[R_t] = \sum_x \pi_t(x) q_*(x)
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\pi_t(x)$ 是选择动作 $x$ 的概率
+    \item $q_*(x)$ 是动作 $x$ 的真实价值
+\end{itemize}
+
+\subsection{精确梯度上升}
+
+如果我们可以精确计算梯度，更新规则应该是：
+\begin{equation}
+H_{t+1}(a) = H_t(a) + \alpha \cdot \frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)}
+\end{equation}
+
+\textbf{问题}：我们不知道 $q_*(x)$，无法精确计算梯度！
+
+\subsection{性能梯度的推导}
+
+\textbf{第一步：写出性能梯度}
+\begin{align}
+\frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)} &= \frac{\partial}{\partial H_t(a)} \left[\sum_x \pi_t(x) q_*(x)\right] \\
+                                                   &= \sum_x q_*(x) \cdot \frac{\partial \pi_t(x)}{\partial H_t(a)}
+\end{align}
+
+\textbf{第二步：引入基线}
+
+由于 $\sum_x \frac{\partial \pi_t(x)}{\partial H_t(a)} = 0$（概率和恒为1），我们可以添加任何不依赖于 $x$ 的基线 $B_t$：
+\begin{equation}
+\frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)} = \sum_x [q_*(x) - B_t] \cdot \frac{\partial \pi_t(x)}{\partial H_t(a)}
+\end{equation}
+
+\textbf{第三步：转换为期望形式}
+
+乘以 $\pi_t(x)/\pi_t(x)$：
+\begin{align}
+\frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)} &= \sum_x \pi_t(x)[q_*(x) - B_t] \cdot \frac{\frac{\partial \pi_t(x)}{\partial H_t(a)}}{\pi_t(x)} \\
+                                                   &= \mathbb{E}\left[[q_*(A_t) - B_t] \cdot \frac{\frac{\partial \pi_t(A_t)}{\partial H_t(a)}}{\pi_t(A_t)}\right]
+\end{align}
+
+\textbf{第四步：用样本奖励替代}
+
+由于 $\mathbb{E}[R_t | A_t] = q_*(A_t)$，我们可以用 $R_t$ 替代 $q_*(A_t)$：
+\begin{equation}
+\frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)} = \mathbb{E}\left[[R_t - \bar{R}_t] \cdot \frac{\frac{\partial \pi_t(A_t)}{\partial H_t(a)}}{\pi_t(A_t)}\right]
+\end{equation}
+
+其中我们选择 $B_t = \bar{R}_t$（奖励平均值作为基线）。
+
+\subsection{Soft-Max 的梯度计算}
+
+\textbf{关键结果}：
+\begin{equation}
+\frac{\partial \pi_t(x)}{\partial H_t(a)} = \pi_t(x)[\mathbf{1}(a=x) - \pi_t(a)]
+\end{equation}
+
+其中 $\mathbf{1}(a=x)$ 是指示函数（$a=x$ 时为1，否则为0）。
+
+\textbf{证明}（使用商的求导法则）：
+
+\begin{align}
+\frac{\partial \pi_t(x)}{\partial H_t(a)} &= \frac{\partial}{\partial H_t(a)} \left[\frac{e^{H_t(x)}}{\sum_y e^{H_t(y)}}\right]
+\end{align}
+
+使用商的求导法则：
+\begin{equation}
+\frac{\partial [f/g]}{\partial x} = \frac{f'g - fg'}{g^2}
+\end{equation}
+
+得到：
+\begin{align}
+\frac{\partial \pi_t(x)}{\partial H_t(a)} &= \frac{\mathbf{1}(a=x) e^{H_t(x)} \cdot \sum_y e^{H_t(y)} - e^{H_t(x)} \cdot e^{H_t(a)}}{\left[\sum_y e^{H_t(y)}\right]^2} \\
+&= \mathbf{1}(a=x) \pi_t(x) - \pi_t(x) \pi_t(a) \\
+&= \pi_t(x)[\mathbf{1}(a=x) - \pi_t(a)]
+\end{align}
+
+\textbf{Q.E.D.}
+
+\subsection{最终更新规则}
+
+将梯度表达式代入：
+\begin{align}
+\frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)} &= \mathbb{E}\left[[R_t - \bar{R}_t] \cdot \frac{\pi_t(A_t)[\mathbf{1}(a=A_t) - \pi_t(a)]}{\pi_t(A_t)}\right] \\
+&= \mathbb{E}\left[[R_t - \bar{R}_t][\mathbf{1}(a=A_t) - \pi_t(a)]\right]
+\end{align}
+
+用样本替代期望，得到更新规则：
+\begin{equation}
+H_{t+1}(a) = H_t(a) + \alpha[R_t - \bar{R}_t][\mathbf{1}(a=A_t) - \pi_t(a)]
+\end{equation}
+
+\textbf{展开}：
+\begin{itemize}
+    \item 如果 $a = A_t$：$H_{t+1}(A_t) = H_t(A_t) + \alpha[R_t - \bar{R}_t][1 - \pi_t(A_t)]$
+    \item 如果 $a \neq A_t$：$H_{t+1}(a) = H_t(a) + \alpha[R_t - \bar{R}_t][0 - \pi_t(a)] = H_t(a) - \alpha[R_t - \bar{R}_t]\pi_t(a)$
+\end{itemize}
+
+这正是我们原始的更新规则（2.12）！
+
+\subsection{理论保证}
+
+\textbf{关键结论}：
+\begin{itemize}
+    \item 梯度老虎机算法的\textbf{期望更新}等于性能函数的梯度
+    \item 因此，算法是\textbf{随机梯度上升}的一个实例
+    \item 这保证了算法具有\textbf{稳健的收敛性质}
+\end{itemize}
+
+\section{实验性能分析}
+
+\subsection{实验设置}
+
+\textbf{10-臂测试平台的变体}：
+\begin{itemize}
+    \item 真实期望奖励从 $\mathcal{N}(0, 1)$ 改为 $\mathcal{N}(+4, 1)$
+    \item 所有奖励都向上平移了 4 个单位
+\end{itemize}
+
+\subsection{实验结果（图 2.5）}
+
+\textbf{有基线的情况}：
+\begin{itemize}
+    \item 性能不受奖励平移影响
+    \item 基线自动适应新的奖励水平
+    \item 收敛到接近最优性能
+\end{itemize}
+
+\textbf{无基线的情况}（$\bar{R}_t = 0$）：
+\begin{itemize}
+    \item 性能显著下降
+    \item 无法适应奖励尺度的变化
+    \item 收敛速度慢
+\end{itemize}
+
+\textbf{步长参数的影响}：
+\begin{itemize}
+    \item $\alpha = 0.1$：较慢但稳定
+    \item $\alpha = 0.4$：较快但可能不稳定
+    \item 需要根据问题调整
+\end{itemize}
+
+\section{深入理解}
+
+\subsection{为什么基线不影响期望更新？}
+
+\textbf{数学原因}：
+\begin{itemize}
+    \item 基线 $B_t$ 不依赖于动作 $x$
+    \item 梯度 $\sum_x \frac{\partial \pi_t(x)}{\partial H_t(a)} = 0$
+    \item 因此 $\sum_x B_t \cdot \frac{\partial \pi_t(x)}{\partial H_t(a)} = B_t \cdot 0 = 0$
+\end{itemize}
+
+\textbf{直观理解}：
+\begin{itemize}
+    \item 基线只是改变了更新的"参考点"
+    \item 期望方向不变，但方差会改变
+\end{itemize}
+
+\subsection{为什么基线减少方差？}
+
+\textbf{方差来源}：
+\begin{itemize}
+    \item 更新依赖于实际奖励 $R_t$
+    \item 如果奖励方差大，更新方差也大
+\end{itemize}
+
+\textbf{基线的作用}：
+\begin{itemize}
+    \item $\text{Var}[R_t - \bar{R}_t] < \text{Var}[R_t]$
+    \item 因为减去了平均值，减少了波动
+\end{itemize}
+
+\subsection{与其他方法的关系}
+
+\textbf{与动作价值方法}：
+\begin{itemize}
+    \item 动作价值方法：直接估计 $q_*(a)$
+    \item 梯度方法：学习偏好 $H_t(a)$，间接影响选择
+\end{itemize}
+
+\textbf{与策略梯度方法}（第13章）：
+\begin{itemize}
+    \item 梯度老虎机算法是策略梯度方法的特例
+    \item 为理解 Actor-Critic 方法奠定基础
+\end{itemize}
+
+\section{算法实现要点}
+
+\subsection{初始化}
+
+\begin{verbatim}
+# 初始化动作偏好
+H = np.zeros(k)  # k 个动作，初始偏好都为 0
+
+# 初始化基线（奖励平均值）
+R_bar = 0.0
+count = 0
+\end{verbatim}
+
+\subsection{动作选择}
+
+\begin{verbatim}
+# 计算 soft-max 概率
+exp_H = np.exp(H)
+pi = exp_H / np.sum(exp_H)
+
+# 根据概率分布采样
+action = np.random.choice(k, p=pi)
+\end{verbatim}
+
+\subsection{更新规则}
+
+\begin{verbatim}
+# 收到奖励后
+reward = get_reward(action)
+
+# 更新基线（增量更新）
+count += 1
+R_bar = R_bar + (1/count) * (reward - R_bar)
+# 或使用常数步长：R_bar = R_bar + alpha_baseline * (reward - R_bar)
+
+# 更新偏好
+for a in range(k):
+    if a == action:
+        H[a] = H[a] + alpha * (reward - R_bar) * (1 - pi[a])
+    else:
+        H[a] = H[a] - alpha * (reward - R_bar) * pi[a]
+\end{verbatim}
+
+\subsection{数值稳定性}
+
+\textbf{问题}：$e^{H_t(a)}$ 可能溢出
+
+\textbf{解决方案}：
+\begin{verbatim}
+# 减去最大值（不改变概率分布）
+H_shifted = H - np.max(H)
+exp_H = np.exp(H_shifted)
+pi = exp_H / np.sum(exp_H)
+\end{verbatim}
+
+\section{关键要点总结}
+
+\begin{enumerate}
+    \item \textbf{核心思想}：
+    \begin{itemize}
+        \item 学习动作偏好而非动作价值
+        \item 使用 soft-max 分布将偏好转换为概率
+    \end{itemize}
+    
+    \item \textbf{更新规则}：
+    \begin{itemize}
+        \item 被选择的动作：$H_{t+1}(A_t) = H_t(A_t) + \alpha[R_t - \bar{R}_t][1 - \pi_t(A_t)]$
+        \item 未被选择的动作：$H_{t+1}(a) = H_t(a) - \alpha[R_t - \bar{R}_t]\pi_t(a)$
+    \end{itemize}
+    
+    \item \textbf{基线的重要性}：
+    \begin{itemize}
+        \item 不改变期望更新
+        \item 但显著减少方差
+        \item 提高收敛速度
+    \end{itemize}
+    
+    \item \textbf{理论保证}：
+    \begin{itemize}
+        \item 是随机梯度上升的实例
+        \item 具有稳健的收敛性质
+    \end{itemize}
+    
+    \item \textbf{实际应用}：
+    \begin{itemize}
+        \item 对奖励尺度变化鲁棒
+        \item 需要适当选择步长参数
+        \item 为策略梯度方法提供基础
+    \end{itemize}
+\end{enumerate}
+
+\section{与后续内容的联系}
+
+\begin{enumerate}
+    \item \textbf{第13章：策略梯度方法}：
+    \begin{itemize}
+        \item 梯度老虎机算法是策略梯度方法的简化版本
+        \item 理解本节有助于理解 Actor-Critic 方法
+    \end{itemize}
+    
+    \item \textbf{REINFORCE 算法}：
+    \begin{itemize}
+        \item 使用类似的梯度上升思想
+        \item 基线在 REINFORCE 中也很重要
+    \end{itemize}
+    
+    \item \textbf{深度强化学习}：
+    \begin{itemize}
+        \item 策略网络使用类似的 soft-max 输出
+        \item 梯度更新规则类似
+    \end{itemize}
+\end{enumerate}
+
+\section{思考题}
+
+\begin{enumerate}
+    \item \textbf{为什么偏好值可以任意平移而不影响概率？}
+    \begin{itemize}
+        \item 因为 soft-max 只依赖于相对值
+    \end{itemize}
+    
+    \item \textbf{基线为什么可以减少方差？}
+    \begin{itemize}
+        \item 因为 $\text{Var}[R_t - \bar{R}_t] < \text{Var}[R_t]$
+    \end{itemize}
+    
+    \item \textbf{如何选择基线？}
+    \begin{itemize}
+        \item 奖励平均值是简单有效的选择
+        \item 理论上任何不依赖于动作的值都可以
+    \end{itemize}
+    
+    \item \textbf{梯度方法比动作价值方法有什么优势？}
+    \begin{itemize}
+        \item 更适合表示相对偏好
+        \item 为策略梯度方法提供理论基础
+        \item 对奖励尺度变化更鲁棒
+    \end{itemize}
+    
+    \item \textbf{如何理解更新规则中的 $[1 - \pi_t(A_t)]$ 和 $\pi_t(a)$？}
+    \begin{itemize}
+        \item 这来自于 soft-max 的梯度
+        \item 保证了概率分布始终归一化
+    \end{itemize}
+\end{enumerate}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Reinforcement Learning: An Introduction (2nd Edition), Section 2.8
+    \item 相关数学推导和实验分析
+\end{itemize}
+
+\end{document}
+
+

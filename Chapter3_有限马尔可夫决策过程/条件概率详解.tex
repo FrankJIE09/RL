@@ -1,0 +1,532 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+
+\geometry{margin=2.5cm}
+
+\title{条件概率（Conditional Probability）详解}
+\subtitle{定义、直观理解与应用}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+条件概率是概率论中的核心概念，也是理解强化学习中动态函数、价值函数等概念的基础。本文档详细解释条件概率的定义、直观含义、数学性质和实际应用。
+
+\section{条件概率的定义}
+
+\subsection{基本定义}
+
+\begin{definition}[条件概率]
+对于事件 $A$ 和 $B$，在事件 $B$ 发生的条件下，事件 $A$ 发生的条件概率定义为：
+\begin{equation}
+\Pr\{A | B\} = \frac{\Pr\{A \cap B\}}{\Pr\{B\}}, \quad \text{如果 } \Pr\{B\} > 0
+\label{eq:conditional_prob}
+\end{equation}
+其中：
+\begin{itemize}
+    \item $A \cap B$ 表示事件 $A$ 和 $B$ 同时发生（交集）
+    \item $\Pr\{A \cap B\}$ 是 $A$ 和 $B$ 的联合概率
+    \item $\Pr\{B\}$ 是事件 $B$ 的概率（条件）
+\end{itemize}
+\end{definition}
+
+\subsection{符号说明}
+
+\begin{itemize}
+    \item \textbf{竖线 $|$}：表示"在...条件下"或"给定..."
+    \item \textbf{读法}：$\Pr\{A | B\}$ 读作"在 $B$ 发生的条件下，$A$ 发生的概率"或"给定 $B$，$A$ 的概率"
+    \item \textbf{条件}：$B$ 是条件（已知信息）
+    \item \textbf{目标}：$A$ 是我们关心的事件
+\end{itemize}
+
+\subsection{条件}
+
+\textbf{重要条件}：$\Pr\{B\} > 0$
+
+\begin{itemize}
+    \item 如果 $\Pr\{B\} = 0$，则条件概率未定义
+    \item 因为分母不能为 0
+    \item 这保证了定义的合理性
+\end{itemize}
+
+\section{直观理解}
+
+\subsection{基本思想}
+
+条件概率回答的问题是：
+\begin{quote}
+\textit{"在已知事件 $B$ 发生的情况下，事件 $A$ 发生的概率是多少？"}
+\end{quote}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 我们有了\textbf{额外的信息}（$B$ 发生了）
+    \item 这个信息\textbf{改变了}我们对 $A$ 发生概率的估计
+    \item 条件概率是"更新后的"概率
+\end{itemize}
+
+\subsection{样本空间缩小}
+
+\textbf{直观理解}：
+
+条件概率可以理解为"缩小样本空间"：
+
+\begin{enumerate}
+    \item \textbf{原始样本空间}：所有可能的结果
+    \item \textbf{条件 $B$ 发生}：样本空间缩小到 $B$ 中的结果
+    \item \textbf{在缩小后的空间中}：计算 $A$ 发生的概率
+\end{enumerate}
+
+\textbf{公式解释}：
+\begin{equation}
+\Pr\{A | B\} = \frac{\Pr\{A \cap B\}}{\Pr\{B\}} = \frac{\text{既在 } A \text{ 中又在 } B \text{ 中的概率}}{\text{在 } B \text{ 中的概率}}
+\end{equation}
+
+\subsection{可视化理解}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.5]
+    % 样本空间
+    \draw[fill=gray!20] (0,0) rectangle (4,3);
+    \node at (2,3.3) {样本空间 $\Omega$};
+    
+    % 事件 B
+    \draw[fill=blue!30] (1,0.5) ellipse (1.2 and 1);
+    \node at (1,1.5) {$B$};
+    
+    % 事件 A
+    \draw[fill=red!30] (2.5,1) ellipse (1 and 1.2);
+    \node at (3,1.5) {$A$};
+    
+    % 交集 A ∩ B
+    \begin{scope}
+        \clip (1,0.5) ellipse (1.2 and 1);
+        \fill[purple!50] (2.5,1) ellipse (1 and 1.2);
+    \end{scope}
+    \node[white] at (2,1.2) {$A \cap B$};
+    
+    % 标注
+    \node[below] at (2,0) {$\Pr\{A | B\} = \frac{\text{紫色区域}}{\text{蓝色区域}}$};
+\end{tikzpicture}
+\end{center}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 蓝色区域：事件 $B$（条件）
+    \item 红色区域：事件 $A$（目标）
+    \item 紫色区域：$A \cap B$（同时发生）
+    \item 条件概率 = 紫色区域 / 蓝色区域
+\end{itemize}
+
+\section{数学推导}
+
+\subsection{从定义出发}
+
+条件概率的定义可以从以下思路理解：
+
+\textbf{思路}：
+\begin{enumerate}
+    \item 我们知道 $B$ 发生了，所以只考虑 $B$ 中的结果
+    \item 在 $B$ 中，$A$ 发生的部分就是 $A \cap B$
+    \item 因此，条件概率应该是 $\frac{\Pr\{A \cap B\}}{\Pr\{B\}}$
+\end{enumerate}
+
+\subsection{乘法法则}
+
+从条件概率定义可以推导出\textbf{乘法法则}：
+
+\begin{theorem}[乘法法则]
+\begin{equation}
+\Pr\{A \cap B\} = \Pr\{A | B\} \cdot \Pr\{B\} = \Pr\{B | A\} \cdot \Pr\{A\}
+\label{eq:multiplication}
+\end{equation}
+\end{theorem}
+
+\textbf{证明}：
+从定义 $\Pr\{A | B\} = \frac{\Pr\{A \cap B\}}{\Pr\{B\}}$，两边同时乘以 $\Pr\{B\}$：
+\begin{equation}
+\Pr\{A | B\} \cdot \Pr\{B\} = \Pr\{A \cap B\}
+\end{equation}
+
+\textbf{应用}：计算两个事件同时发生的概率。
+
+\subsection{全概率公式}
+
+\begin{theorem}[全概率公式（Law of Total Probability）]
+如果事件 $B_1, B_2, \ldots, B_n$ 构成样本空间的一个划分（互斥且完备），则：
+\begin{equation}
+\Pr\{A\} = \sum_{i=1}^n \Pr\{A | B_i\} \cdot \Pr\{B_i\}
+\label{eq:total_prob}
+\end{equation}
+\end{theorem}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 将事件 $A$ 的概率分解为多个条件概率的加权和
+    \item 权重是各个条件 $B_i$ 的概率
+    \item 这是计算复杂事件概率的重要工具
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{例子 1：投掷骰子}
+
+\textbf{问题}：投掷一个公平的六面骰子。
+
+\textbf{事件定义}：
+\begin{itemize}
+    \item $A$：点数为偶数 $\{2, 4, 6\}$
+    \item $B$：点数大于 3 $\{4, 5, 6\}$
+\end{itemize}
+
+\textbf{无条件概率}：
+\begin{align}
+\Pr\{A\} &= \frac{3}{6} = \frac{1}{2} \\
+\Pr\{B\} &= \frac{3}{6} = \frac{1}{2}
+\end{align}
+
+\textbf{联合概率}：
+\begin{align}
+A \cap B &= \{4, 6\} \quad \text{（既是偶数又大于 3）} \\
+\Pr\{A \cap B\} &= \frac{2}{6} = \frac{1}{3}
+\end{align}
+
+\textbf{条件概率}：
+\begin{align}
+\Pr\{A | B\} &= \frac{\Pr\{A \cap B\}}{\Pr\{B\}} = \frac{1/3}{1/2} = \frac{2}{3}
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 无条件：点数为偶数的概率是 $1/2$
+    \item 条件：已知点数大于 3，点数为偶数的概率是 $2/3$
+    \item 信息 $B$ 改变了我们对 $A$ 的估计
+\end{itemize}
+
+\subsection{例子 2：从动态函数理解}
+
+在 MDP 中，动态函数 $p(s', r | s, a)$ 就是条件概率：
+
+\begin{equation}
+p(s', r | s, a) = \Pr\{S_{t+1} = s', R_{t+1} = r | S_t = s, A_t = a\}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item \textbf{条件}：$S_t = s, A_t = a$（当前状态和动作）
+    \item \textbf{目标}：$S_{t+1} = s', R_{t+1} = r$（下一状态和奖励）
+    \item \textbf{含义}：在给定当前状态和动作的条件下，下一状态和奖励的联合概率
+\end{itemize}
+
+\subsection{例子 3：期望奖励}
+
+期望奖励 $r(s, a)$ 使用了条件期望：
+
+\begin{equation}
+r(s, a) = \mathbb{E}[R_{t+1} | S_t = s, A_t = a]
+\end{equation}
+
+\textbf{展开为条件概率}：
+\begin{align}
+r(s, a) &= \sum_{r} r \cdot \Pr\{R_{t+1} = r | S_t = s, A_t = a\} \\
+        &= \sum_{r} r \sum_{s'} p(s', r | s, a)
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 条件概率：$\Pr\{R_{t+1} = r | S_t = s, A_t = a\}$
+    \item 表示：在给定状态 $s$ 和动作 $a$ 的条件下，奖励为 $r$ 的概率
+    \item 期望：所有可能的奖励值乘以对应条件概率的求和
+\end{itemize}
+
+\section{条件概率的性质}
+
+\subsection{基本性质}
+
+\begin{enumerate}
+    \item \textbf{非负性}：$\Pr\{A | B\} \geq 0$
+    
+    \item \textbf{归一性}：如果 $A_1, A_2, \ldots, A_n$ 构成样本空间的划分，则：
+    \begin{equation}
+    \sum_{i=1}^n \Pr\{A_i | B\} = 1
+    \end{equation}
+    
+    \item \textbf{概率值域}：$0 \leq \Pr\{A | B\} \leq 1$
+\end{enumerate}
+
+\subsection{与无条件概率的关系}
+
+\textbf{一般情况}：
+\begin{equation}
+\Pr\{A | B\} \neq \Pr\{A\}
+\end{equation}
+条件概率通常不同于无条件概率。
+
+\textbf{特殊情况：独立性}
+
+如果 $A$ 和 $B$ 独立，则：
+\begin{equation}
+\Pr\{A | B\} = \Pr\{A\}
+\end{equation}
+此时，知道 $B$ 发生不改变 $A$ 的概率。
+
+\section{条件概率的链式法则}
+
+\subsection{多个条件的条件概率}
+
+\begin{definition}[多条件条件概率]
+对于事件 $A, B, C$，条件概率可以链式应用：
+\begin{equation}
+\Pr\{A | B, C\} = \frac{\Pr\{A \cap B | C\}}{\Pr\{B | C\}} = \frac{\Pr\{A \cap B \cap C\}}{\Pr\{B \cap C\}}
+\end{equation}
+\end{definition}
+
+\textbf{在 MDP 中的应用}：
+
+三参数期望奖励使用了条件概率：
+\begin{equation}
+r(s, a, s') = \mathbb{E}[R_{t+1} | S_t = s, A_t = a, S_{t+1} = s']
+\end{equation}
+
+\textbf{对应的条件概率}：
+\begin{equation}
+\Pr\{R_{t+1} = r | S_t = s, A_t = a, S_{t+1} = s'\} = \frac{p(s', r | s, a)}{p(s' | s, a)}
+\end{equation}
+
+\section{贝叶斯定理}
+
+\subsection{贝叶斯公式}
+
+\begin{theorem}[贝叶斯定理（Bayes' Theorem）]
+\begin{equation}
+\Pr\{A | B\} = \frac{\Pr\{B | A\} \cdot \Pr\{A\}}{\Pr\{B\}}
+\label{eq:bayes}
+\end{equation}
+\end{theorem}
+
+\textbf{证明}：
+从乘法法则：
+\begin{align}
+\Pr\{A \cap B\} &= \Pr\{A | B\} \cdot \Pr\{B\} \\
+                &= \Pr\{B | A\} \cdot \Pr\{A\}
+\end{align}
+因此：
+\begin{equation}
+\Pr\{A | B\} \cdot \Pr\{B\} = \Pr\{B | A\} \cdot \Pr\{A\}
+\end{equation}
+两边同时除以 $\Pr\{B\}$ 得到贝叶斯公式。
+
+\textbf{应用}：
+\begin{itemize}
+    \item 从 $\Pr\{B | A\}$ 计算 $\Pr\{A | B\}$
+    \item 在机器学习中用于参数估计
+    \item 在强化学习中用于模型学习
+\end{itemize}
+
+\section{在强化学习中的应用}
+
+\subsection{动态函数}
+
+动态函数是条件概率：
+\begin{equation}
+p(s', r | s, a) = \Pr\{S_{t+1} = s', R_{t+1} = r | S_t = s, A_t = a\}
+\end{equation}
+
+\textbf{条件}：$S_t = s, A_t = a$（当前状态和动作）
+\textbf{目标}：$S_{t+1} = s', R_{t+1} = r$（下一状态和奖励）
+
+\subsection{状态转移概率}
+
+状态转移概率也是条件概率：
+\begin{equation}
+p(s' | s, a) = \Pr\{S_{t+1} = s' | S_t = s, A_t = a\}
+\end{equation}
+
+\textbf{从联合概率得到}：
+\begin{equation}
+p(s' | s, a) = \frac{\sum_{r} p(s', r | s, a)}{\sum_{s', r} p(s', r | s, a)} = \sum_{r} p(s', r | s, a)
+\end{equation}
+
+\subsection{策略}
+
+策略也是条件概率：
+\begin{equation}
+\pi(a | s) = \Pr\{A_t = a | S_t = s\}
+\end{equation}
+
+\textbf{含义}：在状态 $s$ 的条件下，选择动作 $a$ 的概率。
+
+\subsection{价值函数}
+
+价值函数使用条件期望：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s] = \mathbb{E}_\pi\left[\sum_{k=0}^{\infty} \gamma^k R_{t+k+1} \middle| S_t = s\right]
+\end{equation}
+
+\textbf{条件}：$S_t = s$（当前状态）
+\textbf{目标}：回报 $G_t$ 的期望值
+
+\section{常见误解}
+
+\subsection{误解 1：条件概率就是联合概率}
+
+\textbf{误解}：
+\begin{quote}
+"$\Pr\{A | B\}$ 和 $\Pr\{A \cap B\}$ 是一样的。"
+\end{quote}
+
+\textbf{纠正}：
+\begin{itemize}
+    \item \textbf{联合概率}：$\Pr\{A \cap B\}$ 是 $A$ 和 $B$ 同时发生的概率
+    \item \textbf{条件概率}：$\Pr\{A | B\}$ 是在已知 $B$ 发生的条件下，$A$ 发生的概率
+    \item \textbf{关系}：$\Pr\{A | B\} = \frac{\Pr\{A \cap B\}}{\Pr\{B\}}$
+    \item \textbf{区别}：条件概率的分母是 $\Pr\{B\}$，联合概率没有这个分母
+\end{itemize}
+
+\subsection{误解 2：$\Pr\{A | B\} = \Pr\{B | A\}$}
+
+\textbf{误解}：
+\begin{quote}
+"条件概率是对称的，$\Pr\{A | B\} = \Pr\{B | A\}$。"
+\end{quote}
+
+\textbf{纠正}：
+\begin{itemize}
+    \item 一般情况下，$\Pr\{A | B\} \neq \Pr\{B | A\}$
+    \item 它们的关系由贝叶斯定理给出：
+    \begin{equation}
+    \Pr\{A | B\} = \frac{\Pr\{B | A\} \cdot \Pr\{A\}}{\Pr\{B\}}
+    \end{equation}
+    \item 只有当 $\Pr\{A\} = \Pr\{B\}$ 时，它们才相等
+\end{itemize}
+
+\textbf{例子}：
+\begin{itemize}
+    \item $\Pr\{\text{下雨} | \text{有云}\}$：有云时下雨的概率（可能较高）
+    \item $\Pr\{\text{有云} | \text{下雨}\}$：下雨时有云的概率（几乎为 1）
+    \item 这两个概率明显不同！
+\end{itemize}
+
+\subsection{误解 3：条件概率总是小于无条件概率}
+
+\textbf{误解}：
+\begin{quote}
+"有了条件，概率应该变小。"
+\end{quote}
+
+\textbf{纠正}：
+\begin{itemize}
+    \item 条件概率可能大于、等于或小于无条件概率
+    \item 取决于条件 $B$ 与事件 $A$ 的关系
+    \item 如果 $B$ 有利于 $A$，则 $\Pr\{A | B\} > \Pr\{A\}$
+    \item 如果 $B$ 不利于 $A$，则 $\Pr\{A | B\} < \Pr\{A\}$
+\end{itemize}
+
+\textbf{例子}：
+\begin{itemize}
+    \item $\Pr\{\text{偶数} | \text{大于 3}\} = 2/3 > 1/2 = \Pr\{\text{偶数}\}$（条件增加了概率）
+    \item $\Pr\{\text{小于 2} | \text{大于 3}\} = 0 < 1/3 = \Pr\{\text{小于 2}\}$（条件减少了概率）
+\end{itemize}
+
+\section{条件概率的计算步骤}
+
+\subsection{一般步骤}
+
+计算条件概率 $\Pr\{A | B\}$ 的步骤：
+
+\begin{enumerate}
+    \item \textbf{识别条件}：确定事件 $B$（条件）
+    \item \textbf{识别目标}：确定事件 $A$（目标）
+    \item \textbf{计算联合概率}：$\Pr\{A \cap B\}$
+    \item \textbf{计算条件概率}：$\Pr\{B\}$
+    \item \textbf{应用公式}：$\Pr\{A | B\} = \frac{\Pr\{A \cap B\}}{\Pr\{B\}}$
+\end{enumerate}
+
+\subsection{在 MDP 中的计算}
+
+计算 $p(s', r | s, a)$ 的步骤：
+
+\begin{enumerate}
+    \item \textbf{条件}：$S_t = s, A_t = a$
+    \item \textbf{目标}：$S_{t+1} = s', R_{t+1} = r$
+    \item \textbf{方法}：从经验数据中估计
+    \begin{equation}
+    p(s', r | s, a) \approx \frac{\text{在 } (s, a) \text{ 后观察到 } (s', r) \text{ 的次数}}{\text{在 } (s, a) \text{ 的总次数}}
+    \end{equation}
+\end{enumerate}
+
+\section{总结}
+
+\subsection{核心定义}
+
+\begin{equation}
+\Pr\{A | B\} = \frac{\Pr\{A \cap B\}}{\Pr\{B\}}, \quad \text{如果 } \Pr\{B\} > 0
+\end{equation}
+
+\subsection{关键理解}
+
+\begin{enumerate}
+    \item \textbf{条件概率}：在已知 $B$ 发生的条件下，$A$ 发生的概率
+    
+    \item \textbf{直观理解}：
+    \begin{itemize}
+        \item 样本空间缩小到 $B$
+        \item 在缩小后的空间中计算 $A$ 的概率
+        \item 公式：$\frac{A \cap B \text{ 的概率}}{B \text{ 的概率}}$
+    \end{itemize}
+    
+    \item \textbf{与无条件概率的关系}：
+    \begin{itemize}
+        \item 一般不同：$\Pr\{A | B\} \neq \Pr\{A\}$
+        \item 独立性：如果 $A$ 和 $B$ 独立，则 $\Pr\{A | B\} = \Pr\{A\}$
+    \end{itemize}
+    
+    \item \textbf{在强化学习中的应用}：
+    \begin{itemize}
+        \item 动态函数：$p(s', r | s, a)$
+        \item 策略：$\pi(a | s)$
+        \item 价值函数：条件期望
+    \end{itemize}
+\end{enumerate}
+
+\subsection{记忆技巧}
+
+\begin{itemize}
+    \item \textbf{条件概率} = "在...条件下"的概率
+    \item \textbf{公式} = 联合概率 / 条件概率
+    \item \textbf{直观} = 缩小样本空间
+    \item \textbf{应用} = 动态函数、策略、价值函数
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). Reinforcement Learning: An Introduction (2nd Edition). MIT Press, Chapter 3.
+    \item 任何概率论和数理统计教材
+\end{itemize}
+
+\end{document}
+
+

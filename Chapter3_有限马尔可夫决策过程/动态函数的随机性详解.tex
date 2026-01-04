@@ -1,0 +1,519 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+
+\geometry{margin=2.5cm}
+
+\title{动态函数的随机性详解}
+\subtitle{为什么需要求和？确定性 vs 随机性}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题提出}
+
+一个常见的困惑是：
+\begin{quote}
+\textit{"在状态 $s$ 采取动作 $a$ 后，应该只有一个下一状态和一个奖励，为什么需要求和？为什么 $\sum_{s' \in \mathcal{S}} \sum_{r \in \mathcal{R}} p(s', r | s, a) = 1$？"}
+\end{quote}
+
+本文档详细解释这个重要概念。
+
+\section{核心答案}
+
+\subsection{关键理解}
+
+\textbf{重要事实}：在状态 $s$ 采取动作 $a$ 后，结果可能是\textbf{随机的}，而不是确定性的！
+
+\begin{itemize}
+    \item \textbf{不是}：必然有一个确定的结果
+    \item \textbf{而是}：可能有\textbf{多个可能的结果}，每个结果有一定的概率
+    \item \textbf{求和的意义}：所有可能结果的概率和为 1
+\end{itemize}
+
+\subsection{确定性是随机性的特例}
+
+\begin{proposition}[确定性情况]
+如果环境是\textbf{确定性的}，则对每个 $(s, a)$，只有一个 $(s', r)$ 的概率为 1，其他所有 $(s', r)$ 的概率为 0。在这种情况下，求和仍然成立，但只有一项非零。
+\end{proposition}
+
+\textbf{示例}：
+\begin{itemize}
+    \item 如果 $(s, a)$ 总是导致 $(s', r)$，则：
+    \begin{equation}
+    p(s', r | s, a) = 1, \quad p(\tilde{s}, \tilde{r} | s, a) = 0 \text{ 对所有 } (\tilde{s}, \tilde{r}) \neq (s', r)
+    \end{equation}
+    \item 求和：$1 + 0 + 0 + \cdots = 1$ ✓
+\end{itemize}
+
+\section{为什么结果可能是随机的？}
+
+\subsection{环境的不确定性}
+
+\textbf{原因 1：环境的随机性}
+
+环境本身可能具有\textbf{内在的随机性}：
+
+\begin{example}[随机环境]
+考虑一个简单的游戏：
+\begin{itemize}
+    \item 状态：当前位置
+    \item 动作：投掷骰子
+    \item 结果：骰子的结果是随机的（1-6），每个结果有概率 $1/6$
+    \item 下一状态：取决于骰子结果
+    \item 奖励：取决于骰子结果
+\end{itemize}
+
+在这种情况下，即使采取相同的动作，结果也可能不同！
+\end{example}
+
+\subsection{不完全可观测性}
+
+\textbf{原因 2：隐藏信息}
+
+智能体可能无法完全观测到环境的所有信息：
+
+\begin{example}[部分可观测]
+考虑一个机器人：
+\begin{itemize}
+    \item 状态：机器人观测到的信息（可能不完整）
+    \item 动作：移动指令
+    \item 结果：由于环境中有隐藏因素（如其他移动的物体、不确定的地形），结果可能是随机的
+\end{itemize}
+\end{example}
+
+\subsection{建模不确定性}
+
+\textbf{原因 3：建模不确定性}
+
+即使环境本身可能是确定性的，但由于我们\textbf{不知道}完整的物理规律，我们将其建模为随机的：
+
+\begin{example}[建模不确定性]
+考虑一个复杂的物理系统：
+\begin{itemize}
+    \item 理论上，如果知道所有物理参数，结果是确定的
+    \item 但实际上，我们无法精确知道所有参数
+    \item 因此，我们使用概率分布来建模这种不确定性
+\end{itemize}
+\end{example}
+
+\section{具体例子}
+
+\subsection{例子 1：网格世界中的随机性}
+
+考虑一个网格世界，智能体在状态 $s_1$ 采取动作"向右移动"：
+
+\textbf{可能的结果}：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+下一状态 $s'$ & 奖励 $r$ & 概率 $p(s', r | s_1, \text{右})$ \\
+\hline
+$s_2$（成功移动） & $+1$ & $0.7$ \\
+$s_2$（成功移动） & $0$ & $0.1$ \\
+$s_1$（撞墙） & $-1$ & $0.2$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 70\% 的概率：成功移动到 $s_2$，收到奖励 $+1$
+    \item 10\% 的概率：成功移动到 $s_2$，但收到奖励 $0$（可能因为其他原因）
+    \item 20\% 的概率：撞墙，留在 $s_1$，收到惩罚 $-1$
+\end{itemize}
+
+\textbf{验证归一化}：
+\begin{equation}
+0.7 + 0.1 + 0.2 = 1.0 \quad \checkmark
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 即使采取相同的动作，结果也可能不同
+    \item 有\textbf{多个可能的结果}，每个有不同概率
+    \item 所有可能结果的概率和为 1
+\end{itemize}
+
+\subsection{例子 2：游戏中的随机性}
+
+考虑一个简单的纸牌游戏：
+
+\textbf{状态}：当前手牌
+\textbf{动作}：抽一张牌
+\textbf{结果}：
+\begin{itemize}
+    \item 可能抽到不同的牌（每张牌有不同概率）
+    \item 不同的牌导致不同的下一状态
+    \item 不同的牌导致不同的奖励
+\end{itemize}
+
+\textbf{动态函数}：
+\begin{equation}
+p(\text{下一手牌}, \text{奖励} | \text{当前手牌}, \text{抽牌动作})
+\end{equation}
+
+由于牌是随机抽取的，结果必然是随机的！
+
+\subsection{例子 3：机器人导航}
+
+考虑一个机器人在不确定环境中导航：
+
+\textbf{状态}：机器人位置和传感器读数
+\textbf{动作}：向前移动
+\textbf{结果}：
+\begin{itemize}
+    \item 可能成功移动（如果地面平坦）
+    \item 可能滑倒（如果地面湿滑）
+    \item 可能被障碍物阻挡（如果障碍物移动）
+\end{itemize}
+
+每种结果有不同的概率，导致不同的下一状态和奖励。
+
+\section{求和的意义}
+
+\subsection{归一化条件}
+
+\begin{equation}
+\sum_{s' \in \mathcal{S}} \sum_{r \in \mathcal{R}} p(s', r | s, a) = 1
+\label{eq:normalization}
+\end{equation}
+
+\textbf{含义}：
+\begin{quote}
+\textit{"在状态 $s$ 采取动作 $a$ 后，\textbf{必然}会有某个下一状态和某个奖励。所有可能的结果的概率和必须为 1。"}
+\end{quote}
+
+\textbf{关键理解}：
+\begin{itemize}
+    \item \textbf{必然性}：确实必然会有某个结果
+    \item \textbf{随机性}：但\textbf{哪个}结果是随机的
+    \item \textbf{概率和}：所有可能结果的概率和为 1，保证了"必然会有某个结果"
+\end{itemize}
+
+\subsection{概率分布的性质}
+
+这是\textbf{概率分布}的基本性质：
+
+\begin{enumerate}
+    \item \textbf{非负性}：$p(s', r | s, a) \geq 0$ 对所有 $(s', r)$
+    \item \textbf{归一性}：$\sum_{s', r} p(s', r | s, a) = 1$
+    \item \textbf{完备性}：所有可能的结果都被包含在求和中
+\end{enumerate}
+
+\subsection{可视化理解}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.2]
+    % 当前状态和动作
+    \node[rectangle, draw, fill=blue!20] (sa) at (0, 2) {$(s, a)$};
+    
+    % 可能的结果
+    \node[circle, draw, fill=green!20] (r1) at (-2, 0) {$(s'_1, r_1)$\\$p = 0.3$};
+    \node[circle, draw, fill=green!20] (r2) at (0, 0) {$(s'_2, r_2)$\\$p = 0.5$};
+    \node[circle, draw, fill=green!20] (r3) at (2, 0) {$(s'_3, r_3)$\\$p = 0.2$};
+    
+    % 箭头
+    \draw[->, thick] (sa) -- (r1);
+    \draw[->, thick] (sa) -- (r2);
+    \draw[->, thick] (sa) -- (r3);
+    
+    % 标签
+    \node[below] at (0, -1) {所有概率和：$0.3 + 0.5 + 0.2 = 1.0$};
+    \node[above] at (0, 3) {必然会有某个结果，但哪个结果是随机的};
+\end{tikzpicture}
+\end{center}
+
+\section{确定性情况}
+
+\subsection{确定性环境的特征}
+
+如果环境是\textbf{确定性的}，则：
+
+\begin{proposition}[确定性环境]
+对于每个 $(s, a)$，存在唯一的 $(s', r)$ 使得：
+\begin{equation}
+p(s', r | s, a) = 1
+\end{equation}
+而所有其他 $(s', r)$ 的概率为 0。
+\end{proposition}
+
+\subsection{确定性情况下的求和}
+
+\textbf{示例}：
+
+假设在状态 $s_1$ 采取动作 $a_1$，总是（100\%）导致状态 $s_2$ 和奖励 $r = +1$。
+
+则：
+\begin{align}
+p(s_2, +1 | s_1, a_1) &= 1.0 \\
+p(s_1, +1 | s_1, a_1) &= 0.0 \\
+p(s_2, -1 | s_1, a_1) &= 0.0 \\
+p(s_3, +1 | s_1, a_1) &= 0.0 \\
+&\vdots
+\end{align}
+
+\textbf{求和}：
+\begin{align}
+\sum_{s' \in \mathcal{S}} \sum_{r \in \mathcal{R}} p(s', r | s_1, a_1) &= p(s_2, +1 | s_1, a_1) + \text{所有其他项} \\
+                                                                      &= 1.0 + 0.0 + 0.0 + \cdots \\
+                                                                      &= 1.0 \quad \checkmark
+\end{align}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 求和仍然需要，因为理论上所有 $(s', r)$ 都是可能的
+    \item 但只有一项非零（概率为 1）
+    \item 其他所有项都是 0
+    \item 这是随机性的\textbf{特例}
+\end{itemize}
+
+\section{为什么需要求和？}
+
+\subsection{数学上的必要性}
+
+\textbf{概率论的要求}：
+
+概率分布必须满足归一化条件：
+\begin{equation}
+\sum_{\text{所有可能结果}} \Pr\{\text{结果}\} = 1
+\end{equation}
+
+这保证了：
+\begin{itemize}
+    \item 所有可能结果的概率和为 1
+    \item "必然会有某个结果"这个事实
+    \item 概率分布的有效性
+\end{itemize}
+
+\subsection{理论上的完备性}
+
+\textbf{考虑所有可能性}：
+
+即使某些 $(s', r)$ 的概率为 0，我们仍然需要在求和中包含它们，因为：
+\begin{itemize}
+    \item 理论上，它们都是可能的结果
+    \item 我们不知道哪些是 0，哪些是 1（除非已经计算）
+    \item 求和保证了理论的完备性
+\end{itemize}
+
+\subsection{实际计算}
+
+\textbf{在实际计算中}：
+
+我们通常只考虑概率非零的项：
+\begin{equation}
+\sum_{s' \in \mathcal{S}} \sum_{r \in \mathcal{R}} p(s', r | s, a) = \sum_{\substack{s', r \\ p(s', r | s, a) > 0}} p(s', r | s, a)
+\end{equation}
+
+但理论上，求和应该包含所有可能的 $(s', r)$。
+
+\section{常见误解}
+
+\subsection{误解 1：结果应该是确定的}
+
+\textbf{误解}：
+\begin{quote}
+"在状态 $s$ 采取动作 $a$ 后，应该只有一个确定的结果，为什么需要求和？"
+\end{quote}
+
+\textbf{纠正}：
+\begin{itemize}
+    \item 在\textbf{随机环境}中，结果不是确定的
+    \item 可能有多个可能的结果，每个有不同概率
+    \item 求和表示"所有可能结果的概率和"
+    \item 即使环境是确定性的，求和仍然需要（只是大部分项为 0）
+\end{itemize}
+
+\subsection{误解 2：求和意味着多个结果同时发生}
+
+\textbf{误解}：
+\begin{quote}
+"求和意味着会有多个结果同时发生？"
+\end{quote}
+
+\textbf{纠正}：
+\begin{itemize}
+    \item \textbf{不是}同时发生多个结果
+    \item \textbf{而是}每次只发生一个结果，但\textbf{哪个}结果是随机的
+    \item 求和表示"所有可能结果的概率和"，保证必然会有某个结果
+\end{itemize}
+
+\subsection{误解 3：确定性环境不需要求和}
+
+\textbf{误解}：
+\begin{quote}
+"如果环境是确定性的，就不需要求和了。"
+\end{quote}
+
+\textbf{纠正}：
+\begin{itemize}
+    \item 即使环境是确定性的，求和仍然需要
+    \item 只是大部分项为 0，只有一项为 1
+    \item 求和保证了概率分布的有效性
+    \item 统一的数学框架适用于确定性和随机性情况
+\end{itemize}
+
+\section{实际应用}
+
+\subsection{在价值函数计算中}
+
+在计算价值函数时，我们需要考虑所有可能的结果：
+
+\begin{equation}
+v_\pi(s) = \sum_a \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{求和的意义}：
+\begin{itemize}
+    \item 对所有可能的下一状态 $s'$ 和奖励 $r$ 求和
+    \item 每个 $(s', r)$ 的贡献是 $p(s', r | s, a) \cdot [r + \gamma v_\pi(s')]$
+    \item 这是\textbf{期望值}的计算
+\end{itemize}
+
+\subsection{在策略评估中}
+
+在评估策略时，我们需要考虑所有可能的结果：
+
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{求和的意义}：
+\begin{itemize}
+    \item 计算\textbf{期望回报}
+    \item 考虑所有可能的 $(s', r)$ 组合
+    \item 每个组合按其概率加权
+\end{itemize}
+
+\section{数值示例}
+
+\subsection{示例：随机环境}
+
+考虑在状态 $s$ 采取动作 $a$，可能的结果：
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$s'$ & $r$ & $p(s', r | s, a)$ & 说明 \\
+\hline
+$s_1$ & $+10$ & $0.6$ & 60\% 概率：到达目标，大奖励 \\
+$s_2$ & $+1$ & $0.3$ & 30\% 概率：正常移动，小奖励 \\
+$s_3$ & $-5$ & $0.1$ & 10\% 概率：遇到危险，惩罚 \\
+\hline
+\textbf{总和} & - & \textbf{1.0} & \textbf{必然会有某个结果} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 每次采取动作，只会发生\textbf{一个}结果
+    \item 但\textbf{哪个}结果是随机的
+    \item 60\% 的概率是 $(s_1, +10)$
+    \item 30\% 的概率是 $(s_2, +1)$
+    \item 10\% 的概率是 $(s_3, -5)$
+    \item 所有概率和为 1，保证必然会有某个结果
+\end{itemize}
+
+\subsection{示例：确定性环境}
+
+考虑在状态 $s$ 采取动作 $a$，结果是确定的：
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$s'$ & $r$ & $p(s', r | s, a)$ & 说明 \\
+\hline
+$s_2$ & $+1$ & $1.0$ & 100\% 概率：确定的结果 \\
+$s_1$ & $+1$ & $0.0$ & 不可能 \\
+$s_2$ & $-1$ & $0.0$ & 不可能 \\
+$s_3$ & $+1$ & $0.0$ & 不可能 \\
+$\vdots$ & $\vdots$ & $\vdots$ & $\vdots$ \\
+\hline
+\textbf{总和} & - & \textbf{1.0} & \textbf{仍然需要求和} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 只有一项概率为 1，其他都是 0
+    \item 但求和仍然需要，包含所有可能的 $(s', r)$
+    \item 这是随机性的特例
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心答案}
+
+\begin{enumerate}
+    \item \textbf{结果可能是随机的}：
+    \begin{itemize}
+        \item 在状态 $s$ 采取动作 $a$ 后，结果不一定是确定的
+        \item 可能有多个可能的结果，每个有不同概率
+        \item 这是环境的随机性或不确定性的体现
+    \end{itemize}
+    
+    \item \textbf{求和的意义}：
+    \begin{itemize}
+        \item $\sum_{s', r} p(s', r | s, a) = 1$ 表示所有可能结果的概率和为 1
+        \item 这保证了"必然会有某个结果"
+        \item 这是概率分布的基本性质
+    \end{itemize}
+    
+    \item \textbf{确定性是特例}：
+    \begin{itemize}
+        \item 如果环境是确定性的，只有一项概率为 1，其他为 0
+        \item 但求和仍然需要
+        \item 统一的数学框架适用于所有情况
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键理解}
+
+\begin{itemize}
+    \item \textbf{必然性}：确实必然会有某个结果
+    \item \textbf{随机性}：但\textbf{哪个}结果是随机的（除非环境是确定性的）
+    \item \textbf{概率和}：所有可能结果的概率和为 1
+    \item \textbf{期望计算}：求和用于计算期望值
+\end{itemize}
+
+\subsection{记忆技巧}
+
+\begin{itemize}
+    \item \textbf{必然有结果} + \textbf{结果可能随机} = \textbf{需要求和}
+    \item \textbf{概率分布} = \textbf{所有可能结果的概率和为 1}
+    \item \textbf{确定性} = \textbf{随机性的特例}（只有一项非零）
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). Reinforcement Learning: An Introduction (2nd Edition). MIT Press, Chapter 3, Section 3.1.
+    \item 书中说明："The probabilities given by $p$ completely characterize the environment's dynamics."
+\end{itemize}
+
+\end{document}
+
+

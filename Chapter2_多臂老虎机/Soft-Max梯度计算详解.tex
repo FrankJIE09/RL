@@ -1,0 +1,523 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{pgfplots}
+
+\geometry{margin=2.5cm}
+
+\title{Soft-Max 梯度计算详解}
+\subtitle{重点：梯度推导与 Kronecker Delta 符号}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+Soft-Max 函数的梯度计算是理解梯度老虎机算法和策略梯度方法的关键。本文档详细推导 soft-max 的梯度，并深入解释 Kronecker delta 符号 $\delta_{ij}$ 的含义和应用。
+
+\section{Kronecker Delta 符号详解}
+
+\subsection{定义}
+
+\begin{definition}[Kronecker Delta]
+Kronecker delta 是一个二元函数，定义为：
+\begin{equation}
+\delta_{ij} = \begin{cases}
+1 & \text{如果 } i = j \\
+0 & \text{如果 } i \neq j
+\end{cases}
+\end{equation}
+其中 $i$ 和 $j$ 是整数索引。
+\end{definition}
+
+\subsection{符号来源}
+
+\begin{itemize}
+    \item \textbf{命名}：以德国数学家 Leopold Kronecker (1823-1891) 命名
+    \item \textbf{符号}：$\delta$ 是希腊字母"delta"
+    \item \textbf{历史}：Kronecker 在数论和代数中广泛使用这个符号
+\end{itemize}
+
+\subsection{基本性质}
+
+\subsubsection{对称性}
+\begin{equation}
+\delta_{ij} = \delta_{ji}
+\end{equation}
+因为等式关系是对称的。
+
+\subsubsection{选择性质}
+\begin{equation}
+\sum_{j=1}^n a_j \delta_{ij} = a_i
+\end{equation}
+\textbf{解释}：在求和中，只有当 $j = i$ 时，$\delta_{ij} = 1$，其他项都是 0，所以只保留 $a_i$。
+
+\textbf{示例}：
+\begin{align}
+\sum_{j=1}^3 a_j \delta_{2j} &= a_1 \delta_{21} + a_2 \delta_{22} + a_3 \delta_{23} \\
+                              &= a_1 \cdot 0 + a_2 \cdot 1 + a_3 \cdot 0 \\
+                              &= a_2
+\end{align}
+
+\subsubsection{单位矩阵表示}
+Kronecker delta 可以表示单位矩阵的元素：
+\begin{equation}
+\mathbf{I}_{ij} = \delta_{ij}
+\end{equation}
+其中 $\mathbf{I}$ 是单位矩阵。
+
+\textbf{示例}（3×3 单位矩阵）：
+\begin{equation}
+\mathbf{I} = \begin{pmatrix}
+\delta_{11} & \delta_{12} & \delta_{13} \\
+\delta_{21} & \delta_{22} & \delta_{23} \\
+\delta_{31} & \delta_{32} & \delta_{33}
+\end{pmatrix} = \begin{pmatrix}
+1 & 0 & 0 \\
+0 & 1 & 0 \\
+0 & 0 & 1
+\end{pmatrix}
+\end{equation}
+
+\subsection{在导数中的应用}
+
+Kronecker delta 在计算偏导数时非常有用，特别是当我们需要区分"对自身求导"和"对其他变量求导"的情况。
+
+\textbf{一般规则}：
+\begin{equation}
+\frac{\partial x_i}{\partial x_j} = \delta_{ij}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 如果 $i = j$：$\frac{\partial x_i}{\partial x_i} = 1$（对自身求导）
+    \item 如果 $i \neq j$：$\frac{\partial x_i}{\partial x_j} = 0$（对其他变量求导，结果为 0）
+\end{itemize}
+
+\textbf{示例}：
+\begin{align}
+\frac{\partial x_1}{\partial x_1} &= \delta_{11} = 1 \\
+\frac{\partial x_1}{\partial x_2} &= \delta_{12} = 0 \\
+\frac{\partial x_2}{\partial x_1} &= \delta_{21} = 0 \\
+\frac{\partial x_2}{\partial x_2} &= \delta_{22} = 1
+\end{align}
+
+\subsection{在 Soft-Max 梯度中的作用}
+
+在 soft-max 梯度计算中，Kronecker delta 用于区分两种情况：
+\begin{enumerate}
+    \item \textbf{对角情况}（$i = j$）：对自身求导
+    \item \textbf{非对角情况}（$i \neq j$）：对其他元素求导
+\end{enumerate}
+
+\section{Soft-Max 函数回顾}
+
+\subsection{定义}
+
+Soft-Max 函数将 $k$ 个实数 $z_1, z_2, \ldots, z_k$ 转换为概率分布：
+\begin{equation}
+\sigma_i = \text{softmax}(\bm{z})_i = \frac{e^{z_i}}{\sum_{j=1}^k e^{z_j}}, \quad i = 1, 2, \ldots, k
+\end{equation}
+
+其中 $\bm{z} = (z_1, z_2, \ldots, z_k)^T$ 是输入向量。
+
+\subsection{关键性质}
+
+\begin{enumerate}
+    \item \textbf{归一化}：$\sum_{i=1}^k \sigma_i = 1$
+    \item \textbf{非负性}：$\sigma_i \geq 0$ 对所有 $i$
+    \item \textbf{可微性}：$\sigma_i$ 对所有 $z_j$ 可微
+\end{enumerate}
+
+\section{Soft-Max 梯度推导}
+
+\subsection{目标}
+
+计算 soft-max 函数关于输入 $z_j$ 的偏导数：
+\begin{equation}
+\frac{\partial \sigma_i}{\partial z_j} = \frac{\partial}{\partial z_j} \left[\frac{e^{z_i}}{\sum_{l=1}^k e^{z_l}}\right]
+\end{equation}
+
+\subsection{商的求导法则}
+
+我们需要使用\textbf{商的求导法则}：
+\begin{equation}
+\frac{d}{dx}\left[\frac{f(x)}{g(x)}\right] = \frac{f'(x)g(x) - f(x)g'(x)}{[g(x)]^2}
+\end{equation}
+
+在我们的情况下：
+\begin{align}
+f(z_j) &= e^{z_i} \\
+g(z_j) &= \sum_{l=1}^k e^{z_l}
+\end{align}
+
+\subsection{分情况讨论}
+
+由于 $z_i$ 和 $z_j$ 的关系，我们需要分两种情况：
+
+\subsubsection{情况 1：$i = j$（对角情况）}
+
+当 $i = j$ 时，我们对 $\sigma_i$ 关于 $z_i$ 求导。
+
+\textbf{步骤 1}：应用商的求导法则
+\begin{align}
+\frac{\partial \sigma_i}{\partial z_i} &= \frac{\frac{\partial e^{z_i}}{\partial z_i} \cdot \sum_{l=1}^k e^{z_l} - e^{z_i} \cdot \frac{\partial \sum_{l=1}^k e^{z_l}}{\partial z_i}}{\left(\sum_{l=1}^k e^{z_l}\right)^2}
+\end{align}
+
+\textbf{步骤 2}：计算各项导数
+\begin{align}
+\frac{\partial e^{z_i}}{\partial z_i} &= e^{z_i} \\
+\frac{\partial \sum_{l=1}^k e^{z_l}}{\partial z_i} &= \frac{\partial}{\partial z_i}\left[e^{z_1} + e^{z_2} + \cdots + e^{z_i} + \cdots + e^{z_k}\right] \\
+                                                    &= 0 + 0 + \cdots + e^{z_i} + \cdots + 0 \\
+                                                    &= e^{z_i}
+\end{align}
+
+\textbf{步骤 3}：代入并化简
+\begin{align}
+\frac{\partial \sigma_i}{\partial z_i} &= \frac{e^{z_i} \cdot \sum_{l=1}^k e^{z_l} - e^{z_i} \cdot e^{z_i}}{\left(\sum_{l=1}^k e^{z_l}\right)^2} \\
+                                       &= \frac{e^{z_i}\left(\sum_{l=1}^k e^{z_l} - e^{z_i}\right)}{\left(\sum_{l=1}^k e^{z_l}\right)^2} \\
+                                       &= \frac{e^{z_i}}{\sum_{l=1}^k e^{z_l}} \cdot \frac{\sum_{l=1}^k e^{z_l} - e^{z_i}}{\sum_{l=1}^k e^{z_l}} \\
+                                       &= \sigma_i \cdot \frac{\sum_{l=1}^k e^{z_l} - e^{z_i}}{\sum_{l=1}^k e^{z_l}} \\
+                                       &= \sigma_i \left(1 - \frac{e^{z_i}}{\sum_{l=1}^k e^{z_l}}\right) \\
+                                       &= \sigma_i (1 - \sigma_i)
+\end{align}
+
+\subsubsection{情况 2：$i \neq j$（非对角情况）}
+
+当 $i \neq j$ 时，我们对 $\sigma_i$ 关于 $z_j$ 求导。
+
+\textbf{步骤 1}：应用商的求导法则
+\begin{align}
+\frac{\partial \sigma_i}{\partial z_j} &= \frac{\frac{\partial e^{z_i}}{\partial z_j} \cdot \sum_{l=1}^k e^{z_l} - e^{z_i} \cdot \frac{\partial \sum_{l=1}^k e^{z_l}}{\partial z_j}}{\left(\sum_{l=1}^k e^{z_l}\right)^2}
+\end{align}
+
+\textbf{步骤 2}：计算各项导数
+\begin{align}
+\frac{\partial e^{z_i}}{\partial z_j} &= 0 \quad \text{（因为 } i \neq j \text{，} z_i \text{ 不依赖于 } z_j\text{）} \\
+\frac{\partial \sum_{l=1}^k e^{z_l}}{\partial z_j} &= e^{z_j} \quad \text{（只有 } e^{z_j} \text{ 项对 } z_j \text{ 求导非零）}
+\end{align}
+
+\textbf{步骤 3}：代入并化简
+\begin{align}
+\frac{\partial \sigma_i}{\partial z_j} &= \frac{0 \cdot \sum_{l=1}^k e^{z_l} - e^{z_i} \cdot e^{z_j}}{\left(\sum_{l=1}^k e^{z_l}\right)^2} \\
+                                       &= \frac{-e^{z_i} e^{z_j}}{\left(\sum_{l=1}^k e^{z_l}\right)^2} \\
+                                       &= -\frac{e^{z_i}}{\sum_{l=1}^k e^{z_l}} \cdot \frac{e^{z_j}}{\sum_{l=1}^k e^{z_l}} \\
+                                       &= -\sigma_i \sigma_j
+\end{align}
+
+\subsection{统一公式}
+
+使用 Kronecker delta，我们可以将两种情况统一为一个公式：
+
+\begin{theorem}[Soft-Max 梯度]
+Soft-Max 函数关于输入 $z_j$ 的偏导数为：
+\begin{equation}
+\frac{\partial \sigma_i}{\partial z_j} = \sigma_i (\delta_{ij} - \sigma_j)
+\label{eq:softmax_gradient}
+\end{equation}
+\end{theorem}
+
+\textbf{验证}：
+
+\textbf{情况 1}：$i = j$（$\delta_{ij} = 1$）
+\begin{align}
+\frac{\partial \sigma_i}{\partial z_i} &= \sigma_i (1 - \sigma_i) = \sigma_i - \sigma_i^2 \quad \checkmark
+\end{align}
+
+\textbf{情况 2}：$i \neq j$（$\delta_{ij} = 0$）
+\begin{align}
+\frac{\partial \sigma_i}{\partial z_j} &= \sigma_i (0 - \sigma_j) = -\sigma_i \sigma_j \quad \checkmark
+\end{align}
+
+\subsection{矩阵形式}
+
+如果我们计算所有偏导数，可以得到\textbf{雅可比矩阵（Jacobian matrix）}：
+\begin{equation}
+\mathbf{J}_{ij} = \frac{\partial \sigma_i}{\partial z_j} = \sigma_i (\delta_{ij} - \sigma_j)
+\end{equation}
+
+\textbf{展开形式}（以 $k=3$ 为例）：
+\begin{equation}
+\mathbf{J} = \begin{pmatrix}
+\sigma_1(1-\sigma_1) & -\sigma_1\sigma_2 & -\sigma_1\sigma_3 \\
+-\sigma_2\sigma_1 & \sigma_2(1-\sigma_2) & -\sigma_2\sigma_3 \\
+-\sigma_3\sigma_1 & -\sigma_3\sigma_2 & \sigma_3(1-\sigma_3)
+\end{pmatrix}
+\end{equation}
+
+\section{梯度公式的深入理解}
+
+\subsection{对角元素：$\frac{\partial \sigma_i}{\partial z_i} = \sigma_i(1-\sigma_i)$}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 这是 $\sigma_i$ 关于自身输入 $z_i$ 的敏感度
+    \item 形式类似于\textbf{逻辑函数的导数}
+    \item 当 $\sigma_i$ 接近 0 或 1 时，梯度很小（饱和）
+    \item 当 $\sigma_i = 0.5$ 时，梯度最大（$0.5 \times 0.5 = 0.25$）
+\end{itemize}
+
+\textbf{图形理解}：
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+    xlabel={$\sigma_i$},
+    ylabel={$\frac{\partial \sigma_i}{\partial z_i}$},
+    domain=0:1,
+    samples=100,
+    width=10cm,
+    height=6cm
+]
+\addplot[blue, thick] {x*(1-x)};
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+这是一个倒置的抛物线，在 $\sigma_i = 0.5$ 处达到最大值。
+
+\subsection{非对角元素：$\frac{\partial \sigma_i}{\partial z_j} = -\sigma_i\sigma_j$}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 这是 $\sigma_i$ 关于其他输入 $z_j$（$j \neq i$）的敏感度
+    \item 总是\textbf{负数}（因为概率是竞争性的）
+    \item 当 $\sigma_i$ 或 $\sigma_j$ 接近 0 时，梯度接近 0
+    \item 当两者都较大时，梯度（绝对值）较大
+\end{itemize}
+
+\textbf{直观理解}：
+\begin{itemize}
+    \item 如果增加 $z_j$，则 $\sigma_j$ 增加
+    \item 由于归一化约束，$\sigma_i$ 必须减少
+    \item 因此梯度为负
+\end{itemize}
+
+\subsection{归一化约束的影响}
+
+\textbf{关键观察}：
+\begin{equation}
+\sum_{j=1}^k \frac{\partial \sigma_i}{\partial z_j} = \sum_{j=1}^k \sigma_i (\delta_{ij} - \sigma_j) = \sigma_i \left(\sum_{j=1}^k \delta_{ij} - \sum_{j=1}^k \sigma_j\right) = \sigma_i (1 - 1) = 0
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 所有偏导数的和为 0
+    \item 这反映了归一化约束：$\sum_{i=1}^k \sigma_i = 1$
+    \item 如果所有 $z_j$ 同时增加相同量，$\sigma_i$ 不变（平移不变性）
+\end{itemize}
+
+\section{数值示例}
+
+\subsection{示例 1：简单情况}
+
+设 $k=3$，输入为 $\bm{z} = (1, 2, 3)^T$。
+
+\textbf{步骤 1}：计算 soft-max 输出
+\begin{align}
+e^{z_1} &= e^1 \approx 2.718 \\
+e^{z_2} &= e^2 \approx 7.389 \\
+e^{z_3} &= e^3 \approx 20.086 \\
+\sum e^{z_i} &\approx 30.193
+\end{align}
+
+\begin{align}
+\sigma_1 &= \frac{2.718}{30.193} \approx 0.090 \\
+\sigma_2 &= \frac{7.389}{30.193} \approx 0.245 \\
+\sigma_3 &= \frac{20.086}{30.193} \approx 0.665
+\end{align}
+
+\textbf{步骤 2}：计算梯度矩阵
+
+\textbf{对角元素}：
+\begin{align}
+\frac{\partial \sigma_1}{\partial z_1} &= 0.090 \times (1 - 0.090) = 0.090 \times 0.910 = 0.082 \\
+\frac{\partial \sigma_2}{\partial z_2} &= 0.245 \times (1 - 0.245) = 0.245 \times 0.755 = 0.185 \\
+\frac{\partial \sigma_3}{\partial z_3} &= 0.665 \times (1 - 0.665) = 0.665 \times 0.335 = 0.223
+\end{align}
+
+\textbf{非对角元素}：
+\begin{align}
+\frac{\partial \sigma_1}{\partial z_2} &= -0.090 \times 0.245 = -0.022 \\
+\frac{\partial \sigma_1}{\partial z_3} &= -0.090 \times 0.665 = -0.060 \\
+\frac{\partial \sigma_2}{\partial z_1} &= -0.245 \times 0.090 = -0.022 \\
+\frac{\partial \sigma_2}{\partial z_3} &= -0.245 \times 0.665 = -0.163 \\
+\frac{\partial \sigma_3}{\partial z_1} &= -0.665 \times 0.090 = -0.060 \\
+\frac{\partial \sigma_3}{\partial z_2} &= -0.665 \times 0.245 = -0.163
+\end{align}
+
+\textbf{完整雅可比矩阵}：
+\begin{equation}
+\mathbf{J} \approx \begin{pmatrix}
+0.082 & -0.022 & -0.060 \\
+-0.022 & 0.185 & -0.163 \\
+-0.060 & -0.163 & 0.223
+\end{pmatrix}
+\end{equation}
+
+\textbf{验证}：每行和应该为 0（归一化约束）
+\begin{align}
+\text{第1行和} &= 0.082 - 0.022 - 0.060 = 0.000 \quad \checkmark \\
+\text{第2行和} &= -0.022 + 0.185 - 0.163 = 0.000 \quad \checkmark \\
+\text{第3行和} &= -0.060 - 0.163 + 0.223 = 0.000 \quad \checkmark
+\end{align}
+
+\section{在梯度老虎机算法中的应用}
+
+\subsection{性能梯度}
+
+在梯度老虎机算法中，我们需要计算期望奖励关于偏好 $H_t(a)$ 的梯度：
+\begin{equation}
+\frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)} = \frac{\partial}{\partial H_t(a)} \left[\sum_x \pi_t(x) q_*(x)\right]
+\end{equation}
+
+\subsection{使用 Soft-Max 梯度}
+
+由于 $\pi_t(x) = \text{softmax}(\bm{H}_t)_x$，我们可以使用 soft-max 梯度：
+\begin{align}
+\frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)} &= \sum_x q_*(x) \frac{\partial \pi_t(x)}{\partial H_t(a)} \\
+                                                  &= \sum_x q_*(x) \pi_t(x) (\delta_{ax} - \pi_t(a)) \\
+                                                  &= \sum_x q_*(x) \pi_t(x) \delta_{ax} - \pi_t(a) \sum_x q_*(x) \pi_t(x) \\
+                                                  &= q_*(a) \pi_t(a) - \pi_t(a) \mathbb{E}[R_t] \\
+                                                  &= \pi_t(a) [q_*(a) - \mathbb{E}[R_t]]
+\end{align}
+
+\textbf{关键步骤}：使用了 Kronecker delta 的选择性质：
+\begin{equation}
+\sum_x q_*(x) \pi_t(x) \delta_{ax} = q_*(a) \pi_t(a)
+\end{equation}
+
+\subsection{引入基线}
+
+为了减少方差，我们引入基线 $B_t$（不依赖于 $x$）：
+\begin{align}
+\frac{\partial \mathbb{E}[R_t]}{\partial H_t(a)} &= \sum_x [q_*(x) - B_t] \pi_t(x) (\delta_{ax} - \pi_t(a)) \\
+                                                  &= \sum_x [q_*(x) - B_t] \pi_t(x) \delta_{ax} - \pi_t(a) \sum_x [q_*(x) - B_t] \pi_t(x) \\
+                                                  &= [q_*(a) - B_t] \pi_t(a) - \pi_t(a) \sum_x [q_*(x) - B_t] \pi_t(x)
+\end{align}
+
+由于 $\sum_x \pi_t(x) = 1$，第二项为 0：
+\begin{equation}
+\sum_x [q_*(x) - B_t] \pi_t(x) = \sum_x q_*(x) \pi_t(x) - B_t \sum_x \pi_t(x) = \mathbb{E}[R_t] - B_t
+\end{equation}
+
+如果选择 $B_t = \mathbb{E}[R_t]$，则第二项为 0。
+
+\section{常见错误与注意事项}
+
+\subsection{错误 1：忘记 Kronecker Delta}
+
+\textbf{错误写法}：
+\begin{equation}
+\frac{\partial \sigma_i}{\partial z_j} = \sigma_i (1 - \sigma_j) \quad \text{❌ 错误！}
+\end{equation}
+
+\textbf{正确写法}：
+\begin{equation}
+\frac{\partial \sigma_i}{\partial z_j} = \sigma_i (\delta_{ij} - \sigma_j) \quad \text{✓ 正确}
+\end{equation}
+
+\textbf{区别}：错误公式在 $i \neq j$ 时给出错误结果。
+
+\subsection{错误 2：混淆索引}
+
+\textbf{常见混淆}：
+\begin{itemize}
+    \item $\frac{\partial \sigma_i}{\partial z_j}$：对哪个变量求导？
+    \item 记住：分母的下标 $j$ 表示对 $z_j$ 求导
+    \item 分子的下标 $i$ 表示哪个 $\sigma$ 的导数
+\end{itemize}
+
+\subsection{数值稳定性}
+
+在计算梯度时，也要注意数值稳定性：
+\begin{verbatim}
+# 数值稳定的 soft-max 梯度计算
+def softmax_gradient_stable(z):
+    z_shifted = z - np.max(z)
+    exp_z = np.exp(z_shifted)
+    sigma = exp_z / np.sum(exp_z)
+    
+    # 计算梯度矩阵
+    k = len(z)
+    J = np.zeros((k, k))
+    for i in range(k):
+        for j in range(k):
+            delta_ij = 1 if i == j else 0
+            J[i, j] = sigma[i] * (delta_ij - sigma[j])
+    
+    return J
+\end{verbatim}
+
+\section{总结}
+
+\subsection{关键公式}
+
+\begin{enumerate}
+    \item \textbf{Soft-Max 梯度}：
+    \begin{equation}
+    \frac{\partial \sigma_i}{\partial z_j} = \sigma_i (\delta_{ij} - \sigma_j)
+    \end{equation}
+    
+    \item \textbf{Kronecker Delta}：
+    \begin{equation}
+    \delta_{ij} = \begin{cases}
+    1 & \text{如果 } i = j \\
+    0 & \text{如果 } i \neq j
+    \end{cases}
+    \end{equation}
+    
+    \item \textbf{选择性质}：
+    \begin{equation}
+    \sum_j a_j \delta_{ij} = a_i
+    \end{equation}
+\end{enumerate}
+
+\subsection{重要性质}
+
+\begin{enumerate}
+    \item \textbf{对角元素}：$\frac{\partial \sigma_i}{\partial z_i} = \sigma_i(1-\sigma_i)$（总是正数）
+    \item \textbf{非对角元素}：$\frac{\partial \sigma_i}{\partial z_j} = -\sigma_i\sigma_j$（总是负数）
+    \item \textbf{归一化约束}：$\sum_j \frac{\partial \sigma_i}{\partial z_j} = 0$
+    \item \textbf{对称性}：$\frac{\partial \sigma_i}{\partial z_j} \neq \frac{\partial \sigma_j}{\partial z_i}$（一般不对称）
+\end{enumerate}
+
+\subsection{应用场景}
+
+\begin{enumerate}
+    \item 梯度老虎机算法
+    \item 策略梯度方法
+    \item 神经网络中的分类层
+    \item 任何需要 soft-max 梯度的优化问题
+\end{enumerate}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). Reinforcement Learning: An Introduction (2nd Edition). MIT Press.
+    \item Bishop, C. M. (2006). Pattern Recognition and Machine Learning. Springer.
+    \item Goodfellow, I., Bengio, Y., \& Courville, A. (2016). Deep Learning. MIT Press.
+\end{itemize}
+
+\end{document}
+
+

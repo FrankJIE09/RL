@@ -1,0 +1,589 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+
+\geometry{margin=2.5cm}
+
+\title{MDP 动态函数详解}
+\subtitle{四参数动态函数及其衍生形式}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+在马尔可夫决策过程（MDP）中，环境的动态可以用多种方式表示。本文档详细解释四参数动态函数及其所有衍生形式，包括它们的定义、关系、推导和应用。
+
+\section{四参数动态函数：基础}
+
+\subsection{定义}
+
+\begin{definition}[四参数动态函数]
+四参数动态函数 $p(s', r | s, a)$ 定义为：
+\begin{equation}
+p(s', r | s, a) \doteq \Pr\{S_{t+1} = s', R_{t+1} = r | S_t = s, A_t = a\}
+\label{eq:four_param}
+\end{equation}
+其中：
+\begin{itemize}
+    \item $s \in \mathcal{S}$：当前状态
+    \item $a \in \mathcal{A}(s)$：在当前状态 $s$ 下采取的动作
+    \item $s' \in \mathcal{S}$：下一状态
+    \item $r \in \mathcal{R}$：奖励值
+\end{itemize}
+\end{definition}
+
+\subsection{符号说明}
+
+\begin{itemize}
+    \item \textbf{函数名}：$p$ 表示概率（probability）
+    \item \textbf{参数顺序}：$(s', r | s, a)$
+    \begin{itemize}
+        \item 竖线 $|$ 前：结果（下一状态和奖励）
+        \item 竖线 $|$ 后：条件（当前状态和动作）
+    \end{itemize}
+    \item \textbf{点等号}：$\doteq$ 表示"定义为"，强调这是定义而非推导结果
+    \item \textbf{时间索引}：注意 $S_{t+1}$ 和 $R_{t+1}$ 使用 $t+1$，强调它们是联合确定的
+\end{itemize}
+
+\subsection{含义}
+
+$p(s', r | s, a)$ 表示：
+\begin{quote}
+在状态 $s$ 采取动作 $a$ 的条件下，下一状态为 $s'$ \textbf{且}奖励为 $r$ 的\textbf{联合概率}。
+\end{quote}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 这是\textbf{联合概率}：同时指定了下一状态和奖励
+    \item 强调了 $S_{t+1}$ 和 $R_{t+1}$ 的\textbf{联合性}
+    \item 完全描述了环境的动态
+\end{itemize}
+
+\subsection{归一化条件}
+
+对于任意给定的 $(s, a)$，所有可能的 $(s', r)$ 组合的概率和必须为 1：
+\begin{equation}
+\sum_{s' \in \mathcal{S}} \sum_{r \in \mathcal{R}} p(s', r | s, a) = 1, \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\label{eq:normalization}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 在状态 $s$ 采取动作 $a$ 后，必然会有某个下一状态和某个奖励
+    \item 所有可能的结果的概率和为 1
+    \item 这保证了 $p$ 是一个有效的概率分布
+\end{itemize}
+
+\subsection{函数类型}
+
+\begin{itemize}
+    \item \textbf{定义域}：$\mathcal{S} \times \mathcal{R} \times \mathcal{S} \times \mathcal{A} \to [0, 1]$
+    \item \textbf{值域}：$[0, 1]$（概率值）
+    \item \textbf{确定性}：$p$ 本身是确定性的函数，但它的值表示概率
+\end{itemize}
+
+\section{三参数状态转移概率：$p(s' | s, a)$}
+
+\subsection{定义}
+
+\begin{definition}[状态转移概率]
+状态转移概率 $p(s' | s, a)$ 定义为：
+\begin{equation}
+p(s' | s, a) \doteq \Pr\{S_{t+1} = s' | S_t = s, A_t = a\} = \sum_{r \in \mathcal{R}} p(s', r | s, a)
+\label{eq:three_param_transition}
+\end{equation}
+\end{definition}
+
+\subsection{推导过程}
+
+\textbf{从联合概率到边缘概率}：
+
+给定四参数动态函数 $p(s', r | s, a)$，我们可以通过对奖励 $r$ 求和来得到状态转移概率：
+\begin{align}
+p(s' | s, a) &= \Pr\{S_{t+1} = s' | S_t = s, A_t = a\} \\
+             &= \sum_{r \in \mathcal{R}} \Pr\{S_{t+1} = s', R_{t+1} = r | S_t = s, A_t = a\} \\
+             &= \sum_{r \in \mathcal{R}} p(s', r | s, a)
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 这是\textbf{边缘化（marginalization）}操作
+    \item 对所有可能的奖励值求和，得到只关于状态的概率
+    \item 从联合分布 $p(s', r | s, a)$ 得到边缘分布 $p(s' | s, a)$
+\end{itemize}
+
+\subsection{含义}
+
+$p(s' | s, a)$ 表示：
+\begin{quote}
+在状态 $s$ 采取动作 $a$ 的条件下，下一状态为 $s'$ 的概率（不考虑具体奖励值）。
+\end{quote}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 这是\textbf{条件概率}：只关注状态转移
+    \item 忽略了奖励的具体值
+    \item 仍然依赖于当前状态和动作
+\end{itemize}
+
+\subsection{归一化条件}
+
+对于任意给定的 $(s, a)$：
+\begin{equation}
+\sum_{s' \in \mathcal{S}} p(s' | s, a) = 1, \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\textbf{验证}：
+\begin{align}
+\sum_{s'} p(s' | s, a) &= \sum_{s'} \sum_{r} p(s', r | s, a) \\
+                        &= \sum_{s', r} p(s', r | s, a) \\
+                        &= 1 \quad \text{（由式 \eqref{eq:normalization}）}
+\end{align}
+
+\subsection{符号重载}
+
+\begin{itemize}
+    \item \textbf{注意}：这里使用了\textbf{符号重载（overloading）}
+    \item 函数名都是 $p$，但参数个数不同
+    \item $p(s', r | s, a)$：四参数函数
+    \item $p(s' | s, a)$：三参数函数
+    \item 通过参数个数可以区分它们
+\end{itemize}
+
+\section{双参数期望奖励：$r(s, a)$}
+
+\subsection{定义}
+
+\begin{definition}[状态-动作期望奖励]
+状态-动作期望奖励 $r(s, a)$ 定义为：
+\begin{equation}
+r(s, a) \doteq \mathbb{E}[R_{t+1} | S_t = s, A_t = a] = \sum_{r \in \mathcal{R}} r \sum_{s' \in \mathcal{S}} p(s', r | s, a)
+\label{eq:two_param_reward}
+\end{equation}
+\end{definition}
+
+\subsection{推导过程}
+
+\textbf{期望的定义}：
+
+奖励 $R_{t+1}$ 的期望值等于所有可能奖励值的加权平均：
+\begin{align}
+r(s, a) &= \mathbb{E}[R_{t+1} | S_t = s, A_t = a] \\
+        &= \sum_{r \in \mathcal{R}} r \cdot \Pr\{R_{t+1} = r | S_t = s, A_t = a\} \\
+        &= \sum_{r \in \mathcal{R}} r \sum_{s' \in \mathcal{S}} \Pr\{S_{t+1} = s', R_{t+1} = r | S_t = s, A_t = a\} \\
+        &= \sum_{r \in \mathcal{R}} r \sum_{s' \in \mathcal{S}} p(s', r | s, a)
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 对所有可能的 $(s', r)$ 组合求和
+    \item 每个组合的权重是 $r \cdot p(s', r | s, a)$
+    \item 结果是对奖励值的期望
+\end{itemize}
+
+\subsection{含义}
+
+$r(s, a)$ 表示：
+\begin{quote}
+在状态 $s$ 采取动作 $a$ 的条件下，期望收到的奖励值（平均奖励）。
+\end{quote}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 这是\textbf{期望值}，不是概率
+    \item 值域是实数：$r(s, a) \in \mathbb{R}$
+    \item 考虑了所有可能的下一状态和奖励组合
+    \item 只依赖于当前状态和动作
+\end{itemize}
+
+\subsection{简化形式}
+
+如果奖励只依赖于 $(s, a)$ 而不依赖于 $s'$，则：
+\begin{equation}
+r(s, a) = \sum_{r \in \mathcal{R}} r \cdot \Pr\{R_{t+1} = r | S_t = s, A_t = a\}
+\end{equation}
+
+\section{三参数期望奖励：$r(s, a, s')$}
+
+\subsection{定义}
+
+\begin{definition}[状态-动作-下一状态期望奖励]
+状态-动作-下一状态期望奖励 $r(s, a, s')$ 定义为：
+\begin{equation}
+r(s, a, s') \doteq \mathbb{E}[R_{t+1} | S_t = s, A_t = a, S_{t+1} = s'] = \frac{\sum_{r \in \mathcal{R}} r \cdot p(s', r | s, a)}{p(s' | s, a)}
+\label{eq:three_param_reward}
+\end{equation}
+\end{definition}
+
+\subsection{推导过程}
+
+\textbf{条件期望}：
+
+给定下一状态 $s'$，奖励的期望是：
+\begin{align}
+r(s, a, s') &= \mathbb{E}[R_{t+1} | S_t = s, A_t = a, S_{t+1} = s'] \\
+             &= \sum_{r \in \mathcal{R}} r \cdot \Pr\{R_{t+1} = r | S_t = s, A_t = a, S_{t+1} = s'\}
+\end{align}
+
+\textbf{使用条件概率公式}：
+
+根据条件概率的定义：
+\begin{equation}
+\Pr\{R_{t+1} = r | S_t = s, A_t = a, S_{t+1} = s'\} = \frac{\Pr\{S_{t+1} = s', R_{t+1} = r | S_t = s, A_t = a\}}{\Pr\{S_{t+1} = s' | S_t = s, A_t = a\}}
+\end{equation}
+
+因此：
+\begin{align}
+r(s, a, s') &= \sum_{r \in \mathcal{R}} r \cdot \frac{p(s', r | s, a)}{p(s' | s, a)} \\
+             &= \frac{\sum_{r \in \mathcal{R}} r \cdot p(s', r | s, a)}{p(s' | s, a)}
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 这是\textbf{条件期望}：给定下一状态 $s'$ 的期望奖励
+    \item 分子：所有可能的奖励值乘以对应的联合概率
+    \item 分母：状态转移概率（归一化因子）
+\end{itemize}
+
+\subsection{含义}
+
+$r(s, a, s')$ 表示：
+\begin{quote}
+在状态 $s$ 采取动作 $a$，且已知下一状态为 $s'$ 的条件下，期望收到的奖励值。
+\end{quote}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 这是\textbf{条件期望}，依赖于下一状态
+    \item 比 $r(s, a)$ 更具体：不仅知道当前状态和动作，还知道下一状态
+    \item 在某些问题中，奖励可能强烈依赖于下一状态
+\end{itemize}
+
+\subsection{与 $r(s, a)$ 的关系}
+
+通过全概率公式，$r(s, a)$ 可以表示为：
+\begin{align}
+r(s, a) &= \sum_{s' \in \mathcal{S}} p(s' | s, a) \cdot r(s, a, s') \\
+        &= \sum_{s' \in \mathcal{S}} p(s' | s, a) \cdot \mathbb{E}[R_{t+1} | S_t = s, A_t = a, S_{t+1} = s']
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $r(s, a)$ 是 $r(s, a, s')$ 关于 $s'$ 的加权平均
+    \item 权重是状态转移概率 $p(s' | s, a)$
+    \item 这是\textbf{全期望公式（law of total expectation）}的应用
+\end{itemize}
+
+\section{函数关系总结}
+
+\subsection{层次结构}
+
+\begin{center}
+\begin{tikzpicture}[node distance=2cm]
+    \node (four) [rectangle, draw, text width=3cm, text centered] {四参数\\$p(s', r | s, a)$\\基础函数};
+    \node (three_trans) [rectangle, draw, text width=3cm, text centered, below left=of four] {三参数转移\\$p(s' | s, a)$\\边缘化};
+    \node (two_reward) [rectangle, draw, text width=3cm, text centered, below right=of four] {双参数奖励\\$r(s, a)$\\期望};
+    \node (three_reward) [rectangle, draw, text width=3cm, text centered, below=of three_trans] {三参数奖励\\$r(s, a, s')$\\条件期望};
+    
+    \draw[->] (four) -- node[left] {对 $r$ 求和} (three_trans);
+    \draw[->] (four) -- node[right] {加权求和} (two_reward);
+    \draw[->] (four) -- node[below left] {条件概率} (three_reward);
+    \draw[->] (three_trans) -- node[right] {加权平均} (two_reward);
+    \draw[->] (three_reward) -- node[below] {全期望} (two_reward);
+\end{tikzpicture}
+\end{center}
+
+\subsection{推导关系}
+
+\begin{enumerate}
+    \item \textbf{从四参数到三参数转移}：
+    \begin{equation}
+    p(s' | s, a) = \sum_{r \in \mathcal{R}} p(s', r | s, a)
+    \end{equation}
+    
+    \item \textbf{从四参数到双参数奖励}：
+    \begin{equation}
+    r(s, a) = \sum_{r \in \mathcal{R}} r \sum_{s' \in \mathcal{S}} p(s', r | s, a)
+    \end{equation}
+    
+    \item \textbf{从四参数到三参数奖励}：
+    \begin{equation}
+    r(s, a, s') = \frac{\sum_{r \in \mathcal{R}} r \cdot p(s', r | s, a)}{p(s' | s, a)}
+    \end{equation}
+    
+    \item \textbf{从三参数奖励到双参数奖励}：
+    \begin{equation}
+    r(s, a) = \sum_{s' \in \mathcal{S}} p(s' | s, a) \cdot r(s, a, s')
+    \end{equation}
+\end{enumerate}
+
+\section{数值示例}
+
+\subsection{示例：简单的网格世界}
+
+考虑一个简单的 2×2 网格世界：
+\begin{itemize}
+    \item 状态：$\mathcal{S} = \{s_1, s_2, s_3, s_4\}$（4个格子）
+    \item 动作：$\mathcal{A} = \{\text{上}, \text{下}, \text{左}, \text{右}\}$
+    \item 奖励：$\mathcal{R} = \{-1, 0, +10\}$
+\end{itemize}
+
+\subsection{四参数动态函数示例}
+
+假设在状态 $s_1$ 采取动作"右"：
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$s'$ & $r$ & $p(s', r | s_1, \text{右})$ & 说明 \\
+\hline
+$s_2$ & $-1$ & $0.8$ & 80\% 概率移动到 $s_2$，奖励 $-1$ \\
+$s_2$ & $0$ & $0.1$ & 10\% 概率移动到 $s_2$，奖励 $0$ \\
+$s_1$ & $-1$ & $0.1$ & 10\% 概率撞墙，留在 $s_1$，奖励 $-1$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{验证归一化}：
+\begin{equation}
+0.8 + 0.1 + 0.1 = 1.0 \quad \checkmark
+\end{equation}
+
+\subsection{计算三参数状态转移概率}
+
+\begin{align}
+p(s_2 | s_1, \text{右}) &= \sum_{r} p(s_2, r | s_1, \text{右}) \\
+                        &= p(s_2, -1 | s_1, \text{右}) + p(s_2, 0 | s_1, \text{右}) \\
+                        &= 0.8 + 0.1 = 0.9 \\
+p(s_1 | s_1, \text{右}) &= p(s_1, -1 | s_1, \text{右}) = 0.1
+\end{align}
+
+\textbf{验证}：
+\begin{equation}
+p(s_2 | s_1, \text{右}) + p(s_1 | s_1, \text{右}) = 0.9 + 0.1 = 1.0 \quad \checkmark
+\end{equation}
+
+\subsection{计算双参数期望奖励}
+
+\begin{align}
+r(s_1, \text{右}) &= \sum_{r} r \sum_{s'} p(s', r | s_1, \text{右}) \\
+                  &= (-1) \cdot [p(s_2, -1 | s_1, \text{右}) + p(s_1, -1 | s_1, \text{右})] \\
+                  &\quad + 0 \cdot p(s_2, 0 | s_1, \text{右}) \\
+                  &= (-1) \cdot (0.8 + 0.1) + 0 \cdot 0.1 \\
+                  &= -0.9
+\end{align}
+
+\subsection{计算三参数期望奖励}
+
+\begin{align}
+r(s_1, \text{右}, s_2) &= \frac{\sum_{r} r \cdot p(s_2, r | s_1, \text{右})}{p(s_2 | s_1, \text{右})} \\
+                        &= \frac{(-1) \cdot 0.8 + 0 \cdot 0.1}{0.9} \\
+                        &= \frac{-0.8}{0.9} \approx -0.889 \\
+r(s_1, \text{右}, s_1) &= \frac{(-1) \cdot 0.1}{0.1} = -1.0
+\end{align}
+
+\textbf{验证关系}：
+\begin{align}
+r(s_1, \text{右}) &= p(s_2 | s_1, \text{右}) \cdot r(s_1, \text{右}, s_2) + p(s_1 | s_1, \text{右}) \cdot r(s_1, \text{右}, s_1) \\
+                  &= 0.9 \times (-0.889) + 0.1 \times (-1.0) \\
+                  &\approx -0.800 - 0.100 = -0.900 \quad \checkmark
+\end{align}
+
+\section{应用场景}
+
+\subsection{何时使用四参数函数？}
+
+\textbf{适用情况}：
+\begin{itemize}
+    \item \textbf{完整建模}：需要完整描述环境动态
+    \item \textbf{理论分析}：推导和证明
+    \item \textbf{一般性讨论}：最通用的表示
+\end{itemize}
+
+\textbf{优点}：
+\begin{itemize}
+    \item 包含所有信息
+    \item 可以推导出其他所有函数
+    \item 数学表达最完整
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item 参数较多，可能难以估计
+    \item 存储空间较大
+\end{itemize}
+
+\subsection{何时使用三参数转移概率？}
+
+\textbf{适用情况}：
+\begin{itemize}
+    \item \textbf{只关心状态转移}：不关心具体奖励值
+    \item \textbf{规划问题}：某些规划算法只需要转移概率
+    \item \textbf{简化模型}：奖励是确定性的或简单的
+\end{itemize}
+
+\textbf{优点}：
+\begin{itemize}
+    \item 参数较少
+    \item 更易估计和存储
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item 丢失了奖励信息
+    \item 无法完整描述环境
+\end{itemize}
+
+\subsection{何时使用双参数奖励？}
+
+\textbf{适用情况}：
+\begin{itemize}
+    \item \textbf{奖励只依赖于 $(s, a)$}：不依赖于下一状态
+    \item \textbf{简化计算}：某些算法只需要期望奖励
+    \item \textbf{价值函数计算}：贝尔曼方程中常用
+\end{itemize}
+
+\textbf{优点}：
+\begin{itemize}
+    \item 形式简单
+    \item 计算方便
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item 忽略了奖励的随机性
+    \item 如果奖励依赖于 $s'$，信息丢失
+\end{itemize}
+
+\subsection{何时使用三参数奖励？}
+
+\textbf{适用情况}：
+\begin{itemize}
+    \item \textbf{奖励依赖于下一状态}：不同转移有不同的奖励
+    \item \textbf{精确建模}：需要区分不同转移的奖励
+    \item \textbf{某些算法}：需要更详细的奖励信息
+\end{itemize}
+
+\textbf{优点}：
+\begin{itemize}
+    \item 比双参数更精确
+    \item 保留了状态转移的信息
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item 参数较多
+    \item 计算稍复杂
+\end{itemize}
+
+\section{在贝尔曼方程中的应用}
+
+\subsection{使用四参数函数}
+
+状态价值函数的贝尔曼方程：
+\begin{equation}
+v_\pi(s) = \sum_a \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{优点}：直接使用基础函数，表达清晰
+
+\subsection{使用三参数转移和双参数奖励}
+
+可以改写为：
+\begin{equation}
+v_\pi(s) = \sum_a \pi(a | s) \sum_{s'} p(s' | s, a) [r(s, a) + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{注意}：这要求奖励不依赖于 $s'$，否则需要使用 $r(s, a, s')$。
+
+\subsection{使用三参数转移和三参数奖励}
+
+更一般的形式：
+\begin{equation}
+v_\pi(s) = \sum_a \pi(a | s) \sum_{s'} p(s' | s, a) [r(s, a, s') + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{优点}：适用于奖励依赖于下一状态的情况
+
+\section{总结}
+
+\subsection{函数对比表}
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{函数} & \textbf{参数个数} & \textbf{类型} & \textbf{值域} \\
+\hline
+$p(s', r | s, a)$ & 4 & 概率 & $[0, 1]$ \\
+$p(s' | s, a)$ & 3 & 概率 & $[0, 1]$ \\
+$r(s, a)$ & 2 & 期望 & $\mathbb{R}$ \\
+$r(s, a, s')$ & 3 & 条件期望 & $\mathbb{R}$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{关键关系}
+
+\begin{enumerate}
+    \item \textbf{基础}：四参数函数 $p(s', r | s, a)$ 是基础，可以推导出其他所有函数
+    
+    \item \textbf{边缘化}：
+    \begin{equation}
+    p(s' | s, a) = \sum_{r} p(s', r | s, a)
+    \end{equation}
+    
+    \item \textbf{期望}：
+    \begin{equation}
+    r(s, a) = \sum_{r} r \sum_{s'} p(s', r | s, a)
+    \end{equation}
+    
+    \item \textbf{条件期望}：
+    \begin{equation}
+    r(s, a, s') = \frac{\sum_{r} r \cdot p(s', r | s, a)}{p(s' | s, a)}
+    \end{equation}
+    
+    \item \textbf{全期望}：
+    \begin{equation}
+    r(s, a) = \sum_{s'} p(s' | s, a) \cdot r(s, a, s')
+    \end{equation}
+\end{enumerate}
+
+\subsection{选择建议}
+
+\begin{itemize}
+    \item \textbf{理论工作}：使用四参数函数 $p(s', r | s, a)$
+    \item \textbf{简单问题}：如果奖励不依赖于 $s'$，使用 $p(s' | s, a)$ 和 $r(s, a)$
+    \item \textbf{复杂问题}：如果奖励依赖于 $s'$，使用 $p(s' | s, a)$ 和 $r(s, a, s')$
+    \item \textbf{实际应用}：根据问题的具体特点选择最合适的表示
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). Reinforcement Learning: An Introduction (2nd Edition). MIT Press, Chapter 3, Section 3.1.
+\end{itemize}
+
+\end{document}
+
+
