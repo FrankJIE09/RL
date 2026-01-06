@@ -1,0 +1,420 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+
+\geometry{margin=2.5cm}
+
+\title{全概率展开详解}
+\subtitle{从条件期望到全概率展开的完整推导}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题提出}
+
+在推导贝尔曼最优性方程时，我们需要将：
+
+\begin{equation}
+v_*(s) = \max_\pi \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s]
+\label{eq:initial}
+\end{equation}
+
+展开为：
+
+\begin{equation}
+v_*(s) = \max_\pi \sum_{a \in \mathcal{A}(s)} \pi(a | s) \sum_{s', r} p(s', r | s, a) \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+\label{eq:expanded}
+\end{equation}
+
+这个展开过程使用了\textbf{全期望公式}（Law of Total Expectation），需要分两步进行：
+\begin{enumerate}
+    \item 对动作 $A_t$ 进行展开
+    \item 对下一状态 $S_{t+1}$ 和奖励 $R_{t+1}$ 进行展开
+\end{enumerate}
+
+\section{全期望公式}
+
+\subsection{全期望公式（Law of Total Expectation）}
+
+\begin{theorem}[全期望公式]
+对于随机变量 $X$ 和 $Y$，有：
+\begin{equation}
+\mathbb{E}[X] = \mathbb{E}[\mathbb{E}[X | Y]]
+\label{eq:total_expectation}
+\end{equation}
+\end{theorem}
+
+\textbf{离散情况下的展开形式}：
+\begin{equation}
+\mathbb{E}[X] = \sum_y \Pr\{Y = y\} \cdot \mathbb{E}[X | Y = y]
+\label{eq:total_expectation_discrete}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 外层期望：对所有可能的 $Y$ 值求期望
+    \item 内层期望：给定 $Y = y$ 的条件下，$X$ 的期望
+    \item 权重：每个 $y$ 的权重是其概率 $\Pr\{Y = y\}$
+\end{itemize}
+
+\subsection{多变量情况}
+
+对于多个随机变量，全期望公式可以连续应用：
+
+\begin{theorem}[多变量全期望公式]
+对于随机变量 $X$、$Y$ 和 $Z$，有：
+\begin{equation}
+\mathbb{E}[X | Z] = \mathbb{E}[\mathbb{E}[X | Y, Z] | Z] = \sum_y \Pr\{Y = y | Z\} \cdot \mathbb{E}[X | Y = y, Z]
+\label{eq:multivariate_total_expectation}
+\end{equation}
+\end{theorem}
+
+\section{第一步：对动作进行展开}
+
+\subsection{问题设置}
+
+我们想要展开：
+\begin{equation}
+\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s]
+\end{equation}
+
+\textbf{关键观察}：在状态 $s$，我们不知道会采取什么动作。动作 $A_t$ 是一个随机变量，其分布由策略 $\pi$ 决定。
+
+\subsection{应用全期望公式}
+
+根据全期望公式，我们可以对动作 $A_t$ 进行展开：
+
+\begin{align}
+\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s] 
+&= \mathbb{E}_\pi[\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t] | S_t = s] \\
+&= \sum_{a \in \mathcal{A}(s)} \Pr\{A_t = a | S_t = s\} \cdot \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a] \\
+&= \sum_{a \in \mathcal{A}(s)} \pi(a | s) \cdot \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a]
+\label{eq:action_expansion}
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 第一步：使用全期望公式，将期望分解为"对动作求期望"
+    \item 第二步：在离散情况下，期望变成求和
+    \item 第三步：$\Pr\{A_t = a | S_t = s\} = \pi(a | s)$ 是策略概率
+\end{itemize}
+
+\subsection{直观理解}
+
+这个展开的含义是：
+\begin{quote}
+\textbf{在状态 $s$ 的期望回报 = 对所有可能动作的期望回报进行加权平均，权重是策略概率。}
+\end{quote}
+
+数学上：
+\begin{itemize}
+    \item 外层求和：遍历所有可能的动作 $a$
+    \item 权重：$\pi(a | s)$ 表示在状态 $s$ 选择动作 $a$ 的概率
+    \item 内层期望：$\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a]$ 表示给定状态 $s$ 和动作 $a$ 的期望回报
+\end{itemize}
+
+\section{第二步：对下一状态和奖励进行展开}
+
+\subsection{问题设置}
+
+现在我们需要展开：
+\begin{equation}
+\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a]
+\end{equation}
+
+\textbf{关键观察}：即使知道了状态 $s$ 和动作 $a$，下一状态 $S_{t+1}$ 和奖励 $R_{t+1}$ 仍然是随机的（由环境动态 $p(s', r | s, a)$ 决定）。
+
+\subsection{应用全期望公式}
+
+根据全期望公式，我们可以对 $(S_{t+1}, R_{t+1})$ 进行展开：
+
+\begin{align}
+\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a]
+&= \mathbb{E}_\pi[\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1}, R_{t+1}] | S_t = s, A_t = a] \\
+&= \sum_{s', r} \Pr\{S_{t+1} = s', R_{t+1} = r | S_t = s, A_t = a\} \\
+&\quad \times \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r] \\
+&= \sum_{s', r} p(s', r | s, a) \cdot \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+\label{eq:state_reward_expansion}
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 第一步：使用全期望公式，将期望分解为"对下一状态和奖励求期望"
+    \item 第二步：在离散情况下，期望变成对 $(s', r)$ 的求和
+    \item 第三步：$\Pr\{S_{t+1} = s', R_{t+1} = r | S_t = s, A_t = a\} = p(s', r | s, a)$ 是环境动态
+\end{itemize}
+
+\subsection{直观理解}
+
+这个展开的含义是：
+\begin{quote}
+\textbf{给定状态 $s$ 和动作 $a$ 的期望回报 = 对所有可能的下一状态和奖励的期望回报进行加权平均，权重是环境动态概率。}
+\end{quote}
+
+数学上：
+\begin{itemize}
+    \item 外层求和：遍历所有可能的 $(s', r)$ 组合
+    \item 权重：$p(s', r | s, a)$ 表示在状态 $s$ 采取动作 $a$ 后，转移到状态 $s'$ 并获得奖励 $r$ 的概率
+    \item 内层期望：$\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]$ 表示给定完整信息的期望回报
+\end{itemize}
+
+\section{完整展开过程}
+
+\subsection{逐步展开}
+
+现在我们将两步展开结合起来：
+
+\textbf{步骤1}：从初始表达式开始
+\begin{equation}
+v_*(s) = \max_\pi \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s]
+\end{equation}
+
+\textbf{步骤2}：对动作进行展开（使用公式 \eqref{eq:action_expansion}）
+\begin{align}
+v_*(s) &= \max_\pi \sum_{a \in \mathcal{A}(s)} \pi(a | s) \cdot \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a]
+\end{align}
+
+\textbf{步骤3}：对下一状态和奖励进行展开（使用公式 \eqref{eq:state_reward_expansion}）
+\begin{align}
+v_*(s) &= \max_\pi \sum_{a \in \mathcal{A}(s)} \pi(a | s) \sum_{s', r} p(s', r | s, a) \\
+&\quad \times \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+\label{eq:final_expanded}
+\end{align}
+
+这就是我们想要的展开形式！
+
+\subsection{展开的层次结构}
+
+展开过程可以可视化为：
+
+\begin{center}
+\begin{tikzpicture}[node distance=1.5cm]
+    \node (root) {$\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s]$};
+    \node (action) [below left=of root] {对动作 $A_t$ 展开};
+    \node (state) [below right=of root] {对 $(S_{t+1}, R_{t+1})$ 展开};
+    \node (result) [below=of action, xshift=2cm] {$\sum_a \pi(a|s) \sum_{s',r} p(s',r|s,a) \mathbb{E}_\pi[\cdots | \cdots, A_t=a, S_{t+1}=s', R_{t+1}=r]$};
+    
+    \draw[->] (root) -- (action);
+    \draw[->] (root) -- (state);
+    \draw[->] (action) -- (result);
+    \draw[->] (state) -- (result);
+\end{tikzpicture}
+\end{center}
+
+\section{为什么需要这样展开？}
+
+\subsection{展开的目的}
+
+展开的目的是将条件期望中的"未知量"逐步具体化：
+
+\begin{enumerate}
+    \item \textbf{初始状态}：只知道 $S_t = s$，不知道会采取什么动作
+    \item \textbf{第一步展开}：考虑所有可能的动作，用策略概率加权
+    \item \textbf{第二步展开}：对于每个动作，考虑所有可能的下一状态和奖励，用环境动态概率加权
+    \item \textbf{最终结果}：得到完全确定条件下的期望（给定 $S_t, A_t, S_{t+1}, R_{t+1}$）
+\end{enumerate}
+
+\subsection{展开的必要性}
+
+为什么不能直接计算 $\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s]$？
+
+\textbf{原因}：
+\begin{itemize}
+    \item 我们不知道在状态 $s$ 会采取什么动作（这由策略 $\pi$ 决定，是随机的）
+    \item 即使知道了动作，我们也不知道会转移到什么状态、获得什么奖励（这由环境动态 $p$ 决定，也是随机的）
+    \item 因此，必须对所有可能的情况进行加权平均
+\end{itemize}
+
+\section{简化：利用已知信息}
+
+\subsection{关键概念：$r$ 与 $R_{t+1}$ 的区别}
+
+在理解简化过程之前，需要明确一个重要概念：
+
+\begin{remark}[随机变量 vs 具体值]
+\begin{itemize}
+    \item \textbf{$R_{t+1}$}：这是一个\textbf{随机变量}，表示 $t+1$ 时刻的奖励，其值是不确定的
+    \item \textbf{$r$}：这是一个\textbf{具体的数值}（实数），是 $R_{t+1}$ 的一个可能取值
+    \item \textbf{关系}：$r \in \mathcal{R}$，其中 $\mathcal{R}$ 是所有可能的奖励值集合
+\end{itemize}
+\end{remark}
+
+\textbf{重要区别}：
+\begin{itemize}
+    \item 当我们写 $\mathbb{E}_\pi[R_{t+1} | S_t = s, A_t = a]$ 时，$R_{t+1}$ 是随机变量，需要求期望
+    \item 当我们写 $\mathbb{E}_\pi[R_{t+1} | \ldots, R_{t+1} = r]$ 时，条件中已经指定了 $R_{t+1} = r$，此时 $R_{t+1}$ 不再是随机变量，而是确定的值 $r$
+\end{itemize}
+
+\subsection{简化条件期望}
+
+在展开的最后一步，我们有：
+\begin{equation}
+\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+\end{equation}
+
+\textbf{关键观察}：在这个条件下，$R_{t+1}$ 和 $S_{t+1}$ 都是已知的（等于 $r$ 和 $s'$），因此：
+
+\begin{align}
+\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+&= \mathbb{E}_\pi[r + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r] \\
+&= r + \gamma \mathbb{E}_\pi[G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+\end{align}
+
+\textbf{为什么 $R_{t+1}$ 变成了 $r$？}
+
+因为条件中已经指定了 $R_{t+1} = r$，所以：
+\begin{itemize}
+    \item $R_{t+1}$ 不再是随机变量，而是确定的值 $r$
+    \item 对于确定的常数 $r$，有 $\mathbb{E}_\pi[r | \ldots] = r$
+    \item 因此，$\mathbb{E}_\pi[R_{t+1} | \ldots, R_{t+1} = r] = r$
+\end{itemize}
+
+\textbf{数学表达}：
+\begin{align}
+\mathbb{E}_\pi[R_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r] 
+&= \sum_{r' \in \mathcal{R}} r' \cdot \Pr\{R_{t+1} = r' | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r\} \\
+&= r \cdot 1 + \sum_{r' \neq r} r' \cdot 0 \\
+&= r
+\end{align}
+
+因为当条件包含 $R_{t+1} = r$ 时，$\Pr\{R_{t+1} = r' | \ldots, R_{t+1} = r\} = 1$ 当且仅当 $r' = r$，否则为 $0$。
+
+\subsection{利用马尔可夫性质}
+
+由于马尔可夫性质，给定 $S_{t+1} = s'$，$G_{t+1}$ 的分布只依赖于 $s'$ 和后续的策略选择，不依赖于 $S_t$、$A_t$ 或 $R_{t+1}$：
+
+\begin{align}
+\mathbb{E}_\pi[G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+&= \mathbb{E}_\pi[G_{t+1} | S_{t+1} = s'] \\
+&= v_\pi(s')
+\end{align}
+
+因此：
+\begin{align}
+\mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+&= r + \gamma v_\pi(s')
+\end{align}
+
+\subsection{最终形式}
+
+将简化结果代入展开式 \eqref{eq:final_expanded}：
+
+\begin{align}
+v_*(s) &= \max_\pi \sum_{a \in \mathcal{A}(s)} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{align}
+
+这就是贝尔曼最优性方程的中间形式！
+
+\section{数值示例}
+
+\subsection{简单例子}
+
+考虑一个简单的状态，有两个动作 $a_1$ 和 $a_2$：
+
+\textbf{给定信息}：
+\begin{itemize}
+    \item 策略：$\pi(a_1 | s) = 0.6$，$\pi(a_2 | s) = 0.4$
+    \item 动作 $a_1$：以概率 $0.8$ 转移到 $s_1'$ 并获得奖励 $r_1 = 1$，以概率 $0.2$ 转移到 $s_2'$ 并获得奖励 $r_2 = 0$
+    \item 动作 $a_2$：以概率 $1.0$ 转移到 $s_3'$ 并获得奖励 $r_3 = 2$
+    \item 假设 $v_\pi(s_1') = 5$，$v_\pi(s_2') = 3$，$v_\pi(s_3') = 4$，$\gamma = 0.9$
+\end{itemize}
+
+\textbf{计算过程}：
+
+\textbf{步骤1}：计算每个动作的期望回报
+
+对于动作 $a_1$：
+\begin{align}
+q_\pi(s, a_1) &= \sum_{s', r} p(s', r | s, a_1) [r + \gamma v_\pi(s')] \\
+              &= 0.8 \times [1 + 0.9 \times 5] + 0.2 \times [0 + 0.9 \times 3] \\
+              &= 0.8 \times 5.5 + 0.2 \times 2.7 \\
+              &= 4.4 + 0.54 = 4.94
+\end{align}
+
+对于动作 $a_2$：
+\begin{align}
+q_\pi(s, a_2) &= \sum_{s', r} p(s', r | s, a_2) [r + \gamma v_\pi(s')] \\
+              &= 1.0 \times [2 + 0.9 \times 4] \\
+              &= 1.0 \times 5.6 = 5.6
+\end{align}
+
+\textbf{步骤2}：对动作进行加权平均
+
+\begin{align}
+v_\pi(s) &= \sum_{a} \pi(a | s) q_\pi(s, a) \\
+         &= 0.6 \times 4.94 + 0.4 \times 5.6 \\
+         &= 2.964 + 2.24 = 5.204
+\end{align}
+
+\textbf{验证}：这等价于直接展开：
+
+\begin{align}
+v_\pi(s) &= \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')] \\
+         &= 0.6 \times [0.8 \times (1 + 4.5) + 0.2 \times (0 + 2.7)] \\
+         &\quad + 0.4 \times [1.0 \times (2 + 3.6)] \\
+         &= 0.6 \times 4.94 + 0.4 \times 5.6 = 5.204 \quad \checkmark
+\end{align}
+
+\section{总结}
+
+\subsection{展开的关键步骤}
+
+\begin{enumerate}
+    \item \textbf{对动作展开}：使用策略概率 $\pi(a | s)$ 作为权重
+    \item \textbf{对状态和奖励展开}：使用环境动态 $p(s', r | s, a)$ 作为权重
+    \item \textbf{简化条件期望}：利用已知信息和马尔可夫性质
+\end{enumerate}
+
+\subsection{数学工具}
+
+展开过程主要使用了：
+\begin{itemize}
+    \item \textbf{全期望公式}：$\mathbb{E}[X] = \mathbb{E}[\mathbb{E}[X | Y]]$
+    \item \textbf{条件概率}：$\Pr\{A | B\} = \frac{\Pr\{A, B\}}{\Pr\{B\}}$
+    \item \textbf{马尔可夫性质}：未来只依赖于当前状态
+\end{itemize}
+
+\subsection{直观理解}
+
+展开的本质是：
+\begin{quote}
+\textbf{将不确定的期望分解为所有可能情况的加权平均，权重是相应的概率。}
+\end{quote}
+
+这就像计算一个班级的平均分：
+\begin{itemize}
+    \item 不是直接计算"班级平均分"
+    \item 而是先计算"每个小组的平均分"
+    \item 然后按小组人数加权平均
+    \item 对于每个小组，又需要计算"每个学生的分数"的加权平均
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 3.
+\end{itemize}
+
+\end{document}
+

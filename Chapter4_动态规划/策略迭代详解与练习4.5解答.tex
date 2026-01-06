@@ -1,0 +1,1405 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{策略迭代详解与练习4.5解答}
+\subtitle{策略迭代算法及其在动作价值函数中的应用}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{策略迭代算法详解}
+
+\subsection{什么是策略迭代？}
+
+\begin{definition}[策略迭代]
+\textbf{策略迭代}（Policy Iteration）是一种动态规划算法，通过交替执行\textbf{策略评估}（Policy Evaluation）和\textbf{策略改进}（Policy Improvement）来找到最优策略。
+\end{definition}
+
+\textbf{核心思想}：
+\begin{enumerate}
+    \item 给定一个策略，计算它的价值函数（策略评估）
+    \item 基于价值函数改进策略（策略改进）
+    \item 重复上述过程，直到策略不再改变
+\end{enumerate}
+
+\subsection{策略迭代的过程}
+
+策略迭代产生一个单调改进的策略和价值函数序列：
+
+\begin{equation}
+\pi_0 \xrightarrow{E} v_{\pi_0} \xrightarrow{I} \pi_1 \xrightarrow{E} v_{\pi_1} \xrightarrow{I} \pi_2 \xrightarrow{E} \cdots \xrightarrow{I} \pi_* \xrightarrow{E} v_*
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\xrightarrow{E}$ 表示策略评估（Evaluation）
+    \item $\xrightarrow{I}$ 表示策略改进（Improvement）
+    \item $\pi_*$ 是最优策略
+    \item $v_*$ 是最优价值函数
+\end{itemize}
+
+\subsection{策略迭代算法（基于状态价值函数）}
+
+\begin{algorithm}[H]
+\caption{策略迭代算法（计算 $v_*$ 和 $\pi_*$）}
+\begin{algorithmic}[1]
+\REQUIRE 环境动态 $p(s', r | s, a)$，折扣因子 $\gamma$，收敛阈值 $\theta$
+\ENSURE 最优价值函数 $v_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：$V(s) \in \mathbb{R}$ 和 $\pi(s) \in \mathcal{A}(s)$ 任意初始化，对所有 $s \in \mathcal{S}$
+\REPEAT
+    \STATE \textbf{策略评估}：
+    \REPEAT
+        \STATE $\Delta \gets 0$
+        \FOR{每个状态 $s \in \mathcal{S}$}
+            \STATE $v \gets V(s)$
+            \STATE $V(s) \gets \sum_{s', r} p(s', r | s, \pi(s)) [r + \gamma V(s')]$
+            \STATE $\Delta \gets \max(\Delta, |v - V(s)|)$
+        \ENDFOR
+    \UNTIL{$\Delta < \theta$}
+    \STATE \textbf{策略改进}：
+    \STATE $\text{policy-stable} \gets \text{true}$
+    \FOR{每个状态 $s \in \mathcal{S}$}
+        \STATE $a_{\text{old}} \gets \pi(s)$
+        \STATE $\pi(s) \gets \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]$
+        \IF{$a_{\text{old}} \neq \pi(s)$}
+            \STATE $\text{policy-stable} \gets \text{false}$
+        \ENDIF
+    \ENDFOR
+\UNTIL{$\text{policy-stable} = \text{true}$}
+\RETURN $v_* = V$，$\pi_* = \pi$
+\end{algorithmic}
+\end{algorithmic}
+
+\subsection{算法步骤详解}
+
+\textbf{步骤1：初始化}
+\begin{itemize}
+    \item 初始化价值函数 $V(s)$（可以任意，通常设为0）
+    \item 初始化策略 $\pi(s)$（可以任意，通常设为随机策略）
+\end{itemize}
+
+\textbf{步骤2：策略评估}
+\begin{itemize}
+    \item 使用迭代策略评估计算当前策略 $\pi$ 的价值函数 $v_\pi$
+    \item 迭代更新直到收敛：
+    \begin{equation}
+    V(s) \gets \sum_{s', r} p(s', r | s, \pi(s)) [r + \gamma V(s')]
+    \end{equation}
+    \item 当价值函数变化小于阈值 $\theta$ 时停止
+\end{itemize}
+
+\textbf{步骤3：策略改进}
+\begin{itemize}
+    \item 对每个状态 $s$，计算所有动作的动作价值：
+    \begin{equation}
+    q(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]
+    \end{equation}
+    \item 选择使动作价值最大的动作：
+    \begin{equation}
+    \pi(s) \gets \arg\max_{a} q(s, a)
+    \end{equation}
+    \item 如果策略没有改变，算法收敛
+\end{itemize}
+
+\subsection{策略改进步骤的详细解释}
+
+\textbf{问题}：$\pi(s) \gets \arg\max_{a} q(s, a)$ 这一步具体是怎么操作的？
+
+\subsubsection{步骤1：计算所有动作的动作价值}
+
+对于状态 $s$，对每个可能的动作 $a \in \mathcal{A}(s)$，计算动作价值：
+
+\begin{equation}
+q(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]
+\end{equation}
+
+\textbf{具体过程}：
+
+\begin{enumerate}
+    \item \textbf{遍历所有动作}：对每个 $a \in \mathcal{A}(s)$
+    
+    \item \textbf{计算动作价值}：
+    \begin{itemize}
+        \item 对于每个可能的 $(s', r)$，计算 $p(s', r | s, a) \times [r + \gamma V(s')]$
+        \item 对所有 $(s', r)$ 求和
+    \end{itemize}
+    
+    \item \textbf{存储结果}：得到 $q(s, a)$ 的值
+\end{enumerate}
+
+\subsubsection{步骤2：比较所有动作的动作价值}
+
+计算完所有动作的动作价值后，得到一组值：
+\begin{equation}
+\{q(s, a_1), q(s, a_2), q(s, a_3), \ldots, q(s, a_n)\}
+\end{equation}
+
+其中 $n = |\mathcal{A}(s)|$ 是状态 $s$ 的可能动作数。
+
+\subsubsection{步骤3：选择最大值对应的动作}
+
+\textbf{$\arg\max$ 的含义}：
+
+$\arg\max_{a} q(s, a)$ 表示使 $q(s, a)$ 达到最大值的动作 $a$。
+
+\textbf{数学定义}：
+\begin{equation}
+\arg\max_{a} q(s, a) = a^* \quad \text{使得} \quad q(s, a^*) = \max_{a \in \mathcal{A}(s)} q(s, a)
+\end{equation}
+
+\textbf{具体操作}：
+\begin{enumerate}
+    \item \textbf{找到最大值}：
+    \begin{equation}
+    q_{\max} = \max\{q(s, a_1), q(s, a_2), \ldots, q(s, a_n)\}
+    \end{equation}
+    
+    \item \textbf{找到对应的动作}：
+    \begin{equation}
+    a^* = \text{使得 } q(s, a^*) = q_{\max} \text{ 的动作}
+    \end{equation}
+    
+    \item \textbf{更新策略}：
+    \begin{equation}
+    \pi(s) \gets a^*
+    \end{equation}
+\end{enumerate}
+
+\subsubsection{具体数值例子}
+
+\textbf{例子：Gridworld中的状态 $s$}
+
+假设状态 $s$ 有4个动作：上、下、左、右。
+
+\textbf{步骤1：计算动作价值}
+
+假设当前价值函数 $V$ 的值：
+\begin{itemize}
+    \item $V(s_{\text{上}}) = 10$
+    \item $V(s_{\text{下}}) = 15$
+    \item $V(s_{\text{左}}) = 8$
+    \item $V(s_{\text{右}}) = 12$
+\end{itemize}
+
+假设 $\gamma = 0.9$，所有转移的奖励 $r = 0$（普通移动）。
+
+\textbf{计算每个动作的动作价值}：
+
+\textbf{动作"上"}：
+\begin{align}
+q(s, \text{上}) &= \sum_{s', r} p(s', r | s, \text{上}) [r + \gamma V(s')] \\
+                &= p(s_{\text{上}}, 0 | s, \text{上}) \times [0 + 0.9 \times 10] \\
+                &= 1 \times 9 = 9
+\end{align}
+
+\textbf{动作"下"}：
+\begin{align}
+q(s, \text{下}) &= p(s_{\text{下}}, 0 | s, \text{下}) \times [0 + 0.9 \times 15] \\
+                &= 1 \times 13.5 = 13.5
+\end{align}
+
+\textbf{动作"左"}：
+\begin{align}
+q(s, \text{左}) &= p(s_{\text{左}}, 0 | s, \text{左}) \times [0 + 0.9 \times 8] \\
+                &= 1 \times 7.2 = 7.2
+\end{align}
+
+\textbf{动作"右"}：
+\begin{align}
+q(s, \text{右}) &= p(s_{\text{右}}, 0 | s, \text{右}) \times [0 + 0.9 \times 12] \\
+                &= 1 \times 10.8 = 10.8
+\end{align}
+
+\textbf{步骤2：比较动作价值}
+
+得到动作价值集合：
+\begin{align}
+q(s, \text{上}) &= 9.0 \\
+q(s, \text{下}) &= 13.5 \\
+q(s, \text{左}) &= 7.2 \\
+q(s, \text{右}) &= 10.8
+\end{align}
+
+\textbf{步骤3：选择最大值}
+
+\begin{align}
+q_{\max} &= \max\{9.0, 13.5, 7.2, 10.8\} = 13.5 \\
+a^* &= \text{下} \quad \text{（因为 } q(s, \text{下}) = 13.5 = q_{\max} \text{）}
+\end{align}
+
+\textbf{更新策略}：
+\begin{equation}
+\pi(s) \gets \text{下}
+\end{equation}
+
+\subsection{策略更新的具体实现}
+
+\textbf{问题}：$\pi(s) \gets \text{下}$ 这一步具体是怎么更新策略的？
+
+\subsubsection{策略的表示方式}
+
+\textbf{确定性策略的表示}：
+
+对于确定性策略，$\pi(s)$ 表示在状态 $s$ 下选择的动作。
+
+\textbf{数据结构}：
+\begin{itemize}
+    \item \textbf{字典/映射}：$\pi: \mathcal{S} \to \mathcal{A}$
+    \item \textbf{数组}：如果状态可以编号，可以用数组存储
+    \item \textbf{函数}：策略可以表示为一个函数
+\end{itemize}
+
+\textbf{具体例子}：
+
+假设有4个状态：$s_1, s_2, s_3, s_4$，每个状态有4个动作：上、下、左、右。
+
+\textbf{策略的存储方式}：
+
+\textbf{方式1：字典（Python风格）}：
+\begin{verbatim}
+π = {
+    s_1: '上',
+    s_2: '右',
+    s_3: '下',
+    s_4: '左'
+}
+\end{verbatim}
+
+\textbf{方式2：数组（如果状态可以编号）}：
+\begin{verbatim}
+π = ['上', '右', '下', '左']  // π[0] = '上' 表示状态0选择'上'
+\end{verbatim}
+
+\textbf{方式3：函数}：
+\begin{equation}
+\pi(s) = \begin{cases}
+\text{上}, & \text{如果 } s = s_1 \\
+\text{右}, & \text{如果 } s = s_2 \\
+\text{下}, & \text{如果 } s = s_3 \\
+\text{左}, & \text{如果 } s = s_4
+\end{cases}
+\end{equation}
+
+\subsubsection{策略更新的操作}
+
+\textbf{更新操作的含义}：
+
+$\pi(s) \gets \text{下}$ 表示：将状态 $s$ 的策略更新为选择动作"下"。
+
+\textbf{具体实现}：
+
+\textbf{使用字典}：
+\begin{verbatim}
+π[s] = '下'  // 更新状态s的策略为'下'
+\end{verbatim}
+
+\textbf{使用数组}：
+\begin{verbatim}
+π[state_index] = action_index  // 更新状态state_index的策略为action_index
+\end{verbatim}
+
+\textbf{使用函数}：
+\begin{equation}
+\pi_{\text{new}}(s') = \begin{cases}
+\text{下}, & \text{如果 } s' = s \\
+\pi_{\text{old}}(s'), & \text{如果 } s' \neq s
+\end{cases}
+\end{equation}
+
+\subsubsection{完整示例：策略更新的过程}
+
+\textbf{初始策略 $\pi_0$}：
+
+假设初始策略是随机策略或某个初始策略：
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{状态} & \textbf{动作} \\
+\hline
+$s_1$ & 上 \\
+\hline
+$s_2$ & 左 \\
+\hline
+$s_3$ & 右 \\
+\hline
+$s_4$ & 上 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{策略评估后}：
+
+假设经过策略评估，得到价值函数 $V$：
+\begin{itemize}
+    \item $V(s_1) = 10$
+    \item $V(s_2) = 15$
+    \item $V(s_3) = 12$
+    \item $V(s_4) = 8$
+\end{itemize}
+
+\textbf{策略改进：对每个状态更新策略}
+
+\textbf{状态 $s_1$}：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_1, \text{上}) &= 9.0 \\
+q(s_1, \text{下}) &= 13.5 \\
+q(s_1, \text{左}) &= 7.2 \\
+q(s_1, \text{右}) &= 10.8
+\end{align}
+
+最大值是 $13.5$，对应动作"下"。
+
+\textbf{更新策略}：
+\begin{verbatim}
+π[s_1] = '下'  // 从'上'更新为'下'
+\end{verbatim}
+
+\textbf{状态 $s_2$}：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_2, \text{上}) &= 12.0 \\
+q(s_2, \text{下}) &= 11.5 \\
+q(s_2, \text{左}) &= 10.2 \\
+q(s_2, \text{右}) &= 14.8
+\end{align}
+
+最大值是 $14.8$，对应动作"右"。
+
+\textbf{更新策略}：
+\begin{verbatim}
+π[s_2] = '右'  // 从'左'更新为'右'
+\end{verbatim}
+
+\textbf{状态 $s_3$}：
+
+假设计算得到最大值对应的动作是"下"。
+
+\textbf{更新策略}：
+\begin{verbatim}
+π[s_3] = '下'  // 从'右'更新为'下'
+\end{verbatim}
+
+\textbf{状态 $s_4$}：
+
+假设计算得到最大值对应的动作仍然是"上"。
+
+\textbf{更新策略}：
+\begin{verbatim}
+π[s_4] = '上'  // 保持不变
+\end{verbatim}
+
+\textbf{更新后的策略 $\pi_1$}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{状态} & \textbf{旧策略 $\pi_0$} & \textbf{新策略 $\pi_1$} \\
+\hline
+$s_1$ & 上 & \textcolor{red}{下}（改变） \\
+\hline
+$s_2$ & 左 & \textcolor{red}{右}（改变） \\
+\hline
+$s_3$ & 右 & \textcolor{red}{下}（改变） \\
+\hline
+$s_4$ & 上 & 上（不变） \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsubsection{代码实现示例}
+
+\textbf{Python伪代码}：
+
+\begin{verbatim}
+# 初始化策略（字典形式）
+policy = {}
+for state in all_states:
+    policy[state] = random_action()  # 或初始策略
+
+# 策略改进
+def policy_improvement(policy, value_function):
+    policy_stable = True
+    
+    for state in all_states:
+        old_action = policy[state]  # 保存旧动作
+        
+        # 计算所有动作的动作价值
+        action_values = {}
+        for action in possible_actions(state):
+            action_values[action] = compute_q_value(
+                state, action, value_function
+            )
+        
+        # 选择使动作价值最大的动作
+        best_action = max(action_values, key=action_values.get)
+        
+        # 更新策略
+        policy[state] = best_action  # 这就是 π(s) ← argmax_a q(s,a)
+        
+        # 检查策略是否改变
+        if old_action != best_action:
+            policy_stable = False
+    
+    return policy, policy_stable
+\end{verbatim}
+
+\textbf{关键代码行}：
+
+\begin{verbatim}
+policy[state] = best_action
+\end{verbatim}
+
+这就是 $\pi(s) \gets \arg\max_{a} q(s, a)$ 的具体实现。
+
+\subsubsection{策略更新的内存表示}
+
+\textbf{内存中的存储}：
+
+策略在内存中通常存储为一个数组或字典：
+
+\textbf{数组形式}（如果状态可以编号）：
+\begin{verbatim}
+// 假设有4个状态，4个动作
+// 动作编号：0=上, 1=下, 2=左, 3=右
+
+int policy[4];  // 策略数组
+
+// 初始策略
+policy[0] = 0;  // 状态0选择动作0（上）
+policy[1] = 2;  // 状态1选择动作2（左）
+policy[2] = 3;  // 状态2选择动作3（右）
+policy[3] = 0;  // 状态3选择动作0（上）
+
+// 策略改进：更新状态0的策略
+policy[0] = 1;  // 状态0现在选择动作1（下）
+// 这就是 π(s_0) ← 下 的实现
+\end{verbatim}
+
+\textbf{字典形式}（更通用）：
+\begin{verbatim}
+// Python风格
+policy = {
+    's1': 'up',      // 状态s1选择'up'
+    's2': 'left',    // 状态s2选择'left'
+    's3': 'right',   // 状态s3选择'right'
+    's4': 'up'       // 状态s4选择'up'
+}
+
+// 策略改进：更新状态s1的策略
+policy['s1'] = 'down'  // 这就是 π(s1) ← 下 的实现
+\end{verbatim}
+
+\subsubsection{策略更新的完整流程}
+
+\textbf{步骤1：读取当前策略}
+
+\begin{verbatim}
+old_action = policy[state]  // 例如：old_action = '上'
+\end{verbatim}
+
+\textbf{步骤2：计算所有动作的动作价值}
+
+\begin{verbatim}
+q_values = {}
+for action in ['上', '下', '左', '右']:
+    q_values[action] = compute_q_value(state, action, V)
+// 结果：q_values = {'上': 9.0, '下': 13.5, '左': 7.2, '右': 10.8}
+\end{verbatim}
+
+\textbf{步骤3：找到最大值对应的动作}
+
+\begin{verbatim}
+best_action = argmax(q_values)  // best_action = '下'
+\end{verbatim}
+
+\textbf{步骤4：更新策略}
+
+\begin{verbatim}
+policy[state] = best_action  // policy[state] = '下'
+// 这就是 π(s) ← 下 的具体操作
+\end{verbatim}
+
+\textbf{步骤5：检查策略是否改变}
+
+\begin{verbatim}
+if old_action != best_action:
+    policy_changed = True
+// 如果 old_action = '上'，best_action = '下'
+// 则策略改变了
+\end{verbatim}
+
+\subsubsection{可视化：策略更新的前后对比}
+
+\textbf{更新前}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{状态} & \textbf{策略 $\pi_0(s)$} & \textbf{动作价值} \\
+\hline
+$s$ & 上 & $q(s, \text{上}) = 9.0$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{计算所有动作的动作价值}：
+
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{动作} & \textbf{动作价值 $q(s, a)$} \\
+\hline
+上 & 9.0 \\
+\hline
+下 & \textcolor{red}{13.5}（最大值） \\
+\hline
+左 & 7.2 \\
+\hline
+右 & 10.8 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{更新后}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{状态} & \textbf{策略 $\pi_1(s)$} & \textbf{变化} \\
+\hline
+$s$ & \textcolor{red}{下} & 从"上"改为"下" \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{内存中的变化}：
+
+\begin{verbatim}
+// 更新前
+policy[s] = '上'
+
+// 执行更新操作
+policy[s] = '下'  // 这就是 π(s) ← 下
+
+// 更新后
+policy[s] = '下'
+\end{verbatim}
+
+\subsubsection{关键要点}
+
+\begin{enumerate}
+    \item \textbf{策略是一个映射}：从状态到动作的映射
+    
+    \item \textbf{更新是赋值操作}：
+    \begin{itemize}
+        \item $\pi(s) \gets a$ 就是将状态 $s$ 对应的动作更新为 $a$
+        \item 在代码中就是：$\text{policy}[s] = a$
+    \end{itemize}
+    
+    \item \textbf{只更新当前状态}：
+    \begin{itemize}
+        \item 更新 $\pi(s)$ 不影响其他状态的策略
+        \item 每个状态的策略独立更新
+    \end{itemize}
+    
+    \item \textbf{策略改进是批量更新}：
+    \begin{itemize}
+        \item 对每个状态 $s$，都执行一次 $\pi(s) \gets \arg\max_{a} q(s, a)$
+        \item 所有状态更新完成后，得到新策略 $\pi'$
+    \end{itemize}
+\end{enumerate}
+
+\subsubsection{处理平局的情况}
+
+\textbf{问题}：如果有多个动作的动作价值相同且都是最大值怎么办？
+
+\textbf{例子}：
+\begin{align}
+q(s, \text{上}) &= 13.5 \\
+q(s, \text{下}) &= 13.5 \\
+q(s, \text{左}) &= 7.2 \\
+q(s, \text{右}) &= 10.8
+\end{align}
+
+\textbf{处理方式}：
+\begin{itemize}
+    \item 可以任意选择一个（通常按动作的固定顺序选择第一个）
+    \item 或者可以随机选择一个
+    \item 在随机策略的情况下，可以给所有最大值动作相等的概率
+\end{itemize}
+
+\textbf{算法实现}：
+\begin{algorithm}[H]
+\caption{策略改进步骤的详细实现}
+\begin{algorithmic}[1]
+\FOR{每个状态 $s \in \mathcal{S}$}
+    \STATE $q_{\max} \gets -\infty$
+    \STATE $a_{\text{best}} \gets \text{None}$
+    \FOR{每个动作 $a \in \mathcal{A}(s)$}
+        \STATE $q(s, a) \gets 0$
+        \FOR{每个 $(s', r)$ 使得 $p(s', r | s, a) > 0$}
+            \STATE $q(s, a) \gets q(s, a) + p(s', r | s, a) \times [r + \gamma V(s')]$
+        \ENDFOR
+        \IF{$q(s, a) > q_{\max}$}
+            \STATE $q_{\max} \gets q(s, a)$
+            \STATE $a_{\text{best}} \gets a$
+        \ELSIF{$q(s, a) = q_{\max}$ \AND 需要处理平局}
+            \STATE 可以随机选择或按固定顺序选择
+        \ENDIF
+    \ENDFOR
+    \STATE $\pi(s) \gets a_{\text{best}}$
+\ENDFOR
+\end{algorithmic}
+\end{algorithmic}
+
+\subsubsection{完整示例：Jack租车问题}
+
+考虑Jack租车问题中的状态 $s = (10, 10)$（地点1有10辆车，地点2有10辆车）。
+
+\textbf{可能的动作}：$a \in \{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5\}$（移动的车辆数）
+
+\textbf{步骤1：计算每个动作的动作价值}
+
+假设当前价值函数 $V$ 的值（部分）：
+\begin{itemize}
+    \item $V(9, 11) = 100$
+    \item $V(10, 10) = 95$
+    \item $V(11, 9) = 90$
+    \item 等等...
+\end{itemize}
+
+\textbf{动作 $a = 0$}（不移动）：
+\begin{align}
+q((10, 10), 0) &= \sum_{s', r} p(s', r | (10, 10), 0) [r + \gamma V(s')] \\
+               &\approx 95 \quad \text{（简化计算）}
+\end{align}
+
+\textbf{动作 $a = 1$}（从地点1移动1辆车到地点2）：
+\begin{align}
+q((10, 10), 1) &= \sum_{s', r} p(s', r | (10, 10), 1) [r + \gamma V(s')] \\
+               &\approx 98 \quad \text{（考虑移动成本和未来价值）}
+\end{align}
+
+\textbf{动作 $a = -1$}（从地点2移动1辆车到地点1）：
+\begin{align}
+q((10, 10), -1) &\approx 92
+\end{align}
+
+\textbf{步骤2：比较所有动作价值}
+
+假设计算得到：
+\begin{align}
+q((10, 10), -5) &= 85 \\
+q((10, 10), -4) &= 88 \\
+q((10, 10), -3) &= 90 \\
+q((10, 10), -2) &= 91 \\
+q((10, 10), -1) &= 92 \\
+q((10, 10), 0) &= 95 \\
+q((10, 10), 1) &= 98 \\
+q((10, 10), 2) &= 96 \\
+q((10, 10), 3) &= 93 \\
+q((10, 10), 4) &= 89 \\
+q((10, 10), 5) &= 85
+\end{align}
+
+\textbf{步骤3：选择最大值}
+
+\begin{align}
+q_{\max} &= \max\{85, 88, 90, 91, 92, 95, 98, 96, 93, 89, 85\} = 98 \\
+a^* &= 1 \quad \text{（因为 } q((10, 10), 1) = 98 = q_{\max} \text{）}
+\end{align}
+
+\textbf{更新策略}：
+\begin{equation}
+\pi((10, 10)) \gets 1
+\end{equation}
+
+即：在状态 $(10, 10)$，最优动作是从地点1移动1辆车到地点2。
+
+\subsubsection{关键要点总结}
+
+\begin{enumerate}
+    \item \textbf{计算阶段}：
+    \begin{itemize}
+        \item 对每个动作，计算 $q(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]$
+        \item 这需要遍历所有可能的 $(s', r)$ 组合
+    \end{itemize}
+    
+    \item \textbf{比较阶段}：
+    \begin{itemize}
+        \item 比较所有动作的动作价值
+        \item 找到最大值 $q_{\max} = \max_a q(s, a)$
+    \end{itemize}
+    
+    \item \textbf{选择阶段}：
+    \begin{itemize}
+        \item 找到使 $q(s, a) = q_{\max}$ 的动作 $a^*$
+        \item 更新策略：$\pi(s) \gets a^*$
+    \end{itemize}
+    
+    \item \textbf{时间复杂度}：
+    \begin{itemize}
+        \item 对每个状态：$O(|\mathcal{A}(s)| \times |\mathcal{S}| \times |\mathcal{R}|)$
+        \item 对所有状态：$O(|\mathcal{S}| \times |\mathcal{A}| \times |\mathcal{S}| \times |\mathcal{R}|)$
+    \end{itemize}
+\end{enumerate}
+
+\subsection{策略迭代的收敛性}
+
+\begin{theorem}[策略迭代收敛性]
+对于有限MDP，策略迭代算法在有限次迭代后收敛到最优策略 $\pi_*$ 和最优价值函数 $v_*$。
+\end{theorem}
+
+\textbf{证明思路}：
+\begin{itemize}
+    \item 每次策略改进都严格改进策略（除非已经最优）
+    \item 有限MDP只有有限个策略
+    \item 因此算法在有限次迭代后必须收敛
+\end{itemize}
+
+\subsection{重要澄清：$v_\pi$ 不是最优价值函数}
+
+\textbf{常见误解}：在策略迭代过程中，每一步的策略改进是否都产生一个最优的价值函数？
+
+\textbf{答案}：\textbf{不是的}！
+
+\textbf{关键区别}：
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{概念} & \textbf{符号} & \textbf{含义} \\
+\hline
+策略 $\pi$ 的价值函数 & $v_\pi(s)$ & 遵循策略 $\pi$ 的期望回报（\textbf{不是最优}） \\
+\hline
+最优价值函数 & $v_*(s)$ & 所有策略中的最大期望回报（\textbf{最优}） \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{策略迭代过程中的价值函数}：
+
+在策略迭代过程中：
+\begin{equation}
+v_{\pi_0} \leq v_{\pi_1} \leq v_{\pi_2} \leq \cdots \leq v_{\pi_*} = v_*
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item $v_{\pi_k}$ 是策略 $\pi_k$ 的价值函数，\textbf{不是最优的}
+    \item 每一步都是\textbf{改进}，但不一定是最优
+    \item 只有 $v_{\pi_*} = v_*$ 时才是最优
+\end{itemize}
+
+\textbf{策略改进定理的含义}：
+
+策略改进定理说的是：
+\begin{itemize}
+    \item 如果 $q_\pi(s, \pi'(s)) \geq v_\pi(s)$，则 $v_{\pi'}(s) \geq v_\pi(s)$
+    \item 即：新策略\textbf{至少和旧策略一样好}
+    \item 但\textbf{不意味着} $v_\pi$ 或 $v_{\pi'}$ 是最优的
+\end{itemize}
+
+\textbf{具体例子}：
+
+假设在某个状态 $s$：
+\begin{itemize}
+    \item $v_{\pi_0}(s) = 10$（初始策略的价值）
+    \item $v_*(s) = 20$（最优价值）
+\end{itemize}
+
+\textbf{第1次策略改进后}：
+\begin{itemize}
+    \item $v_{\pi_1}(s) = 15$（比 $\pi_0$ 好，但\textbf{不是最优}）
+    \item $v_{\pi_1}(s) = 15 < 20 = v_*(s)$
+\end{itemize}
+
+\textbf{第2次策略改进后}：
+\begin{itemize}
+    \item $v_{\pi_2}(s) = 18$（继续改进，但仍\textbf{不是最优}）
+    \item $v_{\pi_2}(s) = 18 < 20 = v_*(s)$
+\end{itemize}
+
+\textbf{收敛后}：
+\begin{itemize}
+    \item $v_{\pi_*}(s) = 20 = v_*(s)$（此时才达到最优）
+\end{itemize}
+
+\textbf{为什么需要多次迭代？}
+
+\begin{enumerate}
+    \item \textbf{策略改进只保证局部改进}：
+    \begin{itemize}
+        \item 新策略至少和旧策略一样好
+        \item 但可能还有更好的策略
+    \end{itemize}
+    
+    \item \textbf{需要继续迭代}：
+    \begin{itemize}
+        \item 每次改进都使策略更好
+        \item 但需要多次迭代才能找到最优策略
+    \end{itemize}
+    
+    \item \textbf{收敛条件}：
+    \begin{itemize}
+        \item 只有当策略不再改变时，才说明找到了最优策略
+        \item 此时 $v_{\pi_*} = v_*$
+    \end{itemize}
+\end{enumerate}
+
+\textbf{数学表达}：
+
+在策略迭代过程中：
+\begin{align}
+v_{\pi_0}(s) &\leq v_{\pi_1}(s) \leq v_{\pi_2}(s) \leq \cdots \leq v_{\pi_k}(s) \leq \cdots \leq v_*(s) \\
+\pi_0 &\xrightarrow{I} \pi_1 \xrightarrow{I} \pi_2 \xrightarrow{I} \cdots \xrightarrow{I} \pi_*
+\end{align}
+
+\textbf{关键洞察}：
+\begin{quote}
+\textbf{策略改进产生的是改进后的策略和价值函数，不是最优的。只有收敛后（策略不再改变）才得到最优策略和最优价值函数。策略迭代是一个逐步改进的过程，不是一步到位。}
+\end{quote}
+
+\textbf{总结}：
+\begin{itemize}
+    \item \textbf{每一步的策略改进}：产生一个\textbf{更好的}策略，而不是最优策略
+    \item \textbf{只有算法收敛时}：才得到最优策略 $\pi_*$ 和最优价值函数 $v_*$
+    \item \textbf{策略迭代}：是一个\textbf{逐步改进}的过程
+\end{itemize}
+
+\subsection{策略迭代 vs 价值迭代}
+
+\textbf{策略迭代}：
+\begin{itemize}
+    \item 每次迭代都完全评估当前策略
+    \item 然后改进策略
+    \item 通常收敛更快（迭代次数少）
+    \item 但每次迭代计算量大
+\end{itemize}
+
+\textbf{价值迭代}：
+\begin{itemize}
+    \item 每次迭代只更新一次价值函数
+    \item 不显式维护策略
+    \item 迭代次数可能更多
+    \item 但每次迭代计算量小
+\end{itemize}
+
+\section{练习4.5：基于动作价值的策略迭代}
+
+\subsection{问题}
+
+\textbf{练习4.5}：如何定义基于动作价值的策略迭代？给出计算 $q_*$ 的完整算法，类似于第80页计算 $v_*$ 的算法。
+
+\subsection{关键思想}
+
+策略迭代可以基于动作价值函数 $q_\pi(s, a)$ 而不是状态价值函数 $v_\pi(s)$ 来定义。
+
+\textbf{优势}：
+\begin{itemize}
+    \item 不需要环境模型来计算动作价值
+    \item 可以直接从动作价值函数得到策略
+    \item 在某些情况下更直观
+\end{itemize}
+
+\subsection{动作价值函数的策略评估}
+
+\textbf{动作价值函数的贝尔曼方程}：
+
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi(s', a')\right]
+\label{eq:q_bellman}
+\end{equation}
+
+\textbf{迭代策略评估}（动作价值函数）：
+
+\begin{equation}
+q_\pi^{k+1}(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi^k(s', a')\right]
+\label{eq:q_policy_evaluation}
+\end{equation}
+
+\subsection{动作价值函数的策略改进}
+
+\textbf{策略改进}：基于动作价值函数 $q_\pi$，改进策略：
+
+\begin{equation}
+\pi'(s) = \arg\max_{a} q_\pi(s, a)
+\label{eq:q_policy_improvement}
+\end{equation}
+
+\textbf{策略改进定理}（动作价值函数版本）：
+
+如果 $q_\pi(s, \pi'(s)) \geq q_\pi(s, \pi(s))$ 对所有 $s$ 成立，则策略 $\pi'$ 至少与策略 $\pi$ 一样好。
+
+\subsection{基于动作价值的策略迭代算法}
+
+\begin{algorithm}[H]
+\caption{策略迭代算法（基于动作价值函数，计算 $q_*$ 和 $\pi_*$）}
+\begin{algorithmic}[1]
+\REQUIRE 环境动态 $p(s', r | s, a)$，折扣因子 $\gamma$，收敛阈值 $\theta$
+\ENSURE 最优动作价值函数 $q_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：$Q(s, a) \in \mathbb{R}$ 和 $\pi(s) \in \mathcal{A}(s)$ 任意初始化，对所有 $s \in \mathcal{S}$ 和 $a \in \mathcal{A}(s)$
+\REPEAT
+    \STATE \textbf{策略评估}（动作价值函数）：
+    \REPEAT
+        \STATE $\Delta \gets 0$
+        \FOR{每个状态 $s \in \mathcal{S}$}
+            \FOR{每个动作 $a \in \mathcal{A}(s)$}
+                \STATE $q \gets Q(s, a)$
+                \STATE $Q(s, a) \gets \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') Q(s', a')\right]$
+                \STATE $\Delta \gets \max(\Delta, |q - Q(s, a)|)$
+            \ENDFOR
+        \ENDFOR
+    \UNTIL{$\Delta < \theta$}
+    \STATE \textbf{策略改进}：
+    \STATE $\text{policy-stable} \gets \text{true}$
+    \FOR{每个状态 $s \in \mathcal{S}$}
+        \STATE $a_{\text{old}} \gets \pi(s)$
+        \STATE $\pi(s) \gets \arg\max_{a} Q(s, a)$
+        \IF{$a_{\text{old}} \neq \pi(s)$}
+            \STATE $\text{policy-stable} \gets \text{false}$
+        \ENDIF
+    \ENDFOR
+\UNTIL{$\text{policy-stable} = \text{true}$}
+\RETURN $q_* = Q$，$\pi_* = \pi$
+\end{algorithmic}
+\end{algorithmic}
+
+\subsection{算法步骤详解}
+
+\textbf{步骤1：初始化}
+\begin{itemize}
+    \item 初始化动作价值函数 $Q(s, a)$（可以任意，通常设为0）
+    \item 初始化策略 $\pi(s)$（可以任意，通常设为随机策略）
+\end{itemize}
+
+\textbf{步骤2：策略评估（动作价值函数）}
+\begin{itemize}
+    \item 使用迭代策略评估计算当前策略 $\pi$ 的动作价值函数 $q_\pi$
+    \item 迭代更新直到收敛：
+    \begin{equation}
+    Q(s, a) \gets \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') Q(s', a')\right]
+    \end{equation}
+    \item 当动作价值函数变化小于阈值 $\theta$ 时停止
+\end{itemize}
+
+\textbf{步骤3：策略改进}
+\begin{itemize}
+    \item 对每个状态 $s$，选择使动作价值最大的动作：
+    \begin{equation}
+    \pi(s) \gets \arg\max_{a} Q(s, a)
+    \end{equation}
+    \item 如果策略没有改变，算法收敛
+\end{itemize}
+
+\subsection{与基于状态价值的策略迭代的对比}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{基于 $v_\pi$} & \textbf{基于 $q_\pi$} \\
+\hline
+\textbf{评估对象} & 状态价值函数 $v_\pi(s)$ & 动作价值函数 $q_\pi(s, a)$ \\
+\hline
+\textbf{评估公式} & $v_\pi(s) = \sum_a \pi(a|s) \sum_{s',r} p(\cdot)[r + \gamma v_\pi(s')]$ & $q_\pi(s,a) = \sum_{s',r} p(\cdot)[r + \gamma \sum_{a'} \pi(a'|s') q_\pi(s',a')]$ \\
+\hline
+\textbf{改进公式} & $\pi'(s) = \arg\max_a \sum_{s',r} p(\cdot)[r + \gamma v_\pi(s')]$ & $\pi'(s) = \arg\max_a q_\pi(s, a)$ \\
+\hline
+\textbf{存储空间} & $|\mathcal{S}|$ & $|\mathcal{S}| \times |\mathcal{A}|$ \\
+\hline
+\textbf{计算复杂度} & 较低 & 较高 \\
+\hline
+\textbf{优势} & 存储空间小 & 策略改进更直接 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{数学推导}
+
+\subsection{动作价值函数的贝尔曼方程推导}
+
+从动作价值函数的定义：
+
+\begin{align}
+q_\pi(s, a) &= \mathbb{E}_\pi[G_t | S_t = s, A_t = a] \\
+            &= \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a]
+\end{align}
+
+分解为即时奖励和未来回报：
+
+\begin{align}
+q_\pi(s, a) &= \mathbb{E}_\pi[R_{t+1} | S_t = s, A_t = a] + \gamma \mathbb{E}_\pi[G_{t+1} | S_t = s, A_t = a]
+\end{align}
+
+第一项是期望即时奖励：
+
+\begin{align}
+\mathbb{E}_\pi[R_{t+1} | S_t = s, A_t = a] &= \sum_{s', r} p(s', r | s, a) \cdot r
+\end{align}
+
+第二项需要展开到下一状态和动作：
+
+\begin{align}
+\mathbb{E}_\pi[G_{t+1} | S_t = s, A_t = a] &= \sum_{s', r} p(s', r | s, a) \mathbb{E}_\pi[G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+\end{align}
+
+由于马尔可夫性质，给定 $S_{t+1} = s'$，$G_{t+1}$ 的分布依赖于 $s'$ 和后续策略：
+
+\begin{align}
+\mathbb{E}_\pi[G_{t+1} | S_{t+1} = s'] &= \sum_{a'} \pi(a' | s') \mathbb{E}_\pi[G_{t+1} | S_{t+1} = s', A_{t+1} = a'] \\
+                                      &= \sum_{a'} \pi(a' | s') q_\pi(s', a')
+\end{align}
+
+因此：
+
+\begin{align}
+q_\pi(s, a) &= \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi(s', a')\right]
+\end{align}
+
+这就是公式 \eqref{eq:q_bellman}。
+
+\subsection{最优动作价值函数的贝尔曼方程}
+
+\textbf{最优动作价值函数}：
+
+\begin{equation}
+q_*(s, a) = \max_\pi q_\pi(s, a)
+\end{equation}
+
+\textbf{最优动作价值函数的贝尔曼方程}：
+
+\begin{equation}
+q_*(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \max_{a'} q_*(s', a')\right]
+\label{eq:q_star_bellman}
+\end{equation}
+
+\textbf{推导}：
+
+\begin{align}
+q_*(s, a) &= \max_\pi q_\pi(s, a) \\
+          &= \max_\pi \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi(s', a')\right]
+\end{align}
+
+对于最优策略，在下一状态 $s'$ 应该选择最优动作：
+
+\begin{align}
+q_*(s, a) &= \sum_{s', r} p(s', r | s, a) \left[r + \gamma \max_{a'} q_*(s', a')\right]
+\end{align}
+
+\section{算法实现细节}
+
+\subsection{策略评估的收敛性}
+
+\textbf{定理}：迭代策略评估（动作价值函数）收敛到 $q_\pi$。
+
+\textbf{证明思路}：
+\begin{itemize}
+    \item 动作价值函数的贝尔曼方程是压缩映射
+    \item 迭代更新收敛到唯一不动点
+    \item 不动点就是 $q_\pi$
+\end{itemize}
+
+\subsection{策略改进的有效性}
+
+\textbf{策略改进定理}（动作价值函数版本）：
+
+如果 $q_\pi(s, \pi'(s)) \geq q_\pi(s, \pi(s))$ 对所有 $s$ 成立，则 $q_{\pi'}(s, a) \geq q_\pi(s, a)$ 对所有 $s, a$ 成立。
+
+\textbf{证明思路}：
+\begin{itemize}
+    \item 在状态 $s$，新策略选择更好的动作
+    \item 由于后续遵循策略 $\pi$，且 $q_\pi$ 已经考虑了全局回报
+    \item 因此新策略至少与旧策略一样好
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{Gridworld示例}
+
+考虑一个简单的Gridworld，使用基于动作价值的策略迭代：
+
+\textbf{初始化}：
+\begin{itemize}
+    \item $Q(s, a) = 0$ 对所有 $s, a$
+    \item $\pi(s)$ 为随机策略
+\end{itemize}
+
+\textbf{第1次迭代 - 策略评估}：
+
+对状态 $s$ 和动作 $a$：
+\begin{align}
+Q(s, a) &= \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') Q(s', a')\right] \\
+        &= \sum_{s', r} p(s', r | s, a) [r + \gamma \times 0] \\
+        &= \sum_{s', r} p(s', r | s, a) \cdot r
+\end{align}
+
+\textbf{第1次迭代 - 策略改进}：
+
+对每个状态 $s$：
+\begin{equation}
+\pi(s) = \arg\max_{a} Q(s, a) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) \cdot r
+\end{equation}
+
+选择使期望即时奖励最大的动作。
+
+\textbf{后续迭代}：
+
+继续交替执行策略评估和策略改进，直到策略不再改变。
+
+\section{策略迭代 vs 策略改进}
+
+\subsection{关键区别}
+
+\textbf{策略改进}（Policy Improvement）和\textbf{策略迭代}（Policy Iteration）是两个相关但不同的概念：
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{策略改进} & \textbf{策略迭代} \\
+\hline
+\textbf{定义} & 单个步骤：基于价值函数改进策略 & 完整算法：交替执行评估和改进 \\
+\hline
+\textbf{输入} & 价值函数 $v_\pi$ 或 $q_\pi$ & 初始策略 $\pi_0$ \\
+\hline
+\textbf{输出} & 改进后的策略 $\pi'$ & 最优策略 $\pi_*$ 和最优价值函数 $v_*$ \\
+\hline
+\textbf{步骤数} & 1步 & 多步（直到收敛） \\
+\hline
+\textbf{包含内容} & 只包含策略改进步骤 & 包含策略评估 + 策略改进 \\
+\hline
+\textbf{关系} & 策略迭代的一个组成部分 & 包含策略改进作为子步骤 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{策略改进：单个步骤}
+
+\textbf{策略改进}是一个\textbf{单步操作}：
+
+\begin{quote}
+给定策略 $\pi$ 的价值函数 $v_\pi$（或 $q_\pi$），策略改进生成一个新策略 $\pi'$，使得 $\pi'$ 至少与 $\pi$ 一样好。
+\end{quote}
+
+\textbf{策略改进的公式}：
+
+基于状态价值函数：
+\begin{equation}
+\pi'(s) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+基于动作价值函数：
+\begin{equation}
+\pi'(s) = \arg\max_{a} q_\pi(s, a)
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item \textbf{输入}：价值函数 $v_\pi$ 或 $q_\pi$
+    \item \textbf{输出}：改进后的策略 $\pi'$
+    \item \textbf{操作}：对每个状态选择最优动作
+    \item \textbf{保证}：$\pi'$ 至少与 $\pi$ 一样好
+\end{itemize}
+
+\subsection{策略迭代：完整算法}
+
+\textbf{策略迭代}是一个\textbf{完整算法}，包含多个步骤：
+
+\begin{quote}
+策略迭代通过交替执行策略评估和策略改进，逐步找到最优策略。
+\end{quote}
+
+\textbf{策略迭代的流程}：
+
+\begin{enumerate}
+    \item \textbf{策略评估}：计算当前策略 $\pi$ 的价值函数 $v_\pi$
+    \item \textbf{策略改进}：基于 $v_\pi$ 改进策略，得到 $\pi'$
+    \item \textbf{重复}：将 $\pi'$ 作为新的 $\pi$，重复步骤1和2
+    \item \textbf{终止}：当策略不再改变时停止
+\end{enumerate}
+
+\textbf{特点}：
+\begin{itemize}
+    \item \textbf{输入}：初始策略 $\pi_0$
+    \item \textbf{输出}：最优策略 $\pi_*$ 和最优价值函数 $v_*$
+    \item \textbf{操作}：多次执行评估和改进
+    \item \textbf{保证}：收敛到最优策略
+\end{itemize}
+
+\subsection{关系图示}
+
+\textbf{策略改进}（单步）：
+\begin{equation}
+v_\pi \xrightarrow{\text{策略改进}} \pi'
+\end{equation}
+
+\textbf{策略迭代}（多步循环）：
+\begin{equation}
+\pi_0 \xrightarrow{\text{评估}} v_{\pi_0} \xrightarrow{\text{改进}} \pi_1 \xrightarrow{\text{评估}} v_{\pi_1} \xrightarrow{\text{改进}} \pi_2 \xrightarrow{\text{评估}} \cdots \xrightarrow{\text{改进}} \pi_*
+\end{equation}
+
+\subsection{具体例子}
+
+\textbf{例子：Gridworld}
+
+\textbf{策略改进}（单步）：
+\begin{itemize}
+    \item 给定：当前策略 $\pi$ 的价值函数 $v_\pi$
+    \item 操作：对每个状态 $s$，计算 $q_\pi(s, a)$ 对所有动作 $a$，选择最优动作
+    \item 结果：得到改进后的策略 $\pi'$
+    \item 时间：执行一次
+\end{itemize}
+
+\textbf{策略迭代}（完整算法）：
+\begin{itemize}
+    \item 给定：初始策略 $\pi_0$（例如：随机策略）
+    \item 第1次迭代：
+    \begin{itemize}
+        \item 评估：计算 $v_{\pi_0}$
+        \item 改进：得到 $\pi_1$
+    \end{itemize}
+    \item 第2次迭代：
+    \begin{itemize}
+        \item 评估：计算 $v_{\pi_1}$
+        \item 改进：得到 $\pi_2$
+    \end{itemize}
+    \item 继续迭代，直到 $\pi_k = \pi_{k+1}$（策略不再改变）
+    \item 结果：得到最优策略 $\pi_*$
+    \item 时间：执行多次迭代
+\end{itemize}
+
+\subsection{类比理解}
+
+\textbf{策略改进} 类似于：
+\begin{itemize}
+    \item 给定一张地图（价值函数），找到从当前位置到目的地的最佳下一步（改进策略）
+    \item 这是一个\textbf{单步决策}
+\end{itemize}
+
+\textbf{策略迭代} 类似于：
+\begin{itemize}
+    \item 从起点开始，不断更新地图并选择最佳路径，直到找到最优路径
+    \item 这是一个\textbf{完整过程}
+\end{itemize}
+
+\subsection{为什么需要策略迭代？}
+
+\textbf{问题}：为什么不能只执行一次策略改进？
+
+\textbf{答案}：
+\begin{itemize}
+    \item 策略改进需要知道当前策略的价值函数
+    \item 但价值函数依赖于策略本身
+    \item 因此需要：
+    \begin{enumerate}
+        \item 先评估策略，得到价值函数
+        \item 再改进策略
+        \item 新策略可能更好，需要重新评估
+        \item 重复这个过程直到收敛
+    \end{enumerate}
+\end{itemize}
+
+\textbf{策略迭代的必要性}：
+\begin{itemize}
+    \item 策略和价值函数相互依赖
+    \item 需要迭代求解
+    \item 策略迭代提供了系统化的方法
+\end{itemize}
+
+\section{总结}
+
+\subsection{策略迭代的核心要点}
+
+\begin{enumerate}
+    \item \textbf{两个步骤}：
+    \begin{itemize}
+        \item 策略评估：计算当前策略的价值函数
+        \item 策略改进：基于价值函数改进策略
+    \end{itemize}
+    
+    \item \textbf{收敛性}：
+    \begin{itemize}
+        \item 每次迭代都严格改进策略
+        \item 有限MDP保证在有限次迭代后收敛
+        \item 收敛到最优策略和最优价值函数
+    \end{itemize}
+    
+    \item \textbf{两种形式}：
+    \begin{itemize}
+        \item 基于状态价值函数 $v_\pi$
+        \item 基于动作价值函数 $q_\pi$
+    \end{itemize}
+\end{enumerate}
+
+\subsection{练习4.5的答案}
+
+\textbf{基于动作价值的策略迭代算法}：
+
+\begin{enumerate}
+    \item \textbf{初始化}：$Q(s, a)$ 和 $\pi(s)$ 任意初始化
+    
+    \item \textbf{策略评估}：
+    \begin{equation}
+    Q(s, a) \gets \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') Q(s', a')\right]
+    \end{equation}
+    迭代直到收敛
+    
+    \item \textbf{策略改进}：
+    \begin{equation}
+    \pi(s) \gets \arg\max_{a} Q(s, a)
+    \end{equation}
+    
+    \item \textbf{重复}步骤2和3，直到策略不再改变
+\end{enumerate}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item 评估的是动作价值函数 $q_\pi$ 而不是状态价值函数 $v_\pi$
+    \item 策略改进直接使用 $Q(s, a)$，不需要计算动作价值
+    \item 需要存储 $|\mathcal{S}| \times |\mathcal{A}|$ 个值
+\end{itemize}
+
+\subsection{重要性}
+
+\begin{quote}
+\textbf{练习4.5特别重要}，因为其中涉及的思想将在本书的其余部分中广泛使用。基于动作价值的强化学习算法（如Q学习、SARSA等）都建立在这些思想之上。
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4, Exercise 4.5.
+\end{itemize}
+
+\end{document}
+
+

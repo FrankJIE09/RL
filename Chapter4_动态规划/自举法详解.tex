@@ -1,0 +1,543 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{自举法详解}
+\subtitle{强化学习中的核心概念：基于估计值更新估计值}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+\subsection{什么是自举法？}
+
+\textbf{自举法}（Bootstrapping）是强化学习中的一个核心概念，指的是：
+
+\begin{quote}
+\textbf{基于其他估计值来更新估计值。}
+\end{quote}
+
+在动态规划中，我们使用后继状态的\textbf{估计值}来更新当前状态的估计值，而不是使用完整的真实回报。
+
+\subsection{自举法的定义}
+
+\begin{definition}[自举法]
+\textbf{自举法}（Bootstrapping）是一种更新估计值的方法，其中：
+\begin{itemize}
+    \item 使用\textbf{其他状态的估计值}来更新当前状态的估计值
+    \item 不等待完整的真实回报
+    \item 基于部分信息进行更新
+\end{itemize}
+\end{definition}
+
+\section{自举法 vs 非自举法}
+
+\subsection{对比表格}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{自举法} & \textbf{非自举法} \\
+\hline
+更新依据 & 其他状态的估计值 & 完整的真实回报 \\
+\hline
+需要完整轨迹 & 否 & 是 \\
+\hline
+可以立即更新 & 是 & 否（需等待回合结束） \\
+\hline
+典型方法 & 动态规划、TD学习 & 蒙特卡洛方法 \\
+\hline
+更新公式 & $v(s) \gets r + \gamma v(s')$ & $v(s) \gets G_t$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{自举法的更新公式}
+
+\textbf{动态规划中的自举更新}：
+
+\begin{equation}
+v_{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\label{eq:bootstrap_update}
+\end{equation}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 使用 $v_k(s')$（后继状态的\textbf{估计值}）
+    \item 不等待完整的回报 $G_t$
+    \item 基于一步前瞻进行更新
+\end{itemize}
+
+\subsection{非自举法的更新公式}
+
+\textbf{蒙特卡洛方法中的非自举更新}：
+
+\begin{equation}
+v(s) \gets v(s) + \alpha [G_t - v(s)]
+\label{eq:non_bootstrap_update}
+\end{equation}
+
+其中 $G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots$ 是\textbf{完整的真实回报}。
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 使用 $G_t$（完整的真实回报）
+    \item 需要等待回合结束
+    \item 基于完整轨迹进行更新
+\end{itemize}
+
+\section{动态规划中的自举法}
+
+\subsection{策略评估中的自举}
+
+\textbf{策略评估更新}：
+
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\textbf{自举特征}：
+\begin{itemize}
+    \item 使用 $v_\pi^k(s')$（后继状态的估计值）
+    \item 不等待完整的回报
+    \item 基于一步前瞻更新
+\end{itemize}
+
+\subsection{价值迭代中的自举}
+
+\textbf{价值迭代更新}：
+
+\begin{equation}
+v_{k+1}(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{自举特征}：
+\begin{itemize}
+    \item 使用 $v_k(s')$（后继状态的估计值）
+    \item 选择最优动作
+    \item 基于一步前瞻更新
+\end{itemize}
+
+\section{为什么叫"自举"？}
+
+\subsection{词源}
+
+\textbf{Bootstrapping} 这个词来自英语短语 "pull oneself up by one's bootstraps"（拉着自己的靴带把自己拉起来），这是一个不可能完成的任务，但用来比喻"靠自己努力成功"。
+
+\textbf{在强化学习中的含义}：
+\begin{itemize}
+    \item 使用\textbf{估计值}来改进\textbf{估计值}
+    \item 就像"拉着自己的靴带把自己拉起来"
+    \item 看似不可能，但在数学上是可以收敛的
+\end{itemize}
+
+\subsection{自举的可行性}
+
+\textbf{为什么自举法可以工作？}
+
+\begin{enumerate}
+    \item \textbf{初始估计}：从某个初始估计开始（如 $v_0(s) = 0$）
+    
+    \item \textbf{迭代改进}：每次迭代使用更准确的估计值
+    
+    \item \textbf{收敛性}：在适当的条件下，估计值会收敛到真实值
+    
+    \item \textbf{数学保证}：贝尔曼方程保证收敛性
+\end{enumerate}
+
+\textbf{关键洞察}：
+\begin{quote}
+虽然我们使用估计值来更新估计值，但通过迭代，这些估计值会逐渐变得更准确，最终收敛到真实值。
+\end{quote}
+
+\section{自举法的具体例子}
+
+\subsection{Gridworld例子}
+
+考虑一个简单的Gridworld：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+$s_1$ & $s_2$ & \textbf{终止} \\
+\hline
+$s_3$ & $s_4$ & $s_5$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{环境设置}：
+\begin{itemize}
+    \item 所有转移的奖励都是 $-1$
+    \item 折扣因子 $\gamma = 0.9$
+    \item 终止状态价值为 $0$
+\end{itemize}
+
+\subsection{自举更新过程}
+
+\textbf{初始化}：
+\begin{equation}
+v_0(s_1) = v_0(s_2) = v_0(s_3) = v_0(s_4) = v_0(s_5) = 0
+\end{equation}
+
+\textbf{第1次迭代（自举更新）}：
+
+对于状态 $s_2$（假设只能向右移动到终止状态）：
+\begin{align}
+v_1(s_2) &= -1 + 0.9 \times v_0(\text{终止}) \\
+         &= -1 + 0.9 \times 0 \\
+         &= -1.0
+\end{align}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 使用 $v_0(\text{终止}) = 0$（估计值）
+    \item 不等待完整的回报
+    \item 立即更新
+\end{itemize}
+
+\textbf{第2次迭代}：
+
+对于状态 $s_1$（假设可以向右移动到 $s_2$）：
+\begin{align}
+v_2(s_1) &= -1 + 0.9 \times v_1(s_2) \\
+         &= -1 + 0.9 \times (-1.0) \\
+         &= -1.9
+\end{align}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 使用 $v_1(s_2) = -1.0$（第1次迭代的估计值）
+    \item 基于估计值更新估计值
+    \item 这就是自举法
+\end{itemize}
+
+\subsection{非自举更新（对比）}
+
+\textbf{蒙特卡洛方法}：
+
+假设我们从状态 $s_1$ 开始，执行一个完整的回合：
+\begin{itemize}
+    \item $s_1 \to s_2$：奖励 $-1$
+    \item $s_2 \to \text{终止}$：奖励 $-1$
+    \item 完整回报：$G_1 = -1 + 0.9 \times (-1) = -1.9$
+\end{itemize}
+
+\textbf{非自举更新}：
+\begin{equation}
+v(s_1) \gets v(s_1) + \alpha [G_1 - v(s_1)]
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 使用 $G_1 = -1.9$（完整的真实回报）
+    \item 需要等待回合结束
+    \item 不使用估计值
+\end{itemize}
+
+\section{自举法的优势}
+
+\subsection{可以立即更新}
+
+\textbf{自举法}：
+\begin{itemize}
+    \item 不需要等待完整的轨迹
+    \item 可以立即更新
+    \item 学习速度快
+\end{itemize}
+
+\textbf{非自举法}：
+\begin{itemize}
+    \item 需要等待回合结束
+    \item 在回合结束前无法更新
+    \item 学习速度较慢
+\end{itemize}
+
+\subsection{数据效率}
+
+\textbf{自举法}：
+\begin{itemize}
+    \item 每个转移都可以用于更新
+    \item 数据利用率高
+    \item 适合在线学习
+\end{itemize}
+
+\textbf{非自举法}：
+\begin{itemize}
+    \item 需要完整的轨迹
+    \item 数据利用率较低
+    \item 适合离线学习
+\end{itemize}
+
+\subsection{适用场景}
+
+\textbf{自举法适用于}：
+\begin{itemize}
+    \item 需要快速学习的场景
+    \item 在线学习场景
+    \item 状态空间大的问题
+    \item 需要利用部分信息的场景
+\end{itemize}
+
+\section{自举法的局限性}
+
+\subsection{需要模型或估计}
+
+\textbf{自举法}：
+\begin{itemize}
+    \item 需要知道或估计后继状态的价值
+    \item 在动态规划中需要环境模型
+    \item 在TD学习中需要估计值函数
+\end{itemize}
+
+\subsection{可能引入偏差}
+
+\textbf{自举法}：
+\begin{itemize}
+    \item 如果初始估计不准确，可能引入偏差
+    \item 需要多次迭代才能收敛
+    \item 在某些情况下可能不收敛
+\end{itemize}
+
+\section{自举法在不同算法中的应用}
+
+\subsection{动态规划}
+
+\textbf{策略评估}：
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\textbf{自举特征}：使用 $v_\pi^k(s')$ 更新 $v_\pi^{k+1}(s)$
+
+\subsection{时序差分学习（TD）}
+
+\textbf{TD(0)更新}：
+\begin{equation}
+v(s_t) \gets v(s_t) + \alpha [r_{t+1} + \gamma v(s_{t+1}) - v(s_t)]
+\end{equation}
+
+\textbf{自举特征}：使用 $v(s_{t+1})$（估计值）更新 $v(s_t)$
+
+\subsection{Q学习}
+
+\textbf{Q学习更新}：
+\begin{equation}
+Q(s_t, a_t) \gets Q(s_t, a_t) + \alpha [r_{t+1} + \gamma \max_{a} Q(s_{t+1}, a) - Q(s_t, a_t)]
+\end{equation}
+
+\textbf{自举特征}：使用 $\max_{a} Q(s_{t+1}, a)$（估计值）更新 $Q(s_t, a_t)$
+
+\subsection{n步自举}
+
+\textbf{n步回报}：
+\begin{equation}
+G_{t:t+n} = R_{t+1} + \gamma R_{t+2} + \cdots + \gamma^{n-1} R_{t+n} + \gamma^n v(S_{t+n})
+\end{equation}
+
+\textbf{自举特征}：使用 $v(S_{t+n})$（估计值）来估计 $n$ 步后的回报
+
+\section{自举法的数学基础}
+
+\subsection{贝尔曼方程}
+
+\textbf{自举法的数学基础是贝尔曼方程}：
+
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 贝尔曼方程表明：$v_\pi(s)$ 可以用 $v_\pi(s')$ 表示
+    \item 这为自举法提供了数学基础
+    \item 自举更新是贝尔曼方程的迭代形式
+\end{itemize}
+
+\subsection{不动点理论}
+
+\textbf{自举法的收敛性}：
+
+\begin{theorem}[自举法收敛性]
+在适当的条件下（如 $\gamma < 1$），自举更新序列 $\{v_k\}$ 收敛到贝尔曼方程的唯一不动点 $v_*$。
+\end{theorem}
+
+\textbf{证明思路}：
+\begin{itemize}
+    \item 贝尔曼算子是一个压缩映射
+    \item 压缩映射有唯一不动点
+    \item 自举更新收敛到该不动点
+\end{itemize}
+
+\section{自举法 vs 非自举法的详细对比}
+
+\subsection{更新时机}
+
+\textbf{自举法（TD学习）}：
+\begin{itemize}
+    \item 每个时间步都可以更新
+    \item 不需要等待回合结束
+    \item 在线学习
+\end{itemize}
+
+\textbf{非自举法（蒙特卡洛）}：
+\begin{itemize}
+    \item 必须等待回合结束
+    \item 需要完整的回报
+    \item 离线学习
+\end{itemize}
+
+\subsection{方差 vs 偏差}
+
+\textbf{自举法}：
+\begin{itemize}
+    \item \textbf{偏差}：可能引入偏差（如果估计不准确）
+    \item \textbf{方差}：方差较小（因为使用估计值，不依赖随机采样）
+    \item \textbf{权衡}：偏差-方差权衡
+\end{itemize}
+
+\textbf{非自举法}：
+\begin{itemize}
+    \item \textbf{偏差}：无偏差（使用真实回报）
+    \item \textbf{方差}：方差较大（因为依赖随机采样）
+    \item \textbf{权衡}：无偏差但高方差
+\end{itemize}
+
+\subsection{适用问题}
+
+\textbf{自举法适用于}：
+\begin{itemize}
+    \item 需要快速学习的任务
+    \item 在线学习场景
+    \item 状态空间大的问题
+    \item 需要利用部分信息的场景
+\end{itemize}
+
+\textbf{非自举法适用于}：
+\begin{itemize}
+    \item 需要无偏差估计的任务
+    \item 离线学习场景
+    \item 回合制任务
+    \item 需要完整轨迹信息的场景
+\end{itemize}
+
+\section{自举法的直观理解}
+
+\subsection{类比：学习地图}
+
+\textbf{自举法}：
+\begin{itemize}
+    \item 就像使用\textbf{部分地图}来绘制\textbf{完整地图}
+    \item 从已知区域推断未知区域
+    \item 逐步完善地图
+\end{itemize}
+
+\textbf{非自举法}：
+\begin{itemize}
+    \item 就像\textbf{实际探索}每个区域
+    \item 需要完整的信息
+    \item 更准确但更慢
+\end{itemize}
+
+\subsection{类比：拼图游戏}
+
+\textbf{自举法}：
+\begin{itemize}
+    \item 使用\textbf{已拼好的部分}来推断\textbf{未拼的部分}
+    \item 基于部分信息进行推理
+    \item 逐步完成拼图
+\end{itemize}
+
+\textbf{非自举法}：
+\begin{itemize}
+    \item 需要\textbf{完整的图片}作为参考
+    \item 不依赖推理
+    \item 更直接但需要更多信息
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{定义}：自举法是指基于其他估计值来更新估计值
+    
+    \item \textbf{特征}：
+    \begin{itemize}
+        \item 使用后继状态的估计值
+        \item 不等待完整的真实回报
+        \item 可以立即更新
+    \end{itemize}
+    
+    \item \textbf{应用}：
+    \begin{itemize}
+        \item 动态规划
+        \item 时序差分学习
+        \item Q学习
+        \item n步自举方法
+    \end{itemize}
+    
+    \item \textbf{优势}：
+    \begin{itemize}
+        \item 可以立即更新
+        \item 数据效率高
+        \item 适合在线学习
+    \end{itemize}
+    
+    \item \textbf{局限性}：
+    \begin{itemize}
+        \item 需要模型或估计
+        \item 可能引入偏差
+        \item 需要多次迭代才能收敛
+    \end{itemize}
+    
+    \item \textbf{数学基础}：
+    \begin{itemize}
+        \item 贝尔曼方程
+        \item 不动点理论
+        \item 压缩映射
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{自举法允许我们使用部分信息（估计值）来改进估计值，通过迭代逐渐提高准确性，最终收敛到真实值。这使得我们可以在不等待完整轨迹的情况下进行学习，大大提高了学习效率。}
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4, 6, 7.
+\end{itemize}
+
+\end{document}
+

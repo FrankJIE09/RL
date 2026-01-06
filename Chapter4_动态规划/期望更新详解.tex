@@ -1,0 +1,545 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+
+\geometry{margin=2.5cm}
+
+\title{期望更新详解}
+\subtitle{动态规划中的核心概念}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+在动态规划中，"期望更新"（Expected Update）是一个核心概念。理解期望更新对于掌握动态规划算法至关重要。本文档将详细解释什么是期望更新，它与采样更新的区别，以及为什么它在动态规划中如此重要。
+
+\section{什么是期望更新？}
+
+\subsection{定义}
+
+\begin{definition}[期望更新]
+\textbf{期望更新}是指基于\textbf{所有可能}的下一状态和奖励的\textbf{期望值}来更新价值函数，而不是基于单个样本。它使用环境的完整动态函数 $p(s', r | s, a)$ 来计算期望。
+\end{definition}
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item \textbf{使用完整模型}：需要知道 $p(s', r | s, a)$
+    \item \textbf{计算期望}：对所有可能的 $(s', r)$ 求期望
+    \item \textbf{精确计算}：结果是精确的，不是估计
+    \item \textbf{不需要采样}：不需要实际与环境交互
+\end{itemize}
+
+\subsection{数学表达}
+
+对于状态价值函数的期望更新：
+
+\begin{equation}
+v_{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\label{eq:expected_update_v}
+\end{equation}
+
+对于动作价值函数的期望更新：
+
+\begin{equation}
+q_{k+1}(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_k(s', a')\right]
+\label{eq:expected_update_q}
+\end{equation}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 使用求和 $\sum_{s', r}$ 对所有可能的 $(s', r)$ 求期望
+    \item 使用概率 $p(s', r | s, a)$ 作为权重
+    \item 结果是精确的期望值
+\end{itemize}
+
+\section{期望更新 vs 采样更新}
+
+\subsection{对比}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{期望更新} & \textbf{采样更新} \\
+\hline
+需要模型 & 是（$p(s', r | s, a)$） & 否 \\
+\hline
+计算方式 & 对所有可能结果求期望 & 使用单个样本 \\
+\hline
+精确性 & 精确 & 估计（有方差） \\
+\hline
+计算成本 & 高（需要遍历所有可能） & 低（只需一个样本） \\
+\hline
+适用场景 & 动态规划 & 强化学习（无模型） \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{期望更新的示例}
+
+\textbf{状态价值函数的期望更新}：
+
+假设在状态 $s$，策略 $\pi$ 选择动作 $a_1$ 和 $a_2$ 的概率分别为 $0.6$ 和 $0.4$。
+
+对于动作 $a_1$，可能的结果：
+\begin{itemize}
+    \item 转移到 $s_1'$，奖励 $r_1 = 1$，概率 $p(s_1', 1 | s, a_1) = 0.7$
+    \item 转移到 $s_2'$，奖励 $r_2 = 0$，概率 $p(s_2', 0 | s, a_1) = 0.3$
+\end{itemize}
+
+对于动作 $a_2$，可能的结果：
+\begin{itemize}
+    \item 转移到 $s_3'$，奖励 $r_3 = 2$，概率 $p(s_3', 2 | s, a_2) = 1.0$
+\end{itemize}
+
+\textbf{期望更新计算}：
+
+\begin{align}
+v_{k+1}(s) &= \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')] \\
+           &= 0.6 \times [0.7 \times (1 + \gamma v_k(s_1')) + 0.3 \times (0 + \gamma v_k(s_2'))] \\
+           &\quad + 0.4 \times [1.0 \times (2 + \gamma v_k(s_3'))] \\
+           &= 0.6 \times [0.7 + 0.7\gamma v_k(s_1') + 0.3\gamma v_k(s_2')] \\
+           &\quad + 0.4 \times [2 + \gamma v_k(s_3')] \\
+           &= 0.42 + 0.42\gamma v_k(s_1') + 0.18\gamma v_k(s_2') + 0.8 + 0.4\gamma v_k(s_3') \\
+           &= 1.22 + 0.42\gamma v_k(s_1') + 0.18\gamma v_k(s_2') + 0.4\gamma v_k(s_3')
+\end{align}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 考虑了\textbf{所有可能}的结果
+    \item 使用概率作为权重
+    \item 结果是精确的期望值
+\end{itemize}
+
+\subsection{采样更新的示例}
+
+\textbf{同样的状态，使用采样更新}：
+
+假设我们实际执行动作 $a_1$，观察到转移到 $s_1'$，奖励 $r_1 = 1$。
+
+\textbf{采样更新计算}：
+
+\begin{align}
+v_{k+1}(s) &= v_k(s) + \alpha [r_1 + \gamma v_k(s_1') - v_k(s)] \\
+           &= v_k(s) + \alpha [1 + \gamma v_k(s_1') - v_k(s)]
+\end{align}
+
+其中 $\alpha$ 是学习率。
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 只使用\textbf{一个样本}
+    \item 结果有\textbf{方差}（可能不准确）
+    \item 但计算成本低
+\end{itemize}
+
+\section{期望更新在动态规划中的应用}
+
+\subsection{策略评估中的期望更新}
+
+策略评估使用期望更新来精确计算策略的价值函数：
+
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 每次更新都考虑所有可能的动作和结果
+    \item 使用完整的概率分布
+    \item 保证收敛到精确的价值函数
+\end{itemize}
+
+\subsection{价值迭代中的期望更新}
+
+价值迭代也使用期望更新，但选择最优动作：
+
+\begin{equation}
+v_{k+1}(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 对每个动作计算期望回报
+    \item 选择使期望回报最大的动作
+    \item 保证收敛到最优价值函数
+\end{itemize}
+
+\subsection{策略迭代中的期望更新}
+
+策略迭代结合了策略评估和策略改进：
+
+\textbf{策略评估阶段}：
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\textbf{策略改进阶段}：
+\begin{equation}
+\pi'(s) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+两个阶段都使用期望更新。
+
+\section{为什么叫"期望"更新？}
+
+\subsection{期望的数学含义}
+
+\textbf{期望（Expectation）}是概率论中的概念：
+
+\begin{equation}
+\mathbb{E}[X] = \sum_{x} x \cdot \Pr\{X = x\}
+\end{equation}
+
+\textbf{在价值更新中的应用}：
+
+价值更新计算的是\textbf{期望回报}：
+
+\begin{align}
+v_{k+1}(s) &= \mathbb{E}_\pi[R_{t+1} + \gamma v_k(S_{t+1}) | S_t = s] \\
+           &= \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $R_{t+1} + \gamma v_k(S_{t+1})$ 是随机变量（因为 $S_{t+1}$ 和 $R_{t+1}$ 是随机的）
+    \item 我们计算这个随机变量的\textbf{期望值}
+    \item 期望值 = 所有可能值 × 对应概率 的求和
+\end{itemize}
+
+\subsection{与采样更新的对比}
+
+\textbf{期望更新}：
+\begin{itemize}
+    \item 计算 $\mathbb{E}[R_{t+1} + \gamma v_k(S_{t+1}) | S_t = s]$
+    \item 使用所有可能的 $(s', r)$ 及其概率
+    \item 结果是精确的期望值
+\end{itemize}
+
+\textbf{采样更新}：
+\begin{itemize}
+    \item 使用单个样本 $(s', r)$
+    \item 估计期望值：$r + \gamma v_k(s') \approx \mathbb{E}[R_{t+1} + \gamma v_k(S_{t+1}) | S_t = s]$
+    \item 结果有方差，但通过多次更新可以收敛
+\end{itemize}
+
+\section{期望更新的计算复杂度}
+
+\subsection{单次更新的复杂度}
+
+对于状态 $s$ 的期望更新：
+
+\begin{equation}
+v_{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{计算步骤}：
+\begin{enumerate}
+    \item 对每个动作 $a$：$O(|\mathcal{A}|)$
+    \item 对每个可能的 $(s', r)$：$O(|\mathcal{S}| \times |\mathcal{R}|)$
+    \item 总复杂度：$O(|\mathcal{A}| \times |\mathcal{S}| \times |\mathcal{R}|)$
+\end{enumerate}
+
+\textbf{对于所有状态}：
+\begin{equation}
+O(|\mathcal{S}| \times |\mathcal{A}| \times |\mathcal{S}| \times |\mathcal{R}|) = O(|\mathcal{S}|^2 \times |\mathcal{A}| \times |\mathcal{R}|)
+\end{equation}
+
+\subsection{与采样更新的对比}
+
+\textbf{采样更新}：
+\begin{itemize}
+    \item 单次更新：$O(1)$（只需一个样本）
+    \item 但需要多次更新才能收敛
+    \item 总计算量取决于样本数量
+\end{itemize}
+
+\textbf{期望更新}：
+\begin{itemize}
+    \item 单次更新：$O(|\mathcal{S}| \times |\mathcal{A}| \times |\mathcal{R}|)$
+    \item 但每次更新都是精确的
+    \item 通常需要更少的迭代次数
+\end{itemize}
+
+\section{期望更新的优势与劣势}
+
+\subsection{优势}
+
+\begin{enumerate}
+    \item \textbf{精确性}：
+    \begin{itemize}
+        \item 结果是精确的期望值
+        \item 没有方差
+        \item 保证收敛到正确值
+    \end{itemize}
+    
+    \item \textbf{效率（小状态空间）}：
+    \begin{itemize}
+        \item 对于小状态空间，期望更新很快
+        \item 不需要实际与环境交互
+        \item 可以离线计算
+    \end{itemize}
+    
+    \item \textbf{理论保证}：
+    \begin{itemize}
+        \item 有收敛性保证
+        \item 可以证明最优性
+        \item 数学上更优雅
+    \end{itemize}
+\end{enumerate}
+
+\subsection{劣势}
+
+\begin{enumerate}
+    \item \textbf{需要模型}：
+    \begin{itemize}
+        \item 必须知道 $p(s', r | s, a)$
+        \item 模型可能不准确
+        \item 模型可能难以获得
+    \end{itemize}
+    
+    \item \textbf{计算复杂度}：
+    \begin{itemize}
+        \item 对于大状态空间，计算成本高
+        \item 需要遍历所有可能的结果
+        \item 可能不可行
+    \end{itemize}
+    
+    \item \textbf{不适用于无模型场景}：
+    \begin{itemize}
+        \item 不知道环境动态时无法使用
+        \item 必须使用采样更新
+    \end{itemize}
+\end{enumerate}
+
+\section{期望更新的具体例子}
+
+\subsection{Gridworld中的期望更新}
+
+考虑Gridworld中的状态 $s$（中心状态，第3行第3列）。
+
+\textbf{环境动态}：
+\begin{itemize}
+    \item 动作"北"：转移到 $s'$（第2行第3列），奖励 $0$，概率 $1.0$
+    \item 动作"南"：转移到 $s''$（第4行第3列），奖励 $0$，概率 $1.0$
+    \item 动作"东"：转移到 $s'''$（第3行第4列），奖励 $0$，概率 $1.0$
+    \item 动作"西"：转移到 $s''''$（第3行第2列），奖励 $0$，概率 $1.0$
+\end{itemize}
+
+\textbf{策略}：均匀随机策略，$\pi(a | s) = 0.25$ 对所有动作。
+
+\textbf{期望更新计算}：
+
+\begin{align}
+v_\pi^{k+1}(s) &= \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')] \\
+               &= 0.25 \times [1.0 \times (0 + \gamma v_\pi^k(s'))] \\
+               &\quad + 0.25 \times [1.0 \times (0 + \gamma v_\pi^k(s''))] \\
+               &\quad + 0.25 \times [1.0 \times (0 + \gamma v_\pi^k(s'''))] \\
+               &\quad + 0.25 \times [1.0 \times (0 + \gamma v_\pi^k(s''''))] \\
+               &= 0.25 \gamma [v_\pi^k(s') + v_\pi^k(s'') + v_\pi^k(s''') + v_\pi^k(s'''')]
+\end{align}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 考虑了所有4个动作
+    \item 考虑了每个动作的确定结果
+    \item 使用策略概率作为权重
+    \item 结果是精确的期望值
+\end{itemize}
+
+\subsection{随机环境中的期望更新}
+
+考虑一个随机环境，在状态 $s$ 采取动作 $a$：
+
+\textbf{可能的结果}：
+\begin{itemize}
+    \item 转移到 $s_1'$，奖励 $r_1 = 10$，概率 $p(s_1', 10 | s, a) = 0.6$
+    \item 转移到 $s_2'$，奖励 $r_2 = 1$，概率 $p(s_2', 1 | s, a) = 0.3$
+    \item 转移到 $s_3'$，奖励 $r_3 = -5$，概率 $p(s_3', -5 | s, a) = 0.1$
+\end{itemize}
+
+\textbf{期望更新计算}：
+
+\begin{align}
+q_{k+1}(s, a) &= \sum_{s', r} p(s', r | s, a) [r + \gamma \max_{a'} q_k(s', a')] \\
+              &= 0.6 \times [10 + \gamma \max_{a'} q_k(s_1', a')] \\
+              &\quad + 0.3 \times [1 + \gamma \max_{a'} q_k(s_2', a')] \\
+              &\quad + 0.1 \times [-5 + \gamma \max_{a'} q_k(s_3', a')] \\
+              &= 6.0 + 0.6\gamma \max_{a'} q_k(s_1', a') \\
+              &\quad + 0.3 + 0.3\gamma \max_{a'} q_k(s_2', a') \\
+              &\quad - 0.5 + 0.1\gamma \max_{a'} q_k(s_3', a') \\
+              &= 5.8 + 0.6\gamma \max_{a'} q_k(s_1', a') \\
+              &\quad + 0.3\gamma \max_{a'} q_k(s_2', a') \\
+              &\quad + 0.1\gamma \max_{a'} q_k(s_3', a')
+\end{align}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 考虑了所有3种可能的结果
+    \item 使用概率作为权重
+    \item 结果是精确的期望值（考虑了随机性）
+\end{itemize}
+
+\section{期望更新与贝尔曼方程}
+
+\subsection{关系}
+
+期望更新与贝尔曼方程密切相关：
+
+\begin{quote}
+\textbf{期望更新本质上是贝尔曼方程的迭代形式。}
+\end{quote}
+
+\textbf{贝尔曼方程}（策略评估）：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{期望更新}（迭代求解）：
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\textbf{区别}：
+\begin{itemize}
+    \item 贝尔曼方程：$v_\pi$ 是方程的解（不动点）
+    \item 期望更新：$v_\pi^k$ 是迭代过程中的近似值
+    \item 当 $k \to \infty$ 时，$v_\pi^k \to v_\pi$（收敛到贝尔曼方程的解）
+\end{itemize}
+
+\subsection{四种期望更新}
+
+根据Sutton和Barto的教材，有四种对应的贝尔曼方程和四种对应的期望更新：
+
+\begin{enumerate}
+    \item \textbf{状态价值函数的贝尔曼方程}：
+    \begin{equation}
+    v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+    \end{equation}
+    
+    \item \textbf{动作价值函数的贝尔曼方程}：
+    \begin{equation}
+    q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi(s', a')\right]
+    \end{equation}
+    
+    \item \textbf{最优状态价值函数的贝尔曼方程}：
+    \begin{equation}
+    v_*(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+    \end{equation}
+    
+    \item \textbf{最优动作价值函数的贝尔曼方程}：
+    \begin{equation}
+    q_*(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \max_{a'} q_*(s', a')\right]
+    \end{equation}
+\end{enumerate}
+
+每种贝尔曼方程都有对应的期望更新形式。
+
+\section{期望更新的实现}
+
+\subsection{伪代码}
+
+\begin{algorithm}[H]
+\caption{期望更新（策略评估）}
+\begin{algorithmic}[1]
+\REQUIRE 策略 $\pi$，环境动态 $p(s', r | s, a)$，当前价值函数 $v_k$
+\ENSURE 更新后的价值函数 $v_{k+1}$
+\FOR{每个状态 $s \in \mathcal{S}$}
+    \STATE $v_{k+1}(s) \gets 0$
+    \FOR{每个动作 $a \in \mathcal{A}(s)$}
+        \STATE $q \gets 0$
+        \FOR{每个 $(s', r)$ 使得 $p(s', r | s, a) > 0$}
+            \STATE $q \gets q + p(s', r | s, a) \times [r + \gamma v_k(s')]$
+        \ENDFOR
+        \STATE $v_{k+1}(s) \gets v_{k+1}(s) + \pi(a | s) \times q$
+    \ENDFOR
+\ENDFOR
+\RETURN $v_{k+1}$
+\end{algorithmic}
+\end{algorithmic}
+
+\subsection{关键步骤}
+
+\textbf{步骤1}：对每个状态 $s$，初始化 $v_{k+1}(s) = 0$
+
+\textbf{步骤2}：对每个动作 $a$，计算动作价值：
+\begin{equation}
+q(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{步骤3}：对动作求期望（按策略加权）：
+\begin{equation}
+v_{k+1}(s) = \sum_{a} \pi(a | s) q(s, a)
+\end{equation}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{定义}：期望更新是基于所有可能结果的期望值来更新价值函数
+    
+    \item \textbf{特点}：
+    \begin{itemize}
+        \item 需要完整的环境模型 $p(s', r | s, a)$
+        \item 计算精确的期望值
+        \item 不需要实际与环境交互
+    \end{itemize}
+    
+    \item \textbf{与采样更新的区别}：
+    \begin{itemize}
+        \item 期望更新：使用所有可能结果，精确但计算成本高
+        \item 采样更新：使用单个样本，估计但有方差，计算成本低
+    \end{itemize}
+    
+    \item \textbf{应用}：
+    \begin{itemize}
+        \item 策略评估
+        \item 价值迭代
+        \item 策略迭代
+        \item 所有动态规划方法
+    \end{itemize}
+    
+    \item \textbf{与贝尔曼方程的关系}：
+    \begin{itemize}
+        \item 期望更新是贝尔曼方程的迭代形式
+        \item 通过迭代，收敛到贝尔曼方程的解
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{期望更新是动态规划的核心。它允许我们在"脑海中"模拟环境，精确计算价值函数，而不需要实际与环境交互。这使得动态规划方法既精确又高效（对于小状态空间）。}
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4, 8.5.
+\end{itemize}
+
+\end{document}
+

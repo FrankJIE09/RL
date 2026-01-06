@@ -1,0 +1,504 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{时序差分学习详解}
+\subtitle{第6章：结合蒙特卡洛和动态规划的无模型学习方法}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+\subsection{什么是时序差分学习？}
+
+\begin{definition}[时序差分学习]
+\textbf{时序差分学习}（Temporal-Difference Learning, TD）结合了蒙特卡洛方法和动态规划的思想。像蒙特卡洛方法一样，TD方法可以直接从原始经验中学习，不需要环境模型。像动态规划一样，TD方法基于其他学习到的估计值进行更新，不需要等待最终结果（使用自举法）。
+\end{definition}
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item \textbf{无模型}：不需要环境模型，只需要经验
+    \item \textbf{自举法}：使用估计值更新估计值
+    \item \textbf{在线学习}：每个时间步都可以更新
+    \item \textbf{结合优势}：结合了蒙特卡洛和动态规划的优势
+\end{itemize}
+
+\subsection{时序差分学习的核心思想}
+
+\textbf{三种方法的对比}：
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{特性} & \textbf{动态规划} & \textbf{蒙特卡洛} & \textbf{时序差分} \\
+\hline
+\textbf{需要模型} & 是 & 否 & 否 \\
+\hline
+\textbf{自举法} & 是 & 否 & 是 \\
+\hline
+\textbf{更新时机} & 可以立即 & 等待回合结束 & 可以立即 \\
+\hline
+\textbf{更新目标} & $r + \gamma v(s')$ & $G_t$ & $r + \gamma v(s')$ \\
+\hline
+\textbf{采样} & 否（期望） & 是（完整回报） & 是（一步采样） \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{TD预测（TD Prediction）}
+
+\subsection{TD(0)算法}
+
+\textbf{蒙特卡洛更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\label{eq:mc_update}
+\end{equation}
+
+其中 $G_t$ 是完整的真实回报。
+
+\textbf{TD(0)更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+\label{eq:td0_update}
+\end{equation}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item \textbf{蒙特卡洛}：目标 = $G_t$（完整回报，需要等待回合结束）
+    \item \textbf{TD(0)}：目标 = $R_{t+1} + \gamma V(S_{t+1})$（一步前瞻，可以立即更新）
+\end{itemize}
+
+\subsection{TD(0)算法伪代码}
+
+\begin{algorithm}[H]
+\caption{TD(0)算法（估计 $v_\pi$）}
+\begin{algorithmic}[1]
+\REQUIRE 要评估的策略 $\pi$
+\ENSURE 状态价值函数 $v_\pi$ 的估计 $V$
+\STATE \textbf{初始化}：$V(s) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$，但 $V(\text{终止}) = 0$
+\STATE \textbf{算法参数}：步长 $\alpha \in (0, 1]$
+\STATE
+\REPEAT
+    \STATE 初始化 $S$（回合的起始状态）
+    \REPEAT
+        \STATE $A \gets$ 策略 $\pi$ 给出的动作
+        \STATE 执行动作 $A$，观察奖励 $R$ 和下一状态 $S'$
+        \STATE $V(S) \gets V(S) + \alpha [R + \gamma V(S') - V(S)]$
+        \STATE $S \gets S'$
+    \UNTIL{$S$ 是终止状态}
+\UNTIL{收敛}
+\RETURN $V$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{TD误差}
+
+\textbf{TD误差的定义}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+\label{eq:td_error}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item TD误差衡量当前估计 $V(S_t)$ 与更好估计 $R_{t+1} + \gamma V(S_{t+1})$ 之间的差异
+    \item 如果 $\delta_t > 0$，说明当前估计过低，应该增加
+    \item 如果 $\delta_t < 0$，说明当前估计过高，应该减少
+    \item TD误差在强化学习中以各种形式出现
+\end{itemize}
+
+\textbf{TD更新用TD误差表示}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha \delta_t
+\end{equation}
+
+\subsection{TD vs 蒙特卡洛 vs 动态规划}
+
+\textbf{更新目标的来源}：
+
+\textbf{贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s] = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s]
+\end{equation}
+
+\textbf{三种方法的更新目标}：
+
+\begin{enumerate}
+    \item \textbf{蒙特卡洛方法}：
+    \begin{itemize}
+        \item 使用估计：$\mathbb{E}_\pi[G_t | S_t = s]$ 的样本
+        \item 目标：$G_t$（完整回报的样本）
+        \item 原因：期望值未知，使用样本回报
+    \end{itemize}
+    
+    \item \textbf{动态规划}：
+    \begin{itemize}
+        \item 使用估计：$\mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s]$ 的期望
+        \item 目标：$r + \gamma v_\pi(s')$（期望值，但 $v_\pi(s')$ 未知）
+        \item 原因：期望值由环境模型提供，但使用当前估计 $V(s')$ 代替真实值
+    \end{itemize}
+    
+    \item \textbf{时序差分}：
+    \begin{itemize}
+        \item 使用估计：$\mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s]$ 的样本
+        \item 目标：$R_{t+1} + \gamma V(S_{t+1})$（采样期望值，使用当前估计）
+        \item 原因：既采样期望值，又使用当前估计 $V$ 代替真实值 $v_\pi$
+    \end{itemize}
+\end{enumerate}
+
+\textbf{关键洞察}：
+\begin{quote}
+TD方法结合了蒙特卡洛的采样和动态规划的自举法。通过精心设计和想象，这可以让我们在获得蒙特卡洛和动态规划的优势方面走得很远。
+\end{quote}
+
+\section{TD预测的优势}
+
+\subsection{1. 不需要环境模型}
+
+\textbf{与动态规划对比}：
+\begin{itemize}
+    \item 动态规划需要完整的环境模型 $p(s', r | s, a)$
+    \item TD方法只需要经验样本
+    \item 可以从实际交互中学习
+\end{itemize}
+
+\subsection{2. 在线、完全增量式学习}
+
+\textbf{与蒙特卡洛对比}：
+\begin{itemize}
+    \item 蒙特卡洛方法必须等待回合结束才能更新
+    \item TD方法只需要等待一个时间步
+    \item 可以立即学习，不需要等待最终结果
+\end{itemize}
+
+\textbf{优势场景}：
+\begin{itemize}
+    \item 非常长的回合：延迟所有学习直到回合结束太慢
+    \item 持续任务：没有回合的概念
+    \item 实验性动作：蒙特卡洛方法必须忽略或折扣包含实验性动作的回合
+\end{itemize}
+
+\subsection{3. 收敛性}
+
+\begin{theorem}[TD(0)收敛性]
+对于任何固定策略 $\pi$，TD(0)在以下条件下收敛到 $v_\pi$：
+\begin{enumerate}
+    \item 如果步长参数 $\alpha$ 足够小，在均值意义下收敛
+    \item 如果步长参数按照通常的随机逼近条件（2.7）递减，以概率1收敛
+\end{enumerate}
+\end{theorem}
+
+\textbf{收敛性证明}：
+\begin{itemize}
+    \item 大多数收敛证明适用于表格情况
+    \item 一些也适用于一般线性函数逼近
+    \item 在第9章中讨论更一般的情况
+\end{itemize}
+
+\subsection{4. 学习速度}
+
+\textbf{实践中的观察}：
+\begin{itemize}
+    \item TD方法通常比常数-$\alpha$蒙特卡洛方法收敛更快
+    \item 在随机任务上，TD方法通常更高效地使用有限数据
+    \item 数学上尚未证明哪个方法收敛更快
+\end{itemize}
+
+\section{SARSA：On-policy TD控制}
+
+\subsection{问题：从状态价值到动作价值}
+
+\textbf{为什么需要动作价值函数？}：
+\begin{itemize}
+    \item 如果只有状态价值函数 $v_\pi(s)$，需要环境模型来改进策略
+    \item 但TD方法的目标是\textbf{无模型}学习
+    \item 解决方案：直接估计动作价值函数 $q_\pi(s, a)$
+\end{itemize}
+
+\subsection{SARSA算法}
+
+\textbf{名称来源}：
+\begin{itemize}
+    \item \textbf{S}：状态 $S_t$
+    \item \textbf{A}：动作 $A_t$
+    \item \textbf{R}：奖励 $R_{t+1}$
+    \item \textbf{S}：下一状态 $S_{t+1}$
+    \item \textbf{A}：下一动作 $A_{t+1}$
+\end{itemize}
+
+\textbf{更新公式}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\label{eq:sarsa_update}
+\end{equation}
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item \textbf{On-policy}：使用当前策略选择动作
+    \item \textbf{五元组}：$(S_t, A_t, R_{t+1}, S_{t+1}, A_{t+1})$
+    \item \textbf{自举法}：使用 $Q(S_{t+1}, A_{t+1})$ 更新 $Q(S_t, A_t)$
+\end{itemize}
+
+\subsection{SARSA算法伪代码}
+
+\begin{algorithm}[H]
+\caption{SARSA算法（On-policy TD控制）}
+\begin{algorithmic}[1]
+\REQUIRE 所有状态-动作对都有非零概率被访问（通过 $\varepsilon$-贪婪策略）
+\ENSURE 最优动作价值函数 $q_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：$Q(s, a) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE $\pi$ 为 $\varepsilon$-贪婪策略，基于 $Q$
+\STATE
+\REPEAT
+    \STATE 初始化 $S$（回合的起始状态）
+    \STATE $A \gets$ 策略 $\pi$ 给出的动作（基于 $Q$）
+    \REPEAT
+        \STATE 执行动作 $A$，观察奖励 $R$ 和下一状态 $S'$
+        \STATE $A' \gets$ 策略 $\pi$ 给出的动作（基于 $Q$）
+        \STATE $Q(S, A) \gets Q(S, A) + \alpha [R + \gamma Q(S', A') - Q(S, A)]$
+        \STATE $\pi(S) \gets \varepsilon$-贪婪策略，基于 $Q(S, \cdot)$
+        \STATE $S \gets S'$，$A \gets A'$
+    \UNTIL{$S$ 是终止状态}
+\UNTIL{策略稳定}
+\RETURN $q_* = Q$，$\pi_* = \pi$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{SARSA的特点}
+
+\textbf{On-policy特征}：
+\begin{itemize}
+    \item 使用当前策略选择动作
+    \item 学习的是当前策略的动作价值函数
+    \item 策略改进基于当前策略的价值函数
+\end{itemize}
+
+\textbf{与蒙特卡洛控制的对比}：
+\begin{itemize}
+    \item 蒙特卡洛：需要等待回合结束
+    \item SARSA：每个时间步都可以更新
+    \item 学习速度更快
+\end{itemize}
+
+\section{Q-learning：Off-policy TD控制}
+
+\subsection{Q-learning算法}
+
+\textbf{更新公式}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\label{eq:qlearning_update}
+\end{equation}
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item \textbf{Off-policy}：学习最优动作价值函数，但可以使用任何策略收集数据
+    \item \textbf{最大化操作}：使用 $\max_{a} Q(S_{t+1}, a)$ 而不是 $Q(S_{t+1}, A_{t+1})$
+    \item \textbf{直接学习最优策略}：不需要显式策略改进步骤
+\end{itemize}
+
+\subsection{Q-learning vs SARSA}
+
+\textbf{更新公式对比}：
+
+\textbf{SARSA}（On-policy）：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{Q-learning}（Off-policy）：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item \textbf{SARSA}：使用实际选择的下一动作 $A_{t+1}$（遵循当前策略）
+    \item \textbf{Q-learning}：使用最优动作 $\max_{a} Q(S_{t+1}, a)$（不依赖实际选择的动作）
+\end{itemize}
+
+\subsection{Q-learning算法伪代码}
+
+\begin{algorithm}[H]
+\caption{Q-learning算法（Off-policy TD控制）}
+\begin{algorithmic}[1]
+\REQUIRE 所有状态-动作对都有非零概率被访问（通过行为策略）
+\ENSURE 最优动作价值函数 $q_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：$Q(s, a) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE
+\REPEAT
+    \STATE 初始化 $S$（回合的起始状态）
+    \REPEAT
+        \STATE $A \gets$ 行为策略给出的动作（如 $\varepsilon$-贪婪，基于 $Q$）
+        \STATE 执行动作 $A$，观察奖励 $R$ 和下一状态 $S'$
+        \STATE $Q(S, A) \gets Q(S, A) + \alpha [R + \gamma \max_{a} Q(S', a) - Q(S, A)]$
+        \STATE $S \gets S'$
+    \UNTIL{$S$ 是终止状态}
+\UNTIL{收敛}
+\STATE \textbf{提取策略}：
+\FOR{每个状态 $s \in \mathcal{S}$}
+    \STATE $\pi_*(s) \gets \arg\max_{a} Q(s, a)$
+\ENDFOR
+\RETURN $q_* = Q$，$\pi_*$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Q-learning的特点}
+
+\textbf{Off-policy特征}：
+\begin{itemize}
+    \item 可以使用任何策略（行为策略）收集数据
+    \item 学习的是最优动作价值函数 $q_*$
+    \item 不依赖数据收集时的策略
+\end{itemize}
+
+\textbf{优势}：
+\begin{itemize}
+    \item 可以使用历史数据（经验回放）
+    \item 可以从其他智能体的经验中学习
+    \item 样本效率高
+\end{itemize}
+
+\section{TD方法的统一视角}
+
+\subsection{更新目标的统一形式}
+
+\textbf{所有TD方法的更新都可以写成}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [\text{目标} - V(S_t)]
+\end{equation}
+
+\textbf{不同方法的目标}：
+\begin{itemize}
+    \item \textbf{蒙特卡洛}：目标 = $G_t$（完整回报）
+    \item \textbf{TD(0)}：目标 = $R_{t+1} + \gamma V(S_{t+1})$（一步前瞻）
+    \item \textbf{动态规划}：目标 = $\mathbb{E}[R_{t+1} + \gamma V(S_{t+1})]$（期望值）
+\end{itemize}
+
+\subsection{自举法的应用}
+
+\textbf{TD方法使用自举法}：
+\begin{itemize}
+    \item 使用估计值 $V(S_{t+1})$ 来更新估计值 $V(S_t)$
+    \item 不等待完整的真实回报
+    \item 可以立即更新
+\end{itemize}
+
+\textbf{与蒙特卡洛的对比}：
+\begin{itemize}
+    \item 蒙特卡洛：使用完整的真实回报 $G_t$（不使用自举法）
+    \item TD：使用一步前瞻 $R_{t+1} + \gamma V(S_{t+1})$（使用自举法）
+\end{itemize}
+
+\section{TD误差与蒙特卡洛误差的关系}
+
+\subsection{TD误差的分解}
+
+\textbf{如果价值函数在回合中不改变}，蒙特卡洛误差可以写成TD误差的和：
+
+\begin{align}
+G_t - V(S_t) &= R_{t+1} + \gamma G_{t+1} - V(S_t) + \gamma V(S_{t+1}) - \gamma V(S_{t+1}) \\
+             &= [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)] + \gamma [G_{t+1} - V(S_{t+1})] \\
+             &= \delta_t + \gamma [G_{t+1} - V(S_{t+1})] \\
+             &= \delta_t + \gamma \delta_{t+1} + \gamma^2 [G_{t+2} - V(S_{t+2})] \\
+             &= \delta_t + \gamma \delta_{t+1} + \gamma^2 \delta_{t+2} + \cdots + \gamma^{T-t-1} \delta_{T-1}
+\end{align}
+
+\textbf{关键洞察}：
+\begin{quote}
+蒙特卡洛误差等于从当前时间步到回合结束的所有TD误差的折扣和。
+\end{quote}
+
+\textbf{注意}：
+\begin{itemize}
+    \item 这个等式在价值函数在回合中不改变时是精确的
+    \item 在TD(0)中，价值函数在回合中会改变
+    \item 如果步长很小，这个等式仍然近似成立
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{定义}：时序差分学习结合了蒙特卡洛的采样和动态规划的自举法
+    
+    \item \textbf{关键特征}：
+    \begin{itemize}
+        \item 无模型：只需要经验样本
+        \item 自举法：使用估计值更新估计值
+        \item 在线学习：每个时间步都可以更新
+    \end{itemize}
+    
+    \item \textbf{主要算法}：
+    \begin{itemize}
+        \item TD(0)：状态价值函数预测
+        \item SARSA：On-policy TD控制
+        \item Q-learning：Off-policy TD控制
+    \end{itemize}
+    
+    \item \textbf{优势}：
+    \begin{itemize}
+        \item 不需要环境模型
+        \item 在线、增量式学习
+        \item 通常比蒙特卡洛方法收敛更快
+    \end{itemize}
+    
+    \item \textbf{TD误差}：
+    \begin{itemize}
+        \item $\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$
+        \item 衡量当前估计与更好估计之间的差异
+        \item 蒙特卡洛误差可以写成TD误差的折扣和
+    \end{itemize}
+    
+    \item \textbf{与动态规划和蒙特卡洛的关系}：
+    \begin{itemize}
+        \item 动态规划：需要模型，使用期望值
+        \item 蒙特卡洛：不需要模型，使用完整回报
+        \item TD：不需要模型，使用一步前瞻（结合两者优势）
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{时序差分学习是强化学习的核心创新。它通过结合蒙特卡洛的采样能力和动态规划的自举法，实现了无模型的在线学习，为现代强化学习算法（如DQN、SAC等）奠定了基础。}
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 6.
+\end{itemize}
+
+\end{document}
+

@@ -1,0 +1,771 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{graphicx}
+
+\geometry{margin=2.5cm}
+
+\title{例题4.2：Jack的租车问题详解}
+\subtitle{策略迭代的实际应用}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题描述}
+
+\subsection{问题背景}
+
+Jack管理一家全国性租车公司的两个地点。每天，每个地点都有一些顾客来租车。
+
+\textbf{业务规则}：
+\begin{itemize}
+    \item 如果Jack有车可用，他租出去，全国公司给他 \$10 的信用
+    \item 如果某个地点没有车，则失去这笔业务
+    \item 车在归还后的第二天才能再次出租
+    \item 为了确保车在需要的地方可用，Jack可以在夜间在两个地点之间移动车辆，每移动一辆车成本为 \$2
+\end{itemize}
+
+\subsection{随机过程}
+
+\textbf{租车请求和归还数量}：
+\begin{itemize}
+    \item 每个地点的租车请求和归还数量是\textbf{泊松随机变量}
+    \item 泊松分布：$\Pr\{N = n\} = \frac{\lambda^n}{n!} e^{-\lambda}$
+    \item 其中 $\lambda$ 是期望数量
+\end{itemize}
+
+\textbf{参数设置}：
+\begin{itemize}
+    \item 地点1的租车请求：$\lambda = 3$
+    \item 地点2的租车请求：$\lambda = 4$
+    \item 地点1的归还：$\lambda = 3$
+    \item 地点2的归还：$\lambda = 2$
+\end{itemize}
+
+\subsection{约束条件}
+
+\begin{itemize}
+    \item \textbf{最大车辆数}：每个地点最多20辆车（超出部分返回全国公司，从问题中消失）
+    \item \textbf{最大移动数}：每晚最多可以在两个地点之间移动5辆车
+    \item \textbf{折扣率}：$\gamma = 0.9$
+    \item \textbf{任务类型}：持续有限MDP（continuing finite MDP）
+    \item \textbf{时间步}：天
+\end{itemize}
+
+\section{MDP建模}
+
+\subsection{状态空间}
+
+\textbf{状态}：一天结束时每个地点的车辆数
+
+\begin{equation}
+s = (n_1, n_2)
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $n_1$：地点1的车辆数，$n_1 \in \{0, 1, 2, \ldots, 20\}$
+    \item $n_2$：地点2的车辆数，$n_2 \in \{0, 1, 2, \ldots, 20\}$
+\end{itemize}
+
+\textbf{状态空间大小}：$21 \times 21 = 441$ 个状态
+
+\subsection{动作空间}
+
+\textbf{动作}：夜间在两个地点之间移动的净车辆数
+
+\begin{equation}
+a \in \{-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5\}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $a > 0$：从地点1移动到地点2 $a$ 辆车
+    \item $a < 0$：从地点2移动到地点1 $|a|$ 辆车
+    \item $a = 0$：不移动车辆
+\end{itemize}
+
+\textbf{约束}：
+\begin{itemize}
+    \item 移动后，每个地点的车辆数必须在 $[0, 20]$ 范围内
+    \item 即：$0 \leq n_1 - a \leq 20$ 且 $0 \leq n_2 + a \leq 20$
+\end{itemize}
+
+\subsection{奖励函数}
+
+\textbf{即时奖励}：
+
+\begin{equation}
+R_{t+1} = \text{租车收入} - \text{移动成本}
+\end{equation}
+
+详细计算：
+\begin{itemize}
+    \item \textbf{租车收入}：每个地点租出的车辆数 $\times \$10$
+    \item \textbf{移动成本}：移动的车辆数 $\times \$2$
+\end{itemize}
+
+\textbf{数学表达}：
+
+\begin{equation}
+R_{t+1} = 10 \times (\text{地点1租出数} + \text{地点2租出数}) - 2 \times |a|
+\end{equation}
+
+\subsection{状态转移}
+
+\textbf{转移过程}：
+
+\begin{enumerate}
+    \item \textbf{夜间移动}：根据动作 $a$，车辆从地点1移动到地点2（或相反）
+    \begin{align}
+    n_1' &= n_1 - a \\
+    n_2' &= n_2 + a
+    \end{align}
+    
+    \item \textbf{第二天}：
+    \begin{itemize}
+        \item 归还：每个地点归还的车辆数（泊松分布）
+        \item 租车：每个地点的租车请求数（泊松分布）
+    \end{itemize}
+    
+    \item \textbf{新状态}：
+    \begin{align}
+    n_1^{\text{new}} &= \min(20, n_1' + \text{归还数}_1 - \text{租出数}_1) \\
+    n_2^{\text{new}} &= \min(20, n_2' + \text{归还数}_2 - \text{租出数}_2)
+    \end{align}
+\end{enumerate}
+
+\section{策略迭代算法}
+
+\subsection{算法流程}
+
+策略迭代算法包含两个步骤：
+
+\begin{enumerate}
+    \item \textbf{策略评估}：计算当前策略 $\pi$ 的价值函数 $v_\pi$
+    \item \textbf{策略改进}：基于 $v_\pi$ 改进策略，得到新策略 $\pi'$
+    \item 重复步骤1和2，直到策略不再改变
+\end{enumerate}
+
+\subsection{策略评估}
+
+对于策略 $\pi$，使用迭代策略评估：
+
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+对于确定性策略，$\pi(a | s) = 1$ 对于 $a = \pi(s)$，否则为0：
+
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{s', r} p(s', r | s, \pi(s)) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\subsection{策略改进}
+
+基于当前价值函数 $v_\pi$，计算新策略：
+
+\begin{equation}
+\pi'(s) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+即：在每个状态选择使期望回报最大的动作。
+
+\section{问题求解}
+
+\subsection{初始策略}
+
+\textbf{策略 $\pi_0$}：从不移动任何车辆（$a = 0$ 对所有状态）
+
+\subsection{策略迭代过程}
+
+根据图4.2，策略迭代过程如下：
+
+\textbf{策略 $\pi_0$}（初始策略）：
+\begin{itemize}
+    \item 所有状态都不移动车辆
+    \item 这是最保守的策略
+\end{itemize}
+
+\textbf{策略 $\pi_1$}（第1次改进）：
+\begin{itemize}
+    \item 在某些状态下开始移动车辆
+    \item 策略得到改进
+\end{itemize}
+
+\textbf{策略 $\pi_2$}（第2次改进）：
+\begin{itemize}
+    \item 进一步优化车辆移动
+    \item 策略继续改进
+\end{itemize}
+
+\textbf{策略 $\pi_3$}（第3次改进）：
+\begin{itemize}
+    \item 更精细的车辆分配
+    \item 策略继续改进
+\end{itemize}
+
+\textbf{策略 $\pi_4$}（第4次改进，最优策略）：
+\begin{itemize}
+    \item 策略不再改变
+    \item 这是最优策略
+\end{itemize}
+
+\subsection{最优策略的特征}
+
+从图4.2可以看出最优策略 $\pi_4$ 的特征：
+
+\begin{itemize}
+    \item \textbf{车辆分配模式}：
+    \begin{itemize}
+        \item 当地点1车辆多、地点2车辆少时，从地点1移动到地点2
+        \item 当地点2车辆多、地点1车辆少时，从地点2移动到地点1
+        \item 移动数量取决于两个地点的车辆差异
+    \end{itemize}
+    
+    \item \textbf{边界行为}：
+    \begin{itemize}
+        \item 当某个地点车辆数接近20时，会移动车辆到另一个地点
+        \item 当某个地点车辆数为0时，会从另一个地点移动车辆过来
+    \end{itemize}
+    
+    \item \textbf{最优性}：
+    \begin{itemize}
+        \item 策略在4次迭代后收敛
+        \item 每个后续策略都严格优于前一个策略
+        \item 最终策略是最优的
+    \end{itemize}
+\end{itemize}
+
+\section{价值函数}
+
+\subsection{最优价值函数 $v_*$}
+
+图4.2显示了最优价值函数 $v_*$ 的等高线图。
+
+\textbf{特征}：
+\begin{itemize}
+    \item 价值函数随两个地点的车辆数变化
+    \item 当两个地点的车辆数平衡时，价值较高
+    \item 当某个地点车辆数过多或过少时，价值较低
+\end{itemize}
+
+\section{关键洞察}
+
+\subsection{策略迭代的收敛性}
+
+\textbf{观察}：
+\begin{itemize}
+    \item 策略迭代在4次迭代后收敛
+    \item 这比预期的要快
+    \item 说明策略迭代算法非常高效
+\end{itemize}
+
+\textbf{原因}：
+\begin{itemize}
+    \item 策略改进定理保证每次迭代都严格改进策略
+    \item 状态空间虽然大（441个状态），但策略空间相对简单
+    \item 最优策略具有清晰的结构
+\end{itemize}
+
+\subsection{问题的复杂性}
+
+\textbf{挑战}：
+\begin{itemize}
+    \item \textbf{状态空间大}：441个状态
+    \item \textbf{随机性}：租车请求和归还是随机的（泊松分布）
+    \item \textbf{转移概率复杂}：需要考虑所有可能的租车和归还组合
+    \item \textbf{动作空间}：每个状态有11个可能的动作（考虑约束后可能更少）
+\end{itemize}
+
+\textbf{动态规划的优势}：
+\begin{itemize}
+    \item 可以处理随机性
+    \item 可以处理复杂的转移概率
+    \item 保证找到最优策略
+    \item 计算效率高（相对于枚举所有策略）
+\end{itemize}
+
+\section{具体计算示例}
+
+\subsection{示例：计算状态(10, 10)的价值函数}
+
+让我们详细计算状态 $s = (10, 10)$（地点1有10辆车，地点2有10辆车）在初始策略 $\pi_0$（不移动车辆，$a = 0$）下的价值函数。
+
+\subsection{步骤1：确定动作}
+
+在策略 $\pi_0$ 下，状态 $(10, 10)$ 的动作是 $a = 0$（不移动车辆）。
+
+\subsection{步骤2：夜间移动后的车辆数}
+
+由于 $a = 0$，车辆数不变：
+\begin{align}
+n_1' &= 10 - 0 = 10 \\
+n_2' &= 10 + 0 = 10
+\end{align}
+
+\subsection{步骤3：计算可能的租车和归还组合}
+
+我们需要考虑所有可能的租车请求和归还组合。由于泊松分布有无限多个可能值，我们只考虑概率较大的情况。
+
+\textbf{地点1}：
+\begin{itemize}
+    \item 归还数 $r_1$：泊松分布，$\lambda = 3$
+    \item 租车请求数 $d_1$：泊松分布，$\lambda = 3$
+\end{itemize}
+
+\textbf{地点2}：
+\begin{itemize}
+    \item 归还数 $r_2$：泊松分布，$\lambda = 2$
+    \item 租车请求数 $d_2$：泊松分布，$\lambda = 4$
+\end{itemize}
+
+\textbf{概率计算}（泊松分布）：
+\begin{equation}
+\Pr\{X = k\} = \frac{\lambda^k}{k!} e^{-\lambda}
+\end{equation}
+
+\subsection{步骤4：具体数值计算}
+
+让我们计算几个高概率的组合：
+
+\textbf{组合1}：$r_1 = 3, r_2 = 2, d_1 = 3, d_2 = 4$
+
+\textbf{概率}：
+\begin{align}
+\Pr\{R_1 = 3\} &= \frac{3^3}{3!} e^{-3} = \frac{27}{6} \times 0.0498 \approx 0.224 \\
+\Pr\{R_2 = 2\} &= \frac{2^2}{2!} e^{-2} = \frac{4}{2} \times 0.1353 \approx 0.271 \\
+\Pr\{D_1 = 3\} &= \frac{3^3}{3!} e^{-3} = \frac{27}{6} \times 0.0498 \approx 0.224 \\
+\Pr\{D_2 = 4\} &= \frac{4^4}{4!} e^{-4} = \frac{256}{24} \times 0.0183 \approx 0.195
+\end{align}
+
+\textbf{联合概率}：
+\begin{align}
+p_1 &= \Pr\{R_1 = 3\} \times \Pr\{R_2 = 2\} \times \Pr\{D_1 = 3\} \times \Pr\{D_2 = 4\} \\
+    &= 0.224 \times 0.271 \times 0.224 \times 0.195 \\
+    &\approx 0.00265
+\end{align}
+
+\textbf{新状态计算}：
+\begin{itemize}
+    \item 地点1：$n_1' + r_1 = 10 + 3 = 13$，租车请求 $d_1 = 3$
+    \item 租出数：$\min(13, 3) = 3$
+    \item 新车辆数：$n_1^{\text{new}} = \min(20, 13 - 3) = 10$
+    
+    \item 地点2：$n_2' + r_2 = 10 + 2 = 12$，租车请求 $d_2 = 4$
+    \item 租出数：$\min(12, 4) = 4$
+    \item 新车辆数：$n_2^{\text{new}} = \min(20, 12 - 4) = 8$
+\end{itemize}
+
+\textbf{新状态}：$s' = (10, 8)$
+
+\textbf{奖励}：
+\begin{align}
+r_1 &= 10 \times (\text{租出数}_1 + \text{租出数}_2) - 2 \times |a| \\
+    &= 10 \times (3 + 4) - 2 \times 0 \\
+    &= 70
+\end{align}
+
+\textbf{贡献}：
+\begin{align}
+\text{贡献}_1 &= p_1 \times [r_1 + \gamma v_\pi^k(10, 8)] \\
+            &\approx 0.00265 \times [70 + 0.9 \times v_\pi^k(10, 8)]
+\end{align}
+
+\textbf{组合2}：$r_1 = 2, r_2 = 1, d_1 = 2, d_2 = 3$
+
+\textbf{概率}：
+\begin{align}
+\Pr\{R_1 = 2\} &= \frac{3^2}{2!} e^{-3} = \frac{9}{2} \times 0.0498 \approx 0.224 \\
+\Pr\{R_2 = 1\} &= \frac{2^1}{1!} e^{-2} = 2 \times 0.1353 \approx 0.271 \\
+\Pr\{D_1 = 2\} &= \frac{3^2}{2!} e^{-3} = \frac{9}{2} \times 0.0498 \approx 0.224 \\
+\Pr\{D_2 = 3\} &= \frac{4^3}{3!} e^{-4} = \frac{64}{6} \times 0.0183 \approx 0.195
+\end{align}
+
+\textbf{联合概率}：
+\begin{align}
+p_2 &\approx 0.224 \times 0.271 \times 0.224 \times 0.195 \\
+    &\approx 0.00265
+\end{align}
+
+\textbf{新状态计算}：
+\begin{itemize}
+    \item 地点1：$10 + 2 = 12$，租车请求 $2$，租出 $2$，新状态 $10$
+    \item 地点2：$10 + 1 = 11$，租车请求 $3$，租出 $3$，新状态 $8$
+\end{itemize}
+
+\textbf{新状态}：$s' = (10, 8)$
+
+\textbf{奖励}：
+\begin{align}
+r_2 &= 10 \times (2 + 3) - 0 = 50
+\end{align}
+
+\textbf{贡献}：
+\begin{align}
+\text{贡献}_2 &\approx 0.00265 \times [50 + 0.9 \times v_\pi^k(10, 8)]
+\end{align}
+
+\subsection{步骤5：完整计算}
+
+为了计算 $v_\pi(10, 10)$，我们需要对所有可能的 $(r_1, r_2, d_1, d_2)$ 组合求和。
+
+\textbf{迭代策略评估公式}：
+
+\begin{align}
+v_\pi^{k+1}(10, 10) &= \sum_{r_1=0}^{\infty} \sum_{r_2=0}^{\infty} \sum_{d_1=0}^{\infty} \sum_{d_2=0}^{\infty} \\
+&\quad \Pr\{R_1 = r_1\} \times \Pr\{R_2 = r_2\} \times \Pr\{D_1 = d_1\} \times \Pr\{D_2 = d_2\} \\
+&\quad \times [r(r_1, r_2, d_1, d_2) + \gamma v_\pi^k(s'(r_1, r_2, d_1, d_2))]
+\end{align}
+
+\textbf{数值近似}：
+
+由于泊松分布的尾部概率很小，我们可以截断求和。通常考虑 $k \leq 10$ 就足够了。
+
+\textbf{第1次迭代}（$k = 0$，$v_\pi^0(s) = 0$ 对所有 $s$）：
+
+\begin{align}
+v_\pi^1(10, 10) &\approx \sum_{r_1=0}^{10} \sum_{r_2=0}^{10} \sum_{d_1=0}^{10} \sum_{d_2=0}^{10} \\
+&\quad \Pr\{R_1 = r_1\} \times \Pr\{R_2 = r_2\} \times \Pr\{D_1 = d_1\} \times \Pr\{D_2 = d_2\} \\
+&\quad \times r(r_1, r_2, d_1, d_2)
+\end{align}
+
+\textbf{期望奖励计算}：
+
+\begin{align}
+\mathbb{E}[R | s = (10, 10), a = 0] &= 10 \times (\mathbb{E}[\text{租出数}_1] + \mathbb{E}[\text{租出数}_2]) \\
+                                    &= 10 \times (\mathbb{E}[\min(10 + R_1, D_1)] + \mathbb{E}[\min(10 + R_2, D_2)])
+\end{align}
+
+由于 $R_1 \sim \text{Poisson}(3)$，$R_2 \sim \text{Poisson}(2)$，$D_1 \sim \text{Poisson}(3)$，$D_2 \sim \text{Poisson}(4)$：
+
+\begin{align}
+\mathbb{E}[\min(10 + R_1, D_1)] &\approx \mathbb{E}[\min(10 + 3, 3)] = 3 \\
+\mathbb{E}[\min(10 + R_2, D_2)] &\approx \mathbb{E}[\min(10 + 2, 4)] = 4
+\end{align}
+
+因此：
+\begin{align}
+v_\pi^1(10, 10) &\approx 10 \times (3 + 4) = 70
+\end{align}
+
+\subsection{步骤6：策略改进示例}
+
+现在让我们展示如何对状态 $(10, 10)$ 进行策略改进。
+
+\textbf{计算每个动作的动作价值}：
+
+对于动作 $a = 0$（不移动）：
+\begin{align}
+q_\pi(10, 10, 0) &\approx 70 + 0.9 \times v_\pi(10, 10) \\
+                 &\approx 70 + 0.9 \times 70 = 133
+\end{align}
+
+对于动作 $a = 1$（从地点1移动1辆车到地点2）：
+\begin{itemize}
+    \item 移动后：$n_1' = 9$，$n_2' = 11$
+    \item 移动成本：$2 \times 1 = 2$
+    \item 期望收入会改变（因为车辆分配改变了）
+\end{itemize}
+
+假设 $q_\pi(10, 10, 1) \approx 135$（需要完整计算）
+
+对于动作 $a = -1$（从地点2移动1辆车到地点1）：
+\begin{itemize}
+    \item 移动后：$n_1' = 11$，$n_2' = 9$
+    \item 移动成本：$2 \times 1 = 2$
+\end{itemize}
+
+假设 $q_\pi(10, 10, -1) \approx 132$
+
+\textbf{策略改进}：
+
+\begin{align}
+\pi'(10, 10) &= \arg\max_{a} q_\pi(10, 10, a) \\
+             &= \arg\max\{133, 135, 132, \ldots\} \\
+             &= 1
+\end{align}
+
+因此，在状态 $(10, 10)$，改进后的策略会选择动作 $a = 1$（从地点1移动1辆车到地点2）。
+
+\subsection{完整数值示例：状态(5, 5)的详细计算}
+
+让我们更详细地计算状态 $s = (5, 5)$ 在策略 $\pi_0$（$a = 0$）下的价值函数，展示完整的计算过程。
+
+\textbf{初始状态}：$n_1 = 5$，$n_2 = 5$
+
+\textbf{动作}：$a = 0$（不移动）
+
+\textbf{移动后}：$n_1' = 5$，$n_2' = 5$
+
+\textbf{计算几个具体的转移}：
+
+\textbf{转移1}：$r_1 = 3, r_2 = 2, d_1 = 3, d_2 = 4$
+
+\textbf{概率计算}：
+\begin{align}
+\Pr\{R_1 = 3\} &= \frac{3^3}{3!} e^{-3} = \frac{27}{6} \times 0.049787 = 0.224042 \\
+\Pr\{R_2 = 2\} &= \frac{2^2}{2!} e^{-2} = \frac{4}{2} \times 0.135335 = 0.270671 \\
+\Pr\{D_1 = 3\} &= \frac{3^3}{3!} e^{-3} = 0.224042 \\
+\Pr\{D_2 = 4\} &= \frac{4^4}{4!} e^{-4} = \frac{256}{24} \times 0.018316 = 0.195367
+\end{align}
+
+\textbf{联合概率}：
+\begin{align}
+p_1 &= 0.224042 \times 0.270671 \times 0.224042 \times 0.195367 \\
+    &= 0.002653
+\end{align}
+
+\textbf{新状态计算}：
+\begin{itemize}
+    \item 地点1：可用车辆 $5 + 3 = 8$，请求 $3$，租出 $\min(8, 3) = 3$，剩余 $8 - 3 = 5$
+    \item 地点2：可用车辆 $5 + 2 = 7$，请求 $4$，租出 $\min(7, 4) = 4$，剩余 $7 - 4 = 3$
+    \item 新状态：$s' = (5, 3)$
+\end{itemize}
+
+\textbf{奖励}：
+\begin{align}
+r_1 &= 10 \times (3 + 4) - 2 \times 0 = 70
+\end{align}
+
+\textbf{转移2}：$r_1 = 2, r_2 = 1, d_1 = 2, d_2 = 3$
+
+\textbf{概率}：
+\begin{align}
+\Pr\{R_1 = 2\} &= \frac{3^2}{2!} e^{-3} = \frac{9}{2} \times 0.049787 = 0.224042 \\
+\Pr\{R_2 = 1\} &= \frac{2^1}{1!} e^{-2} = 2 \times 0.135335 = 0.270671 \\
+\Pr\{D_1 = 2\} &= \frac{3^2}{2!} e^{-3} = 0.224042 \\
+\Pr\{D_2 = 3\} &= \frac{4^3}{3!} e^{-4} = \frac{64}{6} \times 0.018316 = 0.195367
+\end{align}
+
+\textbf{联合概率}：
+\begin{align}
+p_2 &= 0.224042 \times 0.270671 \times 0.224042 \times 0.195367 \\
+    &= 0.002653
+\end{align}
+
+\textbf{新状态}：
+\begin{itemize}
+    \item 地点1：$5 + 2 = 7$，请求 $2$，租出 $2$，剩余 $5$
+    \item 地点2：$5 + 1 = 6$，请求 $3$，租出 $3$，剩余 $3$
+    \item 新状态：$s' = (5, 3)$
+\end{itemize}
+
+\textbf{奖励}：
+\begin{align}
+r_2 &= 10 \times (2 + 3) - 0 = 50
+\end{align}
+
+\textbf{转移3}：$r_1 = 4, r_2 = 3, d_1 = 4, d_2 = 5$
+
+\textbf{概率}：
+\begin{align}
+\Pr\{R_1 = 4\} &= \frac{3^4}{4!} e^{-3} = \frac{81}{24} \times 0.049787 = 0.168031 \\
+\Pr\{R_2 = 3\} &= \frac{2^3}{3!} e^{-2} = \frac{8}{6} \times 0.135335 = 0.180447 \\
+\Pr\{D_1 = 4\} &= \frac{3^4}{4!} e^{-3} = 0.168031 \\
+\Pr\{D_2 = 5\} &= \frac{4^5}{5!} e^{-4} = \frac{1024}{120} \times 0.018316 = 0.156293
+\end{align}
+
+\textbf{联合概率}：
+\begin{align}
+p_3 &= 0.168031 \times 0.180447 \times 0.168031 \times 0.156293 \\
+    &= 0.000797
+\end{align}
+
+\textbf{新状态}：
+\begin{itemize}
+    \item 地点1：$5 + 4 = 9$，请求 $4$，租出 $4$，剩余 $5$
+    \item 地点2：$5 + 3 = 8$，请求 $5$，租出 $5$，剩余 $3$
+    \item 新状态：$s' = (5, 3)$
+\end{itemize}
+
+\textbf{奖励}：
+\begin{align}
+r_3 &= 10 \times (4 + 5) - 0 = 90
+\end{align}
+
+\textbf{第1次迭代的价值函数}（假设 $v_\pi^0(s') = 0$）：
+
+\begin{align}
+v_\pi^1(5, 5) &\approx p_1 \times r_1 + p_2 \times r_2 + p_3 \times r_3 + \cdots \\
+             &\approx 0.002653 \times 70 + 0.002653 \times 50 + 0.000797 \times 90 + \cdots
+\end{align}
+
+由于需要对所有可能的组合求和，实际计算中会使用截断的泊松分布（通常 $k \leq 10$ 或 $k \leq 15$）。
+
+\textbf{近似计算}：
+
+使用期望值近似：
+\begin{align}
+\mathbb{E}[\text{租出数}_1] &\approx \mathbb{E}[\min(5 + R_1, D_1)] \\
+                           &\approx \min(5 + 3, 3) = 3 \\
+\mathbb{E}[\text{租出数}_2] &\approx \mathbb{E}[\min(5 + R_2, D_2)] \\
+                           &\approx \min(5 + 2, 4) = 4
+\end{align}
+
+因此：
+\begin{align}
+v_\pi^1(5, 5) &\approx 10 \times (3 + 4) = 70
+\end{align}
+
+\textbf{第2次迭代}（$k = 1$）：
+
+假设 $v_\pi^1(5, 3) \approx 65$，$v_\pi^1(5, 5) \approx 70$，则：
+
+\begin{align}
+v_\pi^2(5, 5) &\approx \sum_{r_1, r_2, d_1, d_2} p(r_1, r_2, d_1, d_2) \times [r + 0.9 \times v_\pi^1(s')] \\
+             &\approx 70 + 0.9 \times \mathbb{E}[v_\pi^1(S')] \\
+             &\approx 70 + 0.9 \times 67.5 \\
+             &\approx 70 + 60.75 = 130.75
+\end{align}
+
+继续迭代直到收敛。
+
+\section{计算细节}
+
+\subsection{转移概率的计算}
+
+对于状态 $s = (n_1, n_2)$ 和动作 $a$：
+
+\textbf{步骤1：夜间移动后的车辆数}：
+\begin{align}
+n_1' &= \max(0, \min(20, n_1 - a)) \\
+n_2' &= \max(0, \min(20, n_2 + a))
+\end{align}
+
+\textbf{步骤2：计算所有可能的租车和归还组合}：
+
+对于每个可能的组合 $(r_1, r_2, d_1, d_2)$：
+\begin{itemize}
+    \item $r_1$：地点1的归还数（泊松分布，$\lambda = 3$）
+    \item $r_2$：地点2的归还数（泊松分布，$\lambda = 2$）
+    \item $d_1$：地点1的租车请求数（泊松分布，$\lambda = 3$）
+    \item $d_2$：地点2的租车请求数（泊松分布，$\lambda = 4$）
+\end{itemize}
+
+\textbf{步骤3：计算新状态}：
+\begin{align}
+n_1^{\text{new}} &= \min(20, n_1' + r_1 - \min(n_1' + r_1, d_1)) \\
+n_2^{\text{new}} &= \min(20, n_2' + r_2 - \min(n_2' + r_2, d_2))
+\end{align}
+
+其中租出数 = $\min(\text{可用车辆数}, \text{租车请求数})$
+
+\textbf{步骤4：计算概率和奖励}：
+\begin{align}
+p((n_1^{\text{new}}, n_2^{\text{new}}), r | (n_1, n_2), a) &= \Pr\{R_1 = r_1\} \times \Pr\{R_2 = r_2\} \\
+&\quad \times \Pr\{D_1 = d_1\} \times \Pr\{D_2 = d_2\}
+\end{align}
+
+其中：
+\begin{align}
+\Pr\{R_i = r_i\} &= \frac{\lambda_{r_i}^{r_i}}{r_i!} e^{-\lambda_{r_i}} \\
+\Pr\{D_i = d_i\} &= \frac{\lambda_{d_i}^{d_i}}{d_i!} e^{-\lambda_{d_i}}
+\end{align}
+
+奖励：
+\begin{equation}
+r = 10 \times (\min(n_1' + r_1, d_1) + \min(n_2' + r_2, d_2)) - 2 \times |a|
+\end{equation}
+
+\subsection{策略评估的实现}
+
+\textbf{迭代策略评估}：
+
+\begin{algorithm}[H]
+\caption{策略评估（Jack的租车问题）}
+\begin{algorithmic}[1]
+\REQUIRE 策略 $\pi$，环境动态 $p(s', r | s, a)$
+\ENSURE 价值函数 $v_\pi$
+\STATE 初始化 $v_\pi^0(s) = 0$ 对所有状态 $s$
+\REPEAT
+    \FOR{每个状态 $s = (n_1, n_2)$}
+        \STATE $v_{\text{new}}(s) \gets 0$
+        \STATE $a \gets \pi(s)$
+        \FOR{所有可能的 $(r_1, r_2, d_1, d_2)$}
+            \STATE 计算新状态 $s'$ 和奖励 $r$
+            \STATE $v_{\text{new}}(s) \gets v_{\text{new}}(s) + p(s', r | s, a) \times [r + \gamma v_\pi(s')]$
+        \ENDFOR
+        \STATE $v_\pi(s) \gets v_{\text{new}}(s)$
+    \ENDFOR
+\UNTIL{收敛}
+\RETURN $v_\pi$
+\end{algorithmic}
+\end{algorithmic}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{问题建模}：
+    \begin{itemize}
+        \item 将租车问题建模为持续有限MDP
+        \item 状态：两个地点的车辆数
+        \item 动作：夜间移动的车辆数
+        \item 奖励：租车收入减去移动成本
+    \end{itemize}
+    
+    \item \textbf{随机性}：
+    \begin{itemize}
+        \item 租车请求和归还是泊松随机变量
+        \item 需要计算所有可能的组合
+        \item 转移概率是多个泊松分布的乘积
+    \end{itemize}
+    
+    \item \textbf{策略迭代}：
+    \begin{itemize}
+        \item 从"不移动车辆"策略开始
+        \item 通过策略评估和策略改进逐步优化
+        \item 在4次迭代后收敛到最优策略
+    \end{itemize}
+    
+    \item \textbf{最优策略}：
+    \begin{itemize}
+        \item 根据两个地点的车辆数动态调整
+        \item 平衡两个地点的车辆分配
+        \item 最大化长期期望回报
+    \end{itemize}
+\end{enumerate}
+
+\subsection{学习价值}
+
+例题4.2展示了：
+\begin{itemize}
+    \item \textbf{实际应用}：如何将实际问题建模为MDP
+    \item \textbf{策略迭代}：策略迭代算法在实际问题中的应用
+    \item \textbf{收敛性}：策略迭代通常收敛很快
+    \item \textbf{最优性}：动态规划保证找到最优策略
+    \item \textbf{复杂性}：可以处理大规模状态空间和随机性
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4, Example 4.2.
+\end{itemize}
+
+\end{document}
+

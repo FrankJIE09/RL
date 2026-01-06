@@ -1,0 +1,586 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{蒙特卡洛方法Gridworld例子}
+\subtitle{通过具体例子理解蒙特卡洛预测和控制}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题设置}
+
+\subsection{Gridworld环境}
+
+考虑一个简单的3×3 Gridworld：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{终止} & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{环境设置}：
+\begin{itemize}
+    \item \textbf{非终止状态}：$\mathcal{S} = \{s_2, s_3, s_4, s_5, s_6, s_7, s_8\}$
+    \item \textbf{终止状态}：左上角和右下角
+    \item \textbf{动作空间}：每个状态有4个动作：上、下、左、右
+    \item \textbf{奖励}：所有转移的奖励都是 $-1$，直到到达终止状态
+    \item \textbf{折扣因子}：$\gamma = 1$（无折扣，回合制任务）
+    \item \textbf{转移}：动作确定性地使智能体移动到相邻格子，撞墙则状态不变
+\end{itemize}
+
+\subsection{要评估的策略}
+
+\textbf{策略 $\pi$}：等概率随机策略
+\begin{equation}
+\pi(a | s) = \frac{1}{4} \quad \text{对所有 } s \in \mathcal{S}, a \in \{\text{上}, \text{下}, \text{左}, \text{右}\}
+\end{equation}
+
+\textbf{目标}：使用蒙特卡洛方法估计策略 $\pi$ 的状态价值函数 $v_\pi(s)$。
+
+\section{蒙特卡洛预测：具体例子}
+
+\subsection{初始化}
+
+\textbf{初始价值函数}：
+\begin{equation}
+V(s) = 0 \quad \text{对所有 } s \in \mathcal{S}
+\end{equation}
+
+\textbf{回报列表}：
+\begin{equation}
+\text{Returns}(s) = [] \quad \text{对所有 } s \in \mathcal{S}
+\end{equation}
+
+\subsection{第1个回合}
+
+\textbf{生成回合}：遵循策略 $\pi$（等概率随机选择动作）
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_5, A_0 = \text{上}, R_1 = -1, S_1 = s_2, A_1 = \text{左}, R_2 = -1, S_2 = \text{终止}
+\end{equation}
+
+\textbf{回合序列}：
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$t$ & $S_t$ & $A_t$ & $R_{t+1}$ \\
+\hline
+0 & $s_5$ & 上 & $-1$ \\
+\hline
+1 & $s_2$ & 左 & $-1$ \\
+\hline
+2 & 终止 & - & - \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{反向计算回报}：
+
+从回合结束向前计算：
+\begin{align}
+G_1 &= R_2 = -1 \quad \text{（状态 $s_2$ 的回报）} \\
+G_0 &= R_1 + \gamma G_1 = -1 + 1 \times (-1) = -2 \quad \text{（状态 $s_5$ 的回报）}
+\end{align}
+
+\textbf{更新价值函数}（首次访问）：
+
+\textbf{状态 $s_5$}（首次访问，$t=0$）：
+\begin{itemize}
+    \item 回报：$G_0 = -2$
+    \item 将 $-2$ 追加到 $\text{Returns}(s_5)$
+    \item $\text{Returns}(s_5) = [-2]$
+    \item $V(s_5) = \text{average}([-2]) = -2$
+\end{itemize}
+
+\textbf{状态 $s_2$}（首次访问，$t=1$）：
+\begin{itemize}
+    \item 回报：$G_1 = -1$
+    \item 将 $-1$ 追加到 $\text{Returns}(s_2)$
+    \item $\text{Returns}(s_2) = [-1]$
+    \item $V(s_2) = \text{average}([-1]) = -1$
+\end{itemize}
+
+\textbf{第1个回合后的价值函数}：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & $-1$ & 0 \\
+\hline
+0 & $-2$ & 0 \\
+\hline
+0 & 0 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{第2个回合}
+
+\textbf{生成回合}：
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_4, A_0 = \text{右}, R_1 = -1, S_1 = s_5, A_1 = \text{上}, R_2 = -1, S_2 = s_2, A_2 = \text{右}, R_3 = -1, S_3 = s_3, A_3 = \text{下}, R_4 = -1, S_4 = s_6, A_4 = \text{右}, R_5 = -1, S_5 = \text{终止}
+\end{equation}
+
+\textbf{回合序列}：
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$t$ & $S_t$ & $A_t$ & $R_{t+1}$ \\
+\hline
+0 & $s_4$ & 右 & $-1$ \\
+\hline
+1 & $s_5$ & 上 & $-1$ \\
+\hline
+2 & $s_2$ & 右 & $-1$ \\
+\hline
+3 & $s_3$ & 下 & $-1$ \\
+\hline
+4 & $s_6$ & 右 & $-1$ \\
+\hline
+5 & 终止 & - & - \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{反向计算回报}：
+
+\begin{align}
+G_4 &= R_5 = -1 \quad \text{（状态 $s_6$ 的回报）} \\
+G_3 &= R_4 + \gamma G_4 = -1 + 1 \times (-1) = -2 \quad \text{（状态 $s_3$ 的回报）} \\
+G_2 &= R_3 + \gamma G_3 = -1 + 1 \times (-2) = -3 \quad \text{（状态 $s_2$ 的回报）} \\
+G_1 &= R_2 + \gamma G_2 = -1 + 1 \times (-3) = -4 \quad \text{（状态 $s_5$ 的回报）} \\
+G_0 &= R_1 + \gamma G_1 = -1 + 1 \times (-4) = -5 \quad \text{（状态 $s_4$ 的回报）}
+\end{align}
+
+\textbf{更新价值函数}（首次访问）：
+
+\textbf{状态 $s_4$}（首次访问，$t=0$）：
+\begin{itemize}
+    \item 回报：$G_0 = -5$
+    \item 将 $-5$ 追加到 $\text{Returns}(s_4)$
+    \item $\text{Returns}(s_4) = [-5]$
+    \item $V(s_4) = \text{average}([-5]) = -5$
+\end{itemize}
+
+\textbf{状态 $s_5$}（首次访问，$t=1$）：
+\begin{itemize}
+    \item 回报：$G_1 = -4$
+    \item 将 $-4$ 追加到 $\text{Returns}(s_5)$
+    \item $\text{Returns}(s_5) = [-2, -4]$
+    \item $V(s_5) = \text{average}([-2, -4]) = -3$
+\end{itemize}
+
+\textbf{状态 $s_2$}（首次访问，$t=2$）：
+\begin{itemize}
+    \item 回报：$G_2 = -3$
+    \item 将 $-3$ 追加到 $\text{Returns}(s_2)$
+    \item $\text{Returns}(s_2) = [-1, -3]$
+    \item $V(s_2) = \text{average}([-1, -3]) = -2$
+\end{itemize}
+
+\textbf{状态 $s_3$}（首次访问，$t=3$）：
+\begin{itemize}
+    \item 回报：$G_3 = -2$
+    \item 将 $-2$ 追加到 $\text{Returns}(s_3)$
+    \item $\text{Returns}(s_3) = [-2]$
+    \item $V(s_3) = \text{average}([-2]) = -2$
+\end{itemize}
+
+\textbf{状态 $s_6$}（首次访问，$t=4$）：
+\begin{itemize}
+    \item 回报：$G_4 = -1$
+    \item 将 $-1$ 追加到 $\text{Returns}(s_6)$
+    \item $\text{Returns}(s_6) = [-1]$
+    \item $V(s_6) = \text{average}([-1]) = -1$
+\end{itemize}
+
+\textbf{第2个回合后的价值函数}：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & $-2$ & $-2$ \\
+\hline
+$-5$ & $-3$ & $-1$ \\
+\hline
+0 & 0 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{第3个回合}
+
+\textbf{生成回合}：
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_8, A_0 = \text{下}, R_1 = -1, S_1 = \text{终止}
+\end{equation}
+
+\textbf{反向计算回报}：
+\begin{align}
+G_0 &= R_1 = -1 \quad \text{（状态 $s_8$ 的回报）}
+\end{align}
+
+\textbf{更新价值函数}：
+
+\textbf{状态 $s_8$}（首次访问，$t=0$）：
+\begin{itemize}
+    \item 回报：$G_0 = -1$
+    \item 将 $-1$ 追加到 $\text{Returns}(s_8)$
+    \item $\text{Returns}(s_8) = [-1]$
+    \item $V(s_8) = \text{average}([-1]) = -1$
+\end{itemize}
+
+\textbf{第3个回合后的价值函数}：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & $-2$ & $-2$ \\
+\hline
+$-5$ & $-3$ & $-1$ \\
+\hline
+0 & $-1$ & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{继续更多回合}
+
+\textbf{第4个回合}：
+
+假设：$S_0 = s_5, A_0 = \text{下}, R_1 = -1, S_1 = s_8, A_1 = \text{右}, R_2 = -1, S_2 = \text{终止}$
+
+回报：
+\begin{align}
+G_1 &= R_2 = -1 \quad \text{（$s_8$）} \\
+G_0 &= R_1 + G_1 = -1 + (-1) = -2 \quad \text{（$s_5$）}
+\end{align}
+
+更新：
+\begin{itemize}
+    \item $s_8$：$\text{Returns}(s_8) = [-1, -1]$，$V(s_8) = -1$
+    \item $s_5$：$\text{Returns}(s_5) = [-2, -4, -2]$，$V(s_5) = \frac{-2 + (-4) + (-2)}{3} = -2.67$
+\end{itemize}
+
+\textbf{第5个回合}：
+
+假设：$S_0 = s_6, A_0 = \text{下}, R_1 = -1, S_1 = \text{终止}$
+
+回报：
+\begin{align}
+G_0 &= R_1 = -1 \quad \text{（$s_6$）}
+\end{align}
+
+更新：
+\begin{itemize}
+    \item $s_6$：$\text{Returns}(s_6) = [-1, -1]$（第2个回合的值 $-1$ 和第5个回合的值 $-1$），$V(s_6) = \frac{-1 + (-1)}{2} = -1$
+\end{itemize}
+
+\subsection{收敛过程}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 每个回合后，访问过的状态的价值函数都会更新
+    \item 随着回合数增加，平均值会越来越接近真实值
+    \item 每个状态的估计是\textbf{独立的}，不依赖于其他状态的估计
+\end{itemize}
+
+\textbf{经过很多回合后}：
+
+假设经过1000个回合，每个状态都被访问了多次，价值函数会收敛到：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & $-2.0$ & $-2.0$ \\
+\hline
+$-3.0$ & $-3.5$ & $-2.0$ \\
+\hline
+$-3.0$ & $-2.0$ & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 状态 $s_2$ 和 $s_3$：接近终止状态，价值约为 $-2.0$
+    \item 状态 $s_5$：中心状态，需要更多步，价值约为 $-3.5$
+    \item 状态 $s_4$ 和 $s_7$：需要更多步，价值约为 $-3.0$
+    \item 状态 $s_6$ 和 $s_8$：接近终止状态，价值约为 $-2.0$
+\end{itemize}
+
+\section{蒙特卡洛控制：具体例子}
+
+\subsection{问题设置}
+
+\textbf{目标}：找到最优策略 $\pi_*$ 和最优动作价值函数 $q_*$。
+
+\textbf{方法}：使用 $\varepsilon$-贪婪策略的蒙特卡洛控制。
+
+\subsection{初始化}
+
+\textbf{初始动作价值函数}：
+\begin{equation}
+Q(s, a) = 0 \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\textbf{初始策略}：$\varepsilon$-贪婪策略（$\varepsilon = 0.1$）
+\begin{equation}
+\pi(a | s) = \begin{cases}
+0.9 + \frac{0.1}{4} = 0.925 & \text{如果 } a = \arg\max_{a'} Q(s, a') \\
+\frac{0.1}{4} = 0.025 & \text{其他}
+\end{cases}
+\end{equation}
+
+由于初始 $Q(s, a) = 0$ 对所有 $(s, a)$，所有动作价值相等，所以初始策略是等概率随机策略。
+
+\textbf{回报列表}：
+\begin{equation}
+\text{Returns}(s, a) = [] \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\subsection{第1个回合}
+
+\textbf{生成回合}：遵循策略 $\pi$（初始为随机策略）
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_5, A_0 = \text{上}, R_1 = -1, S_1 = s_2, A_1 = \text{左}, R_2 = -1, S_2 = \text{终止}
+\end{equation}
+
+\textbf{反向计算回报}：
+\begin{align}
+G_1 &= R_2 = -1 \quad \text{（$(s_2, \text{左})$ 的回报）} \\
+G_0 &= R_1 + G_1 = -1 + (-1) = -2 \quad \text{（$(s_5, \text{上})$ 的回报）}
+\end{align}
+
+\textbf{更新动作价值函数}（首次访问）：
+
+\textbf{$(s_5, \text{上})$}（首次访问，$t=0$）：
+\begin{itemize}
+    \item 回报：$G_0 = -2$
+    \item 将 $-2$ 追加到 $\text{Returns}(s_5, \text{上})$
+    \item $\text{Returns}(s_5, \text{上}) = [-2]$
+    \item $Q(s_5, \text{上}) = \text{average}([-2]) = -2$
+\end{itemize}
+
+\textbf{$(s_2, \text{左})$}（首次访问，$t=1$）：
+\begin{itemize}
+    \item 回报：$G_1 = -1$
+    \item 将 $-1$ 追加到 $\text{Returns}(s_2, \text{左})$
+    \item $\text{Returns}(s_2, \text{左}) = [-1]$
+    \item $Q(s_2, \text{左}) = \text{average}([-1]) = -1$
+\end{itemize}
+
+\textbf{策略改进}：
+
+\textbf{状态 $s_5$}：
+\begin{itemize}
+    \item $Q(s_5, \text{上}) = -2$
+    \item $Q(s_5, \text{下}) = 0$（未访问）
+    \item $Q(s_5, \text{左}) = 0$（未访问）
+    \item $Q(s_5, \text{右}) = 0$（未访问）
+    \item $\pi(s_5) = \arg\max_{a} Q(s_5, a) = \text{下}$（或左、右，因为都是0）
+\end{itemize}
+
+\textbf{状态 $s_2$}：
+\begin{itemize}
+    \item $Q(s_2, \text{上}) = 0$（未访问）
+    \item $Q(s_2, \text{下}) = 0$（未访问）
+    \item $Q(s_2, \text{左}) = -1$
+    \item $Q(s_2, \text{右}) = 0$（未访问）
+    \item $\pi(s_2) = \arg\max_{a} Q(s_2, a) = \text{上}$（或下、右，因为都是0，且 $-1 < 0$）
+\end{itemize}
+
+\subsection{第2个回合}
+
+\textbf{生成回合}：遵循更新后的策略 $\pi$
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_4, A_0 = \text{右}, R_1 = -1, S_1 = s_5, A_1 = \text{下}, R_2 = -1, S_2 = s_8, A_2 = \text{右}, R_3 = -1, S_3 = \text{终止}
+\end{equation}
+
+\textbf{反向计算回报}：
+\begin{align}
+G_2 &= R_3 = -1 \quad \text{（$(s_8, \text{右})$）} \\
+G_1 &= R_2 + G_2 = -1 + (-1) = -2 \quad \text{（$(s_5, \text{下})$）} \\
+G_0 &= R_1 + G_1 = -1 + (-2) = -3 \quad \text{（$(s_4, \text{右})$）}
+\end{align}
+
+\textbf{更新动作价值函数}：
+
+\textbf{$(s_4, \text{右})$}：
+\begin{itemize}
+    \item $Q(s_4, \text{右}) = -3$
+\end{itemize}
+
+\textbf{$(s_5, \text{下})$}：
+\begin{itemize}
+    \item $Q(s_5, \text{下}) = -2$
+\end{itemize}
+
+\textbf{$(s_8, \text{右})$}：
+\begin{itemize}
+    \item $Q(s_8, \text{右}) = -1$
+\end{itemize}
+
+\textbf{策略改进}：
+
+\textbf{状态 $s_5$}：
+\begin{itemize}
+    \item $Q(s_5, \text{上}) = -2$
+    \item $Q(s_5, \text{下}) = -2$
+    \item $Q(s_5, \text{左}) = 0$（未访问）
+    \item $Q(s_5, \text{右}) = 0$（未访问）
+    \item $\pi(s_5) = \text{左}$ 或 $\text{右}$（因为都是0，且 $-2 < 0$）
+\end{itemize}
+
+\subsection{继续迭代}
+
+\textbf{经过更多回合后}：
+
+随着更多回合的进行，所有状态-动作对都会被访问，动作价值函数会逐渐收敛，策略也会逐渐改进。
+
+\textbf{最终结果}：
+
+经过足够多的回合后，算法会收敛到：
+\begin{itemize}
+    \item 最优动作价值函数 $q_*$
+    \item 最优策略 $\pi_*$（贪婪策略，基于 $q_*$）
+\end{itemize}
+
+\textbf{最优策略示例}：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+- & $\uparrow$ & $\uparrow$ \\
+\hline
+$\rightarrow$ & $\uparrow$ & $\rightarrow$ \\
+\hline
+$\rightarrow$ & $\downarrow$ & - \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{关键观察}
+
+\subsection{蒙特卡洛方法的特点}
+
+\textbf{1. 不需要环境模型}：
+\begin{itemize}
+    \item 我们只需要生成回合，不需要知道 $p(s', r | s, a)$
+    \item 可以从实际交互中学习
+\end{itemize}
+
+\textbf{2. 状态独立性}：
+\begin{itemize}
+    \item 每个状态的估计是独立的
+    \item $V(s_5)$ 的更新不依赖于 $V(s_2)$ 的更新
+    \item 与动态规划不同，动态规划中状态之间相互依赖
+\end{itemize}
+
+\textbf{3. 不使用自举法}：
+\begin{itemize}
+    \item 使用完整的真实回报 $G_t$
+    \item 不依赖其他状态的估计值
+    \item 与动态规划不同，动态规划使用 $v_k(s')$ 来更新 $v_{k+1}(s)$
+\end{itemize}
+
+\textbf{4. 需要等待回合结束}：
+\begin{itemize}
+    \item 必须等到回合结束才能计算回报
+    \item 不能在线学习（步进式）
+    \item 只能回合式学习
+\end{itemize}
+
+\subsection{与动态规划的对比}
+
+\textbf{动态规划}：
+\begin{itemize}
+    \item 需要完整的环境模型 $p(s', r | s, a)$
+    \item 使用期望更新：$v(s) = \sum_{s', r} p(s', r | s, a) [r + \gamma v(s')]$
+    \item 使用自举法：基于其他状态的估计值
+    \item 可以立即更新
+\end{itemize}
+
+\textbf{蒙特卡洛方法}：
+\begin{itemize}
+    \item 不需要环境模型，只需要经验
+    \item 使用采样更新：$v(s) = \text{average}(G_t)$
+    \item 不使用自举法：使用完整的真实回报
+    \item 需要等待回合结束
+\end{itemize}
+
+\section{总结}
+
+\subsection{蒙特卡洛预测的关键步骤}
+
+\begin{enumerate}
+    \item \textbf{生成回合}：遵循策略 $\pi$ 生成一个完整的回合
+    \item \textbf{反向计算回报}：从回合结束向前计算每个状态的回报
+    \item \textbf{首次访问检查}：只对首次访问的状态更新
+    \item \textbf{平均回报}：将回报加入列表，计算平均值
+    \item \textbf{重复}：生成更多回合，继续更新
+\end{enumerate}
+
+\subsection{蒙特卡洛控制的关键步骤}
+
+\begin{enumerate}
+    \item \textbf{生成回合}：遵循当前策略（$\varepsilon$-贪婪）生成回合
+    \item \textbf{反向计算回报}：计算每个状态-动作对的回报
+    \item \textbf{更新动作价值}：平均回报，更新 $Q(s, a)$
+    \item \textbf{策略改进}：基于 $Q(s, a)$ 改进策略
+    \item \textbf{重复}：继续生成回合，交替进行评估和改进
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{蒙特卡洛方法通过平均观察到的回报来估计价值函数，不需要环境模型，只需要经验样本。虽然需要等待回合结束，但它们提供了从实际交互中学习的能力，这对于许多实际应用非常重要。}
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 5.
+\end{itemize}
+
+\end{document}
+

@@ -1,0 +1,398 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+
+\geometry{margin=2.5cm}
+
+\title{策略改进定理详解}
+\subtitle{为什么 $q_\pi(s, a) > v_\pi(s)$ 意味着策略可以改进？}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+策略改进（Policy Improvement）是动态规划中的核心概念。本文档将详细解释以下关键思想：
+
+\begin{quote}
+\textbf{如果在状态 $s$ 选择动作 $a$，然后遵循策略 $\pi$，这个行为的价值是 $q_\pi(s, a)$。关键标准是：这个值是否大于或小于 $v_\pi(s)$。}
+\end{quote}
+
+\section{问题设置}
+
+\subsection{当前策略}
+
+假设我们有一个确定性策略 $\pi$，其状态价值函数为 $v_\pi(s)$。
+
+\textbf{问题}：我们想知道是否应该改变策略，在某个状态 $s$ 选择不同的动作 $a \neq \pi(s)$。
+
+\subsection{两种行为方式}
+
+\textbf{方式1：遵循当前策略 $\pi$}
+\begin{itemize}
+    \item 在状态 $s$，选择动作 $\pi(s)$
+    \item 然后继续遵循策略 $\pi$
+    \item 这个行为的价值：$v_\pi(s)$
+\end{itemize}
+
+\textbf{方式2：改变策略}
+\begin{itemize}
+    \item 在状态 $s$，选择动作 $a \neq \pi(s)$
+    \item 然后继续遵循策略 $\pi$
+    \item 这个行为的价值：$q_\pi(s, a)$
+\end{itemize}
+
+\section{关键公式}
+
+\subsection{动作价值函数的定义}
+
+如果在状态 $s$ 选择动作 $a$，然后遵循策略 $\pi$，这个行为的价值是：
+
+\begin{equation}
+q_\pi(s, a) = \mathbb{E}[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s, A_t = a]
+\label{eq:q_pi_definition}
+\end{equation}
+
+\textbf{展开形式}：
+
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\label{eq:q_pi_expanded}
+\end{equation}
+
+\subsection{公式的含义}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $q_\pi(s, a)$ 表示：在状态 $s$ 采取动作 $a$，然后遵循策略 $\pi$ 的期望回报
+    \item 即时奖励：$R_{t+1}$（期望值为 $r$）
+    \item 未来回报：从下一状态 $S_{t+1}$ 开始，遵循策略 $\pi$ 的期望回报，即 $v_\pi(S_{t+1})$
+    \item 总回报：即时奖励 + 折扣后的未来回报
+\end{itemize}
+
+\section{关键标准}
+
+\subsection{比较 $q_\pi(s, a)$ 和 $v_\pi(s)$}
+
+\textbf{关键问题}：$q_\pi(s, a)$ 是否大于 $v_\pi(s)$？
+
+\begin{quote}
+\textbf{关键标准是：这个值（$q_\pi(s, a)$）是否大于或小于 $v_\pi(s)$。}
+\end{quote}
+
+\subsection{三种情况}
+
+\textbf{情况1：$q_\pi(s, a) > v_\pi(s)$}
+\begin{itemize}
+    \item 在状态 $s$ 选择动作 $a$ 比遵循当前策略更好
+    \item 应该改变策略：在状态 $s$ 选择动作 $a$
+    \item 新策略会更好
+\end{itemize}
+
+\textbf{情况2：$q_\pi(s, a) = v_\pi(s)$}
+\begin{itemize}
+    \item 在状态 $s$ 选择动作 $a$ 与遵循当前策略一样好
+    \item 可以改变策略，但不会改进
+    \item 新策略至少不会更差
+\end{itemize}
+
+\textbf{情况3：$q_\pi(s, a) < v_\pi(s)$}
+\begin{itemize}
+    \item 在状态 $s$ 选择动作 $a$ 比遵循当前策略更差
+    \item 不应该改变策略
+    \item 保持当前策略更好
+\end{itemize}
+
+\section{为什么这个标准有效？}
+
+\subsection{直观理解}
+
+\textbf{为什么 $q_\pi(s, a) > v_\pi(s)$ 意味着策略可以改进？}
+
+\begin{enumerate}
+    \item \textbf{$v_\pi(s)$ 的含义}：
+    \begin{itemize}
+        \item 在状态 $s$ 遵循策略 $\pi$ 的期望回报
+        \item 这是当前策略在状态 $s$ 的表现
+    \end{itemize}
+    
+    \item \textbf{$q_\pi(s, a)$ 的含义}：
+    \begin{itemize}
+        \item 在状态 $s$ 选择动作 $a$，然后遵循策略 $\pi$ 的期望回报
+        \item 这是在状态 $s$ 改变动作后的表现
+    \end{itemize}
+    
+    \item \textbf{比较}：
+    \begin{itemize}
+        \item 如果 $q_\pi(s, a) > v_\pi(s)$，说明在状态 $s$ 选择动作 $a$ 比遵循当前策略更好
+        \item 因此，改变策略（在状态 $s$ 选择动作 $a$）会改进策略
+    \end{itemize}
+\end{enumerate}
+
+\subsection{数学证明思路}
+
+\textbf{策略改进定理}：
+
+如果 $q_\pi(s, a) \geq v_\pi(s)$ 对所有状态 $s$ 成立，且至少对一个状态严格大于，则新策略 $\pi'$（在状态 $s$ 选择动作 $a$）比策略 $\pi$ 更好。
+
+\textbf{证明思路}：
+\begin{enumerate}
+    \item 定义新策略 $\pi'$：在状态 $s$ 选择动作 $a$，其他状态遵循 $\pi$
+    
+    \item 在状态 $s$：
+    \begin{align}
+    v_{\pi'}(s) &= q_\pi(s, a) \geq v_\pi(s)
+    \end{align}
+    
+    \item 对于其他状态，由于后续遵循策略 $\pi$，且 $v_{\pi'}(s) \geq v_\pi(s)$，可以证明 $v_{\pi'}(s') \geq v_\pi(s')$ 对所有 $s'$ 成立
+    
+    \item 因此，新策略 $\pi'$ 至少与 $\pi$ 一样好，且至少在一个状态更好
+\end{enumerate}
+
+\section{具体例子}
+
+\subsection{Gridworld示例}
+
+考虑例题4.1的Gridworld，假设当前策略 $\pi$ 是等概率随机策略。
+
+\textbf{状态7}：
+\begin{itemize}
+    \item 当前策略的价值：$v_\pi(7) = -20$
+    \item 动作"下"的价值：$q_\pi(7, \text{down}) = -19$
+    \item 因为 $-19 > -20$，所以在状态7选择"下"比随机策略更好
+\end{itemize}
+
+\textbf{状态11}：
+\begin{itemize}
+    \item 当前策略的价值：$v_\pi(11) = -18$
+    \item 动作"下"的价值：$q_\pi(11, \text{down}) = -1$
+    \item 因为 $-1 > -18$，所以在状态11选择"下"比随机策略好得多
+\end{itemize}
+
+\subsection{策略改进}
+
+基于这个比较，我们可以改进策略：
+
+\textbf{改进后的策略 $\pi'$}：
+\begin{itemize}
+    \item 在状态7：选择"下"（因为 $q_\pi(7, \text{down}) > v_\pi(7)$）
+    \item 在状态11：选择"下"（因为 $q_\pi(11, \text{down}) > v_\pi(11)$）
+    \item 在其他状态：可以类似地选择使 $q_\pi(s, a)$ 最大的动作
+\end{itemize}
+
+\section{公式推导}
+
+\subsection{从定义到展开}
+
+\textbf{步骤1：动作价值函数的定义}
+
+\begin{equation}
+q_\pi(s, a) = \mathbb{E}_\pi[G_t | S_t = s, A_t = a]
+\end{equation}
+
+\textbf{步骤2：回报分解}
+
+\begin{align}
+G_t &= R_{t+1} + \gamma G_{t+1} \\
+q_\pi(s, a) &= \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a]
+\end{align}
+
+\textbf{步骤3：分离即时奖励和未来回报}
+
+\begin{align}
+q_\pi(s, a) &= \mathbb{E}_\pi[R_{t+1} | S_t = s, A_t = a] + \gamma \mathbb{E}_\pi[G_{t+1} | S_t = s, A_t = a]
+\end{align}
+
+\textbf{步骤4：利用马尔可夫性质}
+
+由于马尔可夫性质，给定 $S_{t+1} = s'$，$G_{t+1}$ 的分布只依赖于 $s'$ 和后续策略：
+
+\begin{align}
+\mathbb{E}_\pi[G_{t+1} | S_t = s, A_t = a, S_{t+1} = s'] &= \mathbb{E}_\pi[G_{t+1} | S_{t+1} = s'] \\
+                                                          &= v_\pi(s')
+\end{align}
+
+\textbf{步骤5：全概率展开}
+
+\begin{align}
+q_\pi(s, a) &= \sum_{s', r} p(s', r | s, a) \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r] \\
+            &= \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{align}
+
+这就是公式 \eqref{eq:q_pi_expanded}。
+
+\section{关键洞察}
+
+\subsection{为什么这个比较有效？}
+
+\textbf{核心思想}：
+
+\begin{quote}
+\textbf{如果在状态 $s$ 选择动作 $a$ 的期望回报（$q_\pi(s, a)$）大于遵循当前策略的期望回报（$v_\pi(s)$），那么改变策略在状态 $s$ 选择动作 $a$ 会改进策略。}
+\end{quote}
+
+\textbf{原因}：
+\begin{enumerate}
+    \item \textbf{局部改进}：在状态 $s$ 选择更好的动作，立即获得更高的期望回报
+    
+    \item \textbf{全局影响}：由于后续仍然遵循策略 $\pi$，且 $v_\pi(s')$ 已经考虑了从 $s'$ 开始的全局回报，所以局部改进会传播到全局
+    
+    \item \textbf{单调性}：如果 $q_\pi(s, a) \geq v_\pi(s)$，则新策略的价值 $v_{\pi'}(s) \geq v_\pi(s)$
+\end{enumerate}
+
+\subsection{策略改进的过程}
+
+\textbf{策略改进算法}：
+
+\begin{enumerate}
+    \item 对每个状态 $s$，计算所有动作的动作价值：$q_\pi(s, a)$ 对所有 $a$
+    
+    \item 比较 $q_\pi(s, a)$ 和 $v_\pi(s)$
+    
+    \item 如果存在 $a$ 使得 $q_\pi(s, a) > v_\pi(s)$，则改进策略：
+    \begin{equation}
+    \pi'(s) = \arg\max_{a} q_\pi(s, a)
+    \end{equation}
+    
+    \item 新策略 $\pi'$ 至少与 $\pi$ 一样好，且至少在一个状态更好
+\end{enumerate}
+
+\section{数值示例}
+
+\subsection{详细计算}
+
+考虑一个简单的状态，当前策略 $\pi$ 的价值为 $v_\pi(s) = 10$。
+
+\textbf{动作价值}：
+\begin{itemize}
+    \item $q_\pi(s, a_1) = 8$（小于 $v_\pi(s)$）
+    \item $q_\pi(s, a_2) = 10$（等于 $v_\pi(s)$）
+    \item $q_\pi(s, a_3) = 12$（大于 $v_\pi(s)$）
+\end{itemize}
+
+\textbf{分析}：
+\begin{itemize}
+    \item 动作 $a_1$：比当前策略差，不应该选择
+    \item 动作 $a_2$：与当前策略一样好，可以选择
+    \item 动作 $a_3$：比当前策略好，应该选择
+\end{itemize}
+
+\textbf{策略改进}：
+\begin{itemize}
+    \item 改进后的策略：在状态 $s$ 选择动作 $a_3$
+    \item 新策略的价值：$v_{\pi'}(s) = q_\pi(s, a_3) = 12 > 10 = v_\pi(s)$
+    \item 策略得到改进！
+\end{itemize}
+
+\section{策略改进定理}
+
+\subsection{正式表述}
+
+\begin{theorem}[策略改进定理]
+设 $\pi$ 和 $\pi'$ 是一对确定性策略，如果对所有 $s \in \mathcal{S}$：
+\begin{equation}
+q_\pi(s, \pi'(s)) \geq v_\pi(s)
+\end{equation}
+则策略 $\pi'$ 至少与策略 $\pi$ 一样好，即对所有 $s \in \mathcal{S}$：
+\begin{equation}
+v_{\pi'}(s) \geq v_\pi(s)
+\end{equation}
+\end{theorem}
+
+\textbf{证明思路}：
+
+\begin{align}
+v_\pi(s) &\leq q_\pi(s, \pi'(s)) \\
+         &= \mathbb{E}[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s, A_t = \pi'(s)] \\
+         &= \mathbb{E}_{\pi'}[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s] \\
+         &\leq \mathbb{E}_{\pi'}[R_{t+1} + \gamma q_\pi(S_{t+1}, \pi'(S_{t+1})) | S_t = s] \\
+         &= \mathbb{E}_{\pi'}[R_{t+1} + \gamma v_{\pi'}(S_{t+1}) | S_t = s] \\
+         &= v_{\pi'}(s)
+\end{align}
+
+因此 $v_{\pi'}(s) \geq v_\pi(s)$ 对所有 $s$ 成立。
+
+\subsection{贪婪策略}
+
+\textbf{定义}：贪婪策略 $\pi'$ 定义为：
+
+\begin{equation}
+\pi'(s) = \arg\max_{a} q_\pi(s, a)
+\end{equation}
+
+\textbf{性质}：
+\begin{itemize}
+    \item 贪婪策略在每一步都选择使动作价值最大的动作
+    \item 对于贪婪策略，$q_\pi(s, \pi'(s)) = \max_a q_\pi(s, a) \geq v_\pi(s)$
+    \item 因此，贪婪策略至少与当前策略一样好
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{动作价值函数}：
+    \begin{equation}
+    q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+    \end{equation}
+    表示在状态 $s$ 选择动作 $a$，然后遵循策略 $\pi$ 的期望回报。
+    
+    \item \textbf{关键标准}：
+    \begin{itemize}
+        \item 如果 $q_\pi(s, a) > v_\pi(s)$：改变策略会改进
+        \item 如果 $q_\pi(s, a) = v_\pi(s)$：改变策略不会变差
+        \item 如果 $q_\pi(s, a) < v_\pi(s)$：不应该改变策略
+    \end{itemize}
+    
+    \item \textbf{策略改进}：
+    \begin{itemize}
+        \item 对每个状态，选择使 $q_\pi(s, a)$ 最大的动作
+        \item 新策略至少与当前策略一样好
+        \item 这是策略迭代算法的基础
+    \end{itemize}
+    
+    \item \textbf{直观理解}：
+    \begin{itemize}
+        \item $v_\pi(s)$：遵循当前策略的期望回报
+        \item $q_\pi(s, a)$：改变动作后的期望回报
+        \item 比较两者，选择更好的
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{策略改进的核心思想是：如果在某个状态选择不同的动作能获得更高的期望回报，那么改变策略就会改进策略。这个比较是通过 $q_\pi(s, a)$ 和 $v_\pi(s)$ 来实现的。}
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4.2.
+\end{itemize}
+
+\end{document}
+

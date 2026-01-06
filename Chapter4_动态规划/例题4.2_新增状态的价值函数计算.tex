@@ -1,0 +1,432 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+
+\geometry{margin=2.5cm}
+
+\title{例题4.2：新增状态的价值函数计算}
+\subtitle{Gridworld扩展后的策略评估}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题描述}
+
+\subsection{原始问题}
+
+在例题4.1的4×4 Gridworld基础上，考虑以下扩展：
+
+\begin{enumerate}
+    \item \textbf{情况1}：在状态13下方添加新状态15，其动作（左、上、右、下）分别将智能体转移到状态12、13、14、15。假设原始状态的转移不变。
+    
+    \item \textbf{情况2}：在情况1的基础上，同时改变状态13的动态，使得从状态13采取动作"下"会转移到新状态15。
+\end{enumerate}
+
+\textbf{问题}：在这两种情况下，等概率随机策略下状态15的价值函数 $v_\pi(15)$ 分别是多少？
+
+\subsection{原始Gridworld布局}
+
+原始4×4 Gridworld的状态布局：
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{终止} & 2 & 3 & 4 \\
+\hline
+5 & 6 & 7 & 8 \\
+\hline
+9 & 10 & 11 & 12 \\
+\hline
+13 & 14 & \textbf{终止} & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{已知状态价值函数}（等概率随机策略）：
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{终止} & -14 & -20 & -22 \\
+\hline
+-14 & -18 & -20 & -20 \\
+\hline
+-20 & -20 & -18 & -14 \\
+\hline
+-22 & -20 & \textbf{终止} & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{情况1：仅添加新状态15}
+
+\subsection{新的Gridworld布局}
+
+在状态13下方添加新状态15：
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{终止} & 2 & 3 & 4 \\
+\hline
+5 & 6 & 7 & 8 \\
+\hline
+9 & 10 & 11 & 12 \\
+\hline
+13 & 14 & \textbf{终止} & \textbf{终止} \\
+\hline
+15 & & & \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{状态15的位置}：第5行第1列（在状态13正下方）
+
+\subsection{状态15的转移规则}
+
+根据题目描述，状态15的动作转移为：
+\begin{itemize}
+    \item \textbf{左（left）}：转移到状态12（第3行第4列）
+    \item \textbf{上（up）}：转移到状态13（第4行第1列）
+    \item \textbf{右（right）}：转移到状态14（第4行第2列）
+    \item \textbf{下（down）}：转移到状态15（自身，因为下方没有状态）
+\end{itemize}
+
+\textbf{注意}：题目说"its actions, left, up, right, and down, take the agent to states 12, 13, 14, and 15, respectively"，这意味着：
+\begin{itemize}
+    \item 左 → 状态12
+    \item 上 → 状态13
+    \item 右 → 状态14
+    \item 下 → 状态15（自身）
+\end{itemize}
+
+\subsection{计算 $v_\pi(15)$}
+
+使用状态价值函数的贝尔曼方程：
+
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+对于无折扣任务（$\gamma = 1$）和等概率随机策略（$\pi(a | s) = 0.25$）：
+
+\begin{equation}
+v_\pi(15) = \frac{1}{4} \sum_{a} \sum_{s', r} p(s', r | 15, a) [r + v_\pi(s')]
+\end{equation}
+
+\textbf{展开计算}：
+
+\begin{align}
+v_\pi(15) &= \frac{1}{4} \left[ p(12, -1 | 15, \text{left}) \times [-1 + v_\pi(12)] \right. \\
+          &\quad + p(13, -1 | 15, \text{up}) \times [-1 + v_\pi(13)] \\
+          &\quad + p(14, -1 | 15, \text{right}) \times [-1 + v_\pi(14)] \\
+          &\quad + \left. p(15, -1 | 15, \text{down}) \times [-1 + v_\pi(15)] \right] \\
+          &= \frac{1}{4} \left[ 1 \times [-1 + (-14)] + 1 \times [-1 + (-22)] \right. \\
+          &\quad + 1 \times [-1 + (-20)] + \left. 1 \times [-1 + v_\pi(15)] \right] \\
+          &= \frac{1}{4} \left[ -15 + (-23) + (-21) + (-1 + v_\pi(15)) \right] \\
+          &= \frac{1}{4} \left[ -60 + v_\pi(15) \right] \\
+          &= -15 + \frac{1}{4} v_\pi(15)
+\end{align}
+
+\textbf{求解 $v_\pi(15)$}：
+
+\begin{align}
+v_\pi(15) &= -15 + \frac{1}{4} v_\pi(15) \\
+v_\pi(15) - \frac{1}{4} v_\pi(15) &= -15 \\
+\frac{3}{4} v_\pi(15) &= -15 \\
+v_\pi(15) &= -15 \times \frac{4}{3} = -20
+\end{align}
+
+\textbf{答案1}：$v_\pi(15) = -20$
+
+\subsection{验证}
+
+让我们验证这个结果是否合理：
+
+\begin{align}
+v_\pi(15) &= \frac{1}{4} \left[ -1 + v_\pi(12) + -1 + v_\pi(13) + -1 + v_\pi(14) + -1 + v_\pi(15) \right] \\
+          &= \frac{1}{4} \left[ -1 + (-14) + -1 + (-22) + -1 + (-20) + -1 + (-20) \right] \\
+          &= \frac{1}{4} \left[ -15 - 23 - 21 - 21 \right] \\
+          &= \frac{1}{4} \times (-80) = -20
+\end{align}
+
+验证通过！
+
+\section{情况2：同时改变状态13的动态}
+
+\subsection{新的转移规则}
+
+在情况1的基础上，状态13的动态也改变了：
+\begin{itemize}
+    \item 从状态13采取动作"下"现在会转移到状态15（而不是撞墙）
+\end{itemize}
+
+\textbf{状态13的新转移规则}：
+\begin{itemize}
+    \item 上：转移到状态9（第3行第1列）
+    \item 下：转移到状态15（新状态，第5行第1列）
+    \item 右：转移到状态14（第4行第2列）
+    \item 左：撞墙（状态不变）
+\end{itemize}
+
+\subsection{重新计算状态13的价值}
+
+首先需要重新计算状态13的价值，因为它的转移规则改变了。
+
+\textbf{状态13的贝尔曼方程}：
+
+\begin{align}
+v_\pi(13) &= \frac{1}{4} \left[ p(9, -1 | 13, \text{up}) \times [-1 + v_\pi(9)] \right. \\
+          &\quad + p(15, -1 | 13, \text{down}) \times [-1 + v_\pi(15)] \\
+          &\quad + p(14, -1 | 13, \text{right}) \times [-1 + v_\pi(14)] \\
+          &\quad + \left. p(13, -1 | 13, \text{left}) \times [-1 + v_\pi(13)] \right] \\
+          &= \frac{1}{4} \left[ 1 \times [-1 + (-20)] + 1 \times [-1 + v_\pi(15)] \right. \\
+          &\quad + 1 \times [-1 + (-20)] + \left. 1 \times [-1 + v_\pi(13)] \right] \\
+          &= \frac{1}{4} \left[ -21 + (-1 + v_\pi(15)) + (-21) + (-1 + v_\pi(13)) \right] \\
+          &= \frac{1}{4} \left[ -44 + v_\pi(15) + v_\pi(13) \right] \\
+          &= -11 + \frac{1}{4} v_\pi(15) + \frac{1}{4} v_\pi(13)
+\end{align}
+
+\subsection{状态15的贝尔曼方程（情况2）}
+
+状态15的转移规则与情况1相同：
+
+\begin{align}
+v_\pi(15) &= \frac{1}{4} \left[ -1 + v_\pi(12) + -1 + v_\pi(13) + -1 + v_\pi(14) + -1 + v_\pi(15) \right] \\
+          &= \frac{1}{4} \left[ -1 + (-14) + -1 + v_\pi(13) + -1 + (-20) + -1 + v_\pi(15) \right] \\
+          &= \frac{1}{4} \left[ -15 + v_\pi(13) + (-21) + (-1 + v_\pi(15)) \right] \\
+          &= \frac{1}{4} \left[ -37 + v_\pi(13) + v_\pi(15) \right] \\
+          &= -\frac{37}{4} + \frac{1}{4} v_\pi(13) + \frac{1}{4} v_\pi(15) \\
+          &= -9.25 + \frac{1}{4} v_\pi(13) + \frac{1}{4} v_\pi(15)
+\end{align}
+
+\subsection{联立求解}
+
+我们有两个方程：
+
+\begin{align}
+v_\pi(13) &= -11 + \frac{1}{4} v_\pi(15) + \frac{1}{4} v_\pi(13) \label{eq:state13} \\
+v_\pi(15) &= -9.25 + \frac{1}{4} v_\pi(13) + \frac{1}{4} v_\pi(15) \label{eq:state15}
+\end{align}
+
+\textbf{求解方程 \eqref{eq:state13}}：
+
+\begin{align}
+v_\pi(13) &= -11 + \frac{1}{4} v_\pi(15) + \frac{1}{4} v_\pi(13) \\
+v_\pi(13) - \frac{1}{4} v_\pi(13) &= -11 + \frac{1}{4} v_\pi(15) \\
+\frac{3}{4} v_\pi(13) &= -11 + \frac{1}{4} v_\pi(15) \\
+v_\pi(13) &= -\frac{44}{3} + \frac{1}{3} v_\pi(15) \label{eq:state13_solved}
+\end{align}
+
+\textbf{将 \eqref{eq:state13_solved} 代入 \eqref{eq:state15}}：
+
+\begin{align}
+v_\pi(15) &= -9.25 + \frac{1}{4} \left[ -\frac{44}{3} + \frac{1}{3} v_\pi(15) \right] + \frac{1}{4} v_\pi(15) \\
+          &= -9.25 - \frac{11}{3} + \frac{1}{12} v_\pi(15) + \frac{1}{4} v_\pi(15) \\
+          &= -9.25 - \frac{11}{3} + \frac{1}{12} v_\pi(15) + \frac{3}{12} v_\pi(15) \\
+          &= -9.25 - \frac{11}{3} + \frac{4}{12} v_\pi(15) \\
+          &= -9.25 - \frac{11}{3} + \frac{1}{3} v_\pi(15)
+\end{align}
+
+继续计算：
+
+\begin{align}
+v_\pi(15) &= -9.25 - \frac{11}{3} + \frac{1}{3} v_\pi(15) \\
+          &= -\frac{27.75}{3} - \frac{11}{3} + \frac{1}{3} v_\pi(15) \\
+          &= -\frac{38.75}{3} + \frac{1}{3} v_\pi(15) \\
+v_\pi(15) - \frac{1}{3} v_\pi(15) &= -\frac{38.75}{3} \\
+\frac{2}{3} v_\pi(15) &= -\frac{38.75}{3} \\
+v_\pi(15) &= -\frac{38.75}{2} = -19.375
+\end{align}
+
+\textbf{答案2}：$v_\pi(15) \approx -19.375$
+
+\subsection{精确计算}
+
+让我们用分数精确计算：
+
+\begin{align}
+v_\pi(15) &= -9.25 + \frac{1}{4} v_\pi(13) + \frac{1}{4} v_\pi(15) \\
+          &= -\frac{37}{4} + \frac{1}{4} v_\pi(13) + \frac{1}{4} v_\pi(15)
+\end{align}
+
+从方程 \eqref{eq:state13_solved}：
+\begin{align}
+v_\pi(13) &= -\frac{44}{3} + \frac{1}{3} v_\pi(15)
+\end{align}
+
+代入：
+\begin{align}
+v_\pi(15) &= -\frac{37}{4} + \frac{1}{4} \left[ -\frac{44}{3} + \frac{1}{3} v_\pi(15) \right] + \frac{1}{4} v_\pi(15) \\
+          &= -\frac{37}{4} - \frac{11}{3} + \frac{1}{12} v_\pi(15) + \frac{1}{4} v_\pi(15) \\
+          &= -\frac{37}{4} - \frac{11}{3} + \frac{1}{12} v_\pi(15) + \frac{3}{12} v_\pi(15) \\
+          &= -\frac{37}{4} - \frac{11}{3} + \frac{4}{12} v_\pi(15) \\
+          &= -\frac{111}{12} - \frac{44}{12} + \frac{1}{3} v_\pi(15) \\
+          &= -\frac{155}{12} + \frac{1}{3} v_\pi(15)
+\end{align}
+
+继续：
+\begin{align}
+v_\pi(15) - \frac{1}{3} v_\pi(15) &= -\frac{155}{12} \\
+\frac{2}{3} v_\pi(15) &= -\frac{155}{12} \\
+v_\pi(15) &= -\frac{155}{12} \times \frac{3}{2} = -\frac{155}{8} = -19.375
+\end{align}
+
+\textbf{精确答案2}：$v_\pi(15) = -\frac{155}{8} = -19.375$
+
+\section{结果总结}
+
+\subsection{答案}
+
+\begin{enumerate}
+    \item \textbf{情况1}：$v_\pi(15) = -20$
+    \item \textbf{情况2}：$v_\pi(15) = -\frac{155}{8} = -19.375$
+\end{enumerate}
+
+\subsection{解释}
+
+\textbf{情况1}：
+\begin{itemize}
+    \item 状态15只能通过自己的动作"下"回到自身
+    \item 其他三个动作分别转移到状态12、13、14
+    \item 由于状态13的价值是 $-22$（原始值），状态15的价值是 $-20$
+    \item 这个值反映了从状态15到终止状态的期望步数
+\end{itemize}
+
+\textbf{情况2}：
+\begin{itemize}
+    \item 状态13现在可以向下转移到状态15
+    \item 这创建了状态13和状态15之间的双向连接
+    \item 状态13的价值会改变（因为现在有更好的路径）
+    \item 状态15的价值也会改变（因为状态13的价值改变了）
+    \item 状态15的价值变为 $-19.375$，比情况1略好（因为状态13的价值改善了）
+\end{itemize}
+
+\section{关键洞察}
+
+\subsection{价值函数的相互依赖}
+
+\textbf{重要观察}：
+\begin{itemize}
+    \item 状态价值函数是相互依赖的
+    \item 改变一个状态的转移规则会影响其他状态的价值
+    \item 需要同时求解所有状态的贝尔曼方程
+\end{itemize}
+
+\subsection{求解方法}
+
+\textbf{方法1}：迭代策略评估
+\begin{itemize}
+    \item 初始化所有状态的价值
+    \item 迭代更新直到收敛
+    \item 适用于所有情况
+\end{itemize}
+
+\textbf{方法2}：解析求解
+\begin{itemize}
+    \item 对于小规模问题，可以联立求解线性方程组
+    \item 如情况2中，需要同时求解 $v_\pi(13)$ 和 $v_\pi(15)$
+\end{itemize}
+
+\section{验证计算}
+
+\subsection{情况1的验证}
+
+已知：
+\begin{itemize}
+    \item $v_\pi(12) = -14$
+    \item $v_\pi(13) = -22$（原始值，未改变）
+    \item $v_\pi(14) = -20$
+    \item $v_\pi(15) = -20$（计算值）
+\end{itemize}
+
+验证状态15：
+\begin{align}
+v_\pi(15) &= \frac{1}{4} \left[ -1 + (-14) + -1 + (-22) + -1 + (-20) + -1 + (-20) \right] \\
+          &= \frac{1}{4} \times (-80) = -20 \quad \checkmark
+\end{align}
+
+\subsection{情况2的验证}
+
+计算 $v_\pi(13)$：
+\begin{align}
+v_\pi(13) &= -\frac{44}{3} + \frac{1}{3} \times (-19.375) \\
+          &= -\frac{44}{3} - \frac{19.375}{3} \\
+          &= -\frac{63.375}{3} = -21.125
+\end{align}
+
+验证状态13：
+\begin{align}
+v_\pi(13) &= \frac{1}{4} \left[ -1 + (-20) + -1 + (-19.375) + -1 + (-20) + -1 + (-21.125) \right] \\
+          &= \frac{1}{4} \times (-84.5) = -21.125 \quad \checkmark
+\end{align}
+
+验证状态15：
+\begin{align}
+v_\pi(15) &= \frac{1}{4} \left[ -1 + (-14) + -1 + (-21.125) + -1 + (-20) + -1 + (-19.375) \right] \\
+          &= \frac{1}{4} \times (-77.5) = -19.375 \quad \checkmark
+\end{align}
+
+验证通过！
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{状态价值函数的计算}：使用贝尔曼方程，考虑所有可能的动作和转移
+    
+    \item \textbf{相互依赖}：状态价值函数是相互依赖的，改变一个状态的转移会影响其他状态
+    
+    \item \textbf{求解方法}：
+    \begin{itemize}
+        \item 迭代策略评估（适用于所有情况）
+        \item 解析求解（适用于小规模问题）
+    \end{itemize}
+    
+    \item \textbf{结果}：
+    \begin{itemize}
+        \item 情况1：$v_\pi(15) = -20$
+        \item 情况2：$v_\pi(15) = -19.375$（略好，因为状态13的路径改善了）
+    \end{itemize}
+\end{enumerate}
+
+\subsection{学习价值}
+
+例题4.2展示了：
+\begin{itemize}
+    \item 如何计算新添加状态的价值函数
+    \item 状态价值函数的相互依赖性
+    \item 改变转移规则对价值函数的影响
+    \item 联立求解多个状态的贝尔曼方程
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4, Exercise 4.2.
+\end{itemize}
+
+\end{document}
+

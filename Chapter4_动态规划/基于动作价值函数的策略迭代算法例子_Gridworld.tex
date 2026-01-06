@@ -1,0 +1,672 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+
+\geometry{margin=2.5cm}
+
+\title{基于动作价值函数的策略迭代算法例子：Gridworld}
+\subtitle{直接迭代Q函数的完整过程演示}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题设置}
+
+\subsection{Gridworld环境}
+
+我们考虑一个简化的3×3 Gridworld：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{终止} & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{环境设置}：
+\begin{itemize}
+    \item \textbf{非终止状态}：$\mathcal{S} = \{s_2, s_3, s_4, s_5, s_6, s_7, s_8\}$（共7个状态）
+    \item \textbf{终止状态}：左上角和右下角
+    \item \textbf{动作空间}：每个状态有4个动作：上、下、左、右（编号为0, 1, 2, 3）
+    \item \textbf{奖励}：所有转移的奖励都是 $-1$，直到到达终止状态
+    \item \textbf{折扣因子}：$\gamma = 0.9$
+\end{itemize}
+
+\subsection{状态转移规则}
+
+\textbf{状态 $s_2$}（第1行第2列）：
+\begin{itemize}
+    \item 上：转移到终止状态，奖励 $-1$
+    \item 下：转移到 $s_5$，奖励 $-1$
+    \item 左：撞墙，状态不变，奖励 $-1$
+    \item 右：转移到 $s_3$，奖励 $-1$
+\end{itemize}
+
+\textbf{状态 $s_5$}（中心，第2行第2列）：
+\begin{itemize}
+    \item 上：转移到 $s_2$，奖励 $-1$
+    \item 下：转移到 $s_8$，奖励 $-1$
+    \item 左：转移到 $s_4$，奖励 $-1$
+    \item 右：转移到 $s_6$，奖励 $-1$
+\end{itemize}
+
+\textbf{状态 $s_8$}（第3行第2列）：
+\begin{itemize}
+    \item 上：转移到 $s_5$，奖励 $-1$
+    \item 下：转移到终止状态，奖励 $-1$
+    \item 左：转移到 $s_7$，奖励 $-1$
+    \item 右：转移到终止状态，奖励 $-1$
+\end{itemize}
+
+\section{基于动作价值函数的策略迭代算法}
+
+\subsection{算法概述}
+
+\textbf{与基于状态价值函数的区别}：
+\begin{itemize}
+    \item \textbf{基于状态价值函数}：迭代 $V(s)$，然后计算 $q(s, a)$ 来改进策略
+    \item \textbf{基于动作价值函数}：直接迭代 $Q(s, a)$，然后直接选择最优动作
+\end{itemize}
+
+\textbf{优势}：
+\begin{itemize}
+    \item 策略改进更直接：$\pi(s) = \arg\max_{a} Q(s, a)$
+    \item 不需要在策略改进时重新计算动作价值
+\end{itemize}
+
+\subsection{初始化}
+
+\textbf{初始动作价值函数 $Q_0$}：
+\begin{equation}
+Q_0(s, a) = 0 \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\textbf{初始策略 $\pi_0$}：等概率随机策略
+\begin{equation}
+\pi_0(a | s) = \frac{1}{4} \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\section{第1次迭代}
+
+\subsection{步骤1：策略评估（动作价值函数）}
+
+\textbf{目标}：计算策略 $\pi_0$ 的动作价值函数 $q_{\pi_0}$。
+
+\textbf{迭代公式}：
+
+\begin{equation}
+Q_{k+1}(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi_0(a' | s') Q_k(s', a')\right]
+\end{equation}
+
+\subsubsection{第1次评估迭代（$k=1$）}
+
+由于 $Q_0(s', a') = 0$ 对所有 $s', a'$，且 $r = -1$：
+
+\begin{equation}
+Q_1(s, a) = \sum_{s', r} p(s', r | s, a) \times (-1) = -1
+\end{equation}
+
+因此：
+\begin{equation}
+Q_1(s, a) = -1 \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\subsubsection{第2次评估迭代（$k=2$）}
+
+\textbf{状态 $s_2$，动作"上"}：
+
+\begin{align}
+Q_2(s_2, \text{上}) &= p(\text{终止}, -1 | s_2, \text{上}) \left[-1 + \gamma \sum_{a'} \pi_0(a' | \text{终止}) Q_1(\text{终止}, a')\right] \\
+                    &= 1 \times [-1 + 0.9 \times 0] = -1
+\end{align}
+
+（终止状态的价值为0）
+
+\textbf{状态 $s_2$，动作"下"}：
+
+\begin{align}
+Q_2(s_2, \text{下}) &= p(s_5, -1 | s_2, \text{下}) \left[-1 + \gamma \sum_{a'} \pi_0(a' | s_5) Q_1(s_5, a')\right] \\
+                    &= 1 \times \left[-1 + 0.9 \times \frac{1}{4} \times (-1) \times 4\right] \\
+                    &= -1 + 0.9 \times (-1) = -1.9
+\end{align}
+
+\textbf{状态 $s_2$，动作"左"}（撞墙）：
+
+\begin{align}
+Q_2(s_2, \text{左}) &= p(s_2, -1 | s_2, \text{左}) \left[-1 + \gamma \sum_{a'} \pi_0(a' | s_2) Q_1(s_2, a')\right] \\
+                    &= 1 \times \left[-1 + 0.9 \times \frac{1}{4} \times (-1) \times 4\right] \\
+                    &= -1.9
+\end{align}
+
+\textbf{状态 $s_2$，动作"右"}：
+
+\begin{align}
+Q_2(s_2, \text{右}) &= p(s_3, -1 | s_2, \text{右}) \left[-1 + \gamma \sum_{a'} \pi_0(a' | s_3) Q_1(s_3, a')\right] \\
+                    &= -1.9
+\end{align}
+
+\textbf{状态 $s_5$，动作"上"}：
+
+\begin{align}
+Q_2(s_5, \text{上}) &= p(s_2, -1 | s_5, \text{上}) \left[-1 + \gamma \sum_{a'} \pi_0(a' | s_2) Q_1(s_2, a')\right] \\
+                    &= 1 \times \left[-1 + 0.9 \times \frac{1}{4} \times (-1) \times 4\right] \\
+                    &= -1.9
+\end{align}
+
+\textbf{状态 $s_5$，其他动作}：类似计算，都得到 $-1.9$。
+
+\textbf{状态 $s_8$，动作"下"}：
+
+\begin{align}
+Q_2(s_8, \text{下}) &= p(\text{终止}, -1 | s_8, \text{下}) \left[-1 + \gamma \times 0\right] \\
+                    &= -1
+\end{align}
+
+\textbf{状态 $s_8$，动作"右"}：
+
+\begin{align}
+Q_2(s_8, \text{右}) &= p(\text{终止}, -1 | s_8, \text{右}) \left[-1 + \gamma \times 0\right] \\
+                    &= -1
+\end{align}
+
+\subsubsection{第3次评估迭代（$k=3$）}
+
+\textbf{状态 $s_2$，动作"上"}：
+
+\begin{align}
+Q_3(s_2, \text{上}) &= -1 + 0.9 \times 0 = -1.0
+\end{align}
+
+\textbf{状态 $s_2$，动作"下"}：
+
+\begin{align}
+Q_3(s_2, \text{下}) &= -1 + 0.9 \times \sum_{a'} \pi_0(a' | s_5) Q_2(s_5, a') \\
+                    &= -1 + 0.9 \times \frac{1}{4} \times (-1.9) \times 4 \\
+                    &= -1 + 0.9 \times (-1.9) = -2.71
+\end{align}
+
+\textbf{状态 $s_5$，动作"上"}：
+
+\begin{align}
+Q_3(s_5, \text{上}) &= -1 + 0.9 \times \sum_{a'} \pi_0(a' | s_2) Q_2(s_2, a') \\
+                    &= -1 + 0.9 \times \frac{1}{4} \times [-1 + (-1.9) + (-1.9) + (-1.9)] \\
+                    &= -1 + 0.9 \times \frac{1}{4} \times (-6.7) \\
+                    &= -1 + 0.9 \times (-1.675) = -2.5075
+\end{align}
+
+\textbf{继续迭代直到收敛}：
+
+假设经过多次迭代后，动作价值函数收敛到 $q_{\pi_0}$。
+
+\textbf{部分收敛值}（示例）：
+\begin{align}
+q_{\pi_0}(s_2, \text{上}) &= -1.0 \\
+q_{\pi_0}(s_2, \text{下}) &= -2.8 \\
+q_{\pi_0}(s_2, \text{左}) &= -2.5 \\
+q_{\pi_0}(s_2, \text{右}) &= -2.7 \\
+q_{\pi_0}(s_5, \text{上}) &= -2.5 \\
+q_{\pi_0}(s_5, \text{下}) &= -2.5 \\
+q_{\pi_0}(s_5, \text{左}) &= -2.7 \\
+q_{\pi_0}(s_5, \text{右}) &= -2.7 \\
+q_{\pi_0}(s_8, \text{上}) &= -2.7 \\
+q_{\pi_0}(s_8, \text{下}) &= -1.0 \\
+q_{\pi_0}(s_8, \text{左}) &= -2.7 \\
+q_{\pi_0}(s_8, \text{右}) &= -1.0
+\end{align}
+
+\subsection{步骤2：策略改进}
+
+\textbf{目标}：基于 $q_{\pi_0}$ 改进策略，得到 $\pi_1$。
+
+\textbf{策略改进公式}：
+
+\begin{equation}
+\pi_1(s) = \arg\max_{a} q_{\pi_0}(s, a) = \arg\max_{a} Q(s, a)
+\end{equation}
+
+\textbf{对每个状态更新策略}：
+
+\textbf{状态 $s_2$}：
+
+比较所有动作的动作价值：
+\begin{align}
+q_{\pi_0}(s_2, \text{上}) &= -1.0 \quad \text{（最大）} \\
+q_{\pi_0}(s_2, \text{下}) &= -2.8 \\
+q_{\pi_0}(s_2, \text{左}) &= -2.5 \\
+q_{\pi_0}(s_2, \text{右}) &= -2.7
+\end{align}
+
+最大值：$\max\{-1.0, -2.8, -2.5, -2.7\} = -1.0$，对应动作"上"。
+
+\textbf{更新策略}：
+\begin{equation}
+\pi_1(s_2) = \text{上}
+\end{equation}
+
+\textbf{状态 $s_5$}：
+
+比较所有动作的动作价值：
+\begin{align}
+q_{\pi_0}(s_5, \text{上}) &= -2.5 \\
+q_{\pi_0}(s_5, \text{下}) &= -2.5 \\
+q_{\pi_0}(s_5, \text{左}) &= -2.7 \\
+q_{\pi_0}(s_5, \text{右}) &= -2.7
+\end{align}
+
+最大值：$\max\{-2.5, -2.5, -2.7, -2.7\} = -2.5$，对应动作"上"或"下"。
+
+假设选择"上"（平局时按固定顺序）。
+
+\textbf{更新策略}：
+\begin{equation}
+\pi_1(s_5) = \text{上}
+\end{equation}
+
+\textbf{状态 $s_8$}：
+
+比较所有动作的动作价值：
+\begin{align}
+q_{\pi_0}(s_8, \text{上}) &= -2.7 \\
+q_{\pi_0}(s_8, \text{下}) &= -1.0 \quad \text{（最大）} \\
+q_{\pi_0}(s_8, \text{左}) &= -2.7 \\
+q_{\pi_0}(s_8, \text{右}) &= -1.0 \quad \text{（最大）}
+\end{align}
+
+最大值：$\max\{-2.7, -1.0, -2.7, -1.0\} = -1.0$，对应动作"下"或"右"。
+
+假设选择"下"。
+
+\textbf{更新策略}：
+\begin{equation}
+\pi_1(s_8) = \text{下}
+\end{equation}
+
+\textbf{完整的新策略 $\pi_1$}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{终止} & $\pi_1(s_2) = \text{上}$ & $\pi_1(s_3) = \text{上}$ \\
+\hline
+$\pi_1(s_4) = \text{上}$ & $\pi_1(s_5) = \text{上}$ & $\pi_1(s_6) = \text{右}$ \\
+\hline
+$\pi_1(s_7) = \text{右}$ & $\pi_1(s_8) = \text{下}$ & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{第2次迭代}
+
+\subsection{步骤1：策略评估（动作价值函数）}
+
+\textbf{目标}：计算策略 $\pi_1$ 的动作价值函数 $q_{\pi_1}$。
+
+\textbf{迭代公式}（现在策略是确定性的）：
+
+对于确定性策略 $\pi_1$：
+\begin{equation}
+\pi_1(a' | s') = \begin{cases}
+1, & \text{如果 } a' = \pi_1(s') \\
+0, & \text{否则}
+\end{cases}
+\end{equation}
+
+因此：
+\begin{equation}
+Q_{k+1}(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma Q_k(s', \pi_1(s'))\right]
+\end{equation}
+
+\subsubsection{第1次评估迭代（$k=1$）}
+
+\textbf{状态 $s_2$，动作"上"}（$\pi_1(s_2) = \text{上}$）：
+
+\begin{align}
+Q_1(s_2, \text{上}) &= p(\text{终止}, -1 | s_2, \text{上}) \left[-1 + \gamma Q_0(\text{终止}, \cdot)\right] \\
+                    &= 1 \times [-1 + 0.9 \times 0] = -1
+\end{align}
+
+\textbf{状态 $s_5$，动作"上"}（$\pi_1(s_5) = \text{上}$）：
+
+\begin{align}
+Q_1(s_5, \text{上}) &= p(s_2, -1 | s_5, \text{上}) \left[-1 + \gamma Q_0(s_2, \pi_1(s_2))\right] \\
+                    &= p(s_2, -1 | s_5, \text{上}) \left[-1 + \gamma Q_0(s_2, \text{上})\right] \\
+                    &= 1 \times [-1 + 0.9 \times 0] = -1
+\end{align}
+
+\textbf{状态 $s_8$，动作"下"}（$\pi_1(s_8) = \text{下}$）：
+
+\begin{align}
+Q_1(s_8, \text{下}) &= p(\text{终止}, -1 | s_8, \text{下}) \left[-1 + \gamma \times 0\right] \\
+                    &= -1
+\end{align}
+
+\subsubsection{第2次评估迭代（$k=2$）}
+
+\textbf{状态 $s_2$，动作"上"}：
+
+\begin{align}
+Q_2(s_2, \text{上}) &= -1 + 0.9 \times 0 = -1.0
+\end{align}
+
+\textbf{状态 $s_5$，动作"上"}：
+
+\begin{align}
+Q_2(s_5, \text{上}) &= -1 + 0.9 \times Q_1(s_2, \pi_1(s_2)) \\
+                    &= -1 + 0.9 \times Q_1(s_2, \text{上}) \\
+                    &= -1 + 0.9 \times (-1) = -1.9
+\end{align}
+
+\textbf{状态 $s_8$，动作"下"}：
+
+\begin{align}
+Q_2(s_8, \text{下}) &= -1 + 0.9 \times 0 = -1.0
+\end{align}
+
+\subsubsection{继续迭代直到收敛}
+
+假设经过多次迭代后，动作价值函数收敛到 $q_{\pi_1}$。
+
+\textbf{部分收敛值}：
+\begin{align}
+q_{\pi_1}(s_2, \text{上}) &= -1.0 \\
+q_{\pi_1}(s_2, \text{下}) &= -1.9 \\
+q_{\pi_1}(s_2, \text{左}) &= -1.9 \\
+q_{\pi_1}(s_2, \text{右}) &= -1.9 \\
+q_{\pi_1}(s_5, \text{上}) &= -1.9 \\
+q_{\pi_1}(s_5, \text{下}) &= -1.9 \\
+q_{\pi_1}(s_5, \text{左}) &= -2.71 \\
+q_{\pi_1}(s_5, \text{右}) &= -1.9 \\
+q_{\pi_1}(s_8, \text{上}) &= -2.71 \\
+q_{\pi_1}(s_8, \text{下}) &= -1.0 \\
+q_{\pi_1}(s_8, \text{左}) &= -2.71 \\
+q_{\pi_1}(s_8, \text{右}) &= -1.0
+\end{align}
+
+\subsection{步骤2：策略改进}
+
+\textbf{状态 $s_5$}：
+
+比较所有动作的动作价值：
+\begin{align}
+q_{\pi_1}(s_5, \text{上}) &= -1.9 \\
+q_{\pi_1}(s_5, \text{下}) &= -1.9 \\
+q_{\pi_1}(s_5, \text{左}) &= -2.71 \\
+q_{\pi_1}(s_5, \text{右}) &= -1.9
+\end{align}
+
+最大值：$\max\{-1.9, -1.9, -2.71, -1.9\} = -1.9$，对应动作"上"、"下"或"右"。
+
+当前策略是"上"，保持不变。
+
+\textbf{检查所有状态}：
+
+假设所有状态的策略都没有改变，则：
+\begin{equation}
+\pi_2 = \pi_1
+\end{equation}
+
+\textbf{策略稳定}：算法收敛！
+
+\section{详细计算：状态 $s_5$ 的完整过程}
+
+\subsection{第1次迭代：策略评估}
+
+\textbf{初始}：$Q_0(s_5, a) = 0$ 对所有动作 $a$。
+
+\textbf{第1次评估迭代}：
+
+对动作"上"：
+\begin{align}
+Q_1(s_5, \text{上}) &= \sum_{s', r} p(s', r | s_5, \text{上}) \left[r + \gamma \sum_{a'} \pi_0(a' | s') Q_0(s', a')\right] \\
+                    &= p(s_2, -1 | s_5, \text{上}) \times [-1 + 0.9 \times 0] \\
+                    &= -1
+\end{align}
+
+类似地，所有动作的 $Q_1(s_5, a) = -1$。
+
+\textbf{第2次评估迭代}：
+
+对动作"上"：
+\begin{align}
+Q_2(s_5, \text{上}) &= -1 + 0.9 \times \sum_{a'} \pi_0(a' | s_2) Q_1(s_2, a') \\
+                    &= -1 + 0.9 \times \frac{1}{4} \times (-1) \times 4 \\
+                    &= -1.9
+\end{align}
+
+\textbf{继续迭代}，假设收敛到 $q_{\pi_0}(s_5, \text{上}) = -2.5$。
+
+\subsection{第1次迭代：策略改进}
+
+\textbf{计算所有动作的动作价值}（使用收敛后的 $q_{\pi_0}$）：
+
+\begin{align}
+q_{\pi_0}(s_5, \text{上}) &= -2.5 \\
+q_{\pi_0}(s_5, \text{下}) &= -2.5 \\
+q_{\pi_0}(s_5, \text{左}) &= -2.7 \\
+q_{\pi_0}(s_5, \text{右}) &= -2.7
+\end{align}
+
+\textbf{选择最优动作}：
+\begin{equation}
+\arg\max_{a} q_{\pi_0}(s_5, a) = \text{上} \quad \text{或} \quad \text{下}
+\end{equation}
+
+假设选择"上"。
+
+\textbf{更新策略}：
+\begin{equation}
+\pi_1(s_5) = \text{上}
+\end{equation}
+
+\textbf{更新Q函数}（注意：这里Q函数已经收敛到 $q_{\pi_0}$，策略改进后需要重新评估）。
+
+\subsection{第2次迭代：策略评估}
+
+\textbf{使用策略 $\pi_1$}（在 $s_5$ 选择"上"）：
+
+\textbf{第1次评估迭代}：
+
+对动作"上"：
+\begin{align}
+Q_1(s_5, \text{上}) &= p(s_2, -1 | s_5, \text{上}) \left[-1 + \gamma Q_0(s_2, \pi_1(s_2))\right] \\
+                    &= 1 \times [-1 + 0.9 \times Q_0(s_2, \text{上})] \\
+                    &= -1
+\end{align}
+
+\textbf{第2次评估迭代}：
+
+对动作"上"：
+\begin{align}
+Q_2(s_5, \text{上}) &= -1 + 0.9 \times Q_1(s_2, \pi_1(s_2)) \\
+                    &= -1 + 0.9 \times Q_1(s_2, \text{上}) \\
+                    &= -1 + 0.9 \times (-1) = -1.9
+\end{align}
+
+\textbf{继续迭代}，假设收敛到 $q_{\pi_1}(s_5, \text{上}) = -1.9$。
+
+\subsection{第2次迭代：策略改进}
+
+\textbf{计算所有动作的动作价值}（使用 $q_{\pi_1}$）：
+
+\begin{align}
+q_{\pi_1}(s_5, \text{上}) &= -1.9 \\
+q_{\pi_1}(s_5, \text{下}) &= -1.9 \\
+q_{\pi_1}(s_5, \text{左}) &= -2.71 \\
+q_{\pi_1}(s_5, \text{右}) &= -1.9
+\end{align}
+
+\textbf{选择最优动作}：
+\begin{equation}
+\arg\max_{a} q_{\pi_1}(s_5, a) = \text{上} \quad \text{（或下、右）}
+\end{equation}
+
+当前策略是"上"，保持不变。
+
+\textbf{策略稳定}：$\pi_2(s_5) = \pi_1(s_5) = \text{上}$
+
+\section{动作价值函数表格}
+
+\subsection{第1次迭代后的Q函数（部分）}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{状态} & \textbf{上} & \textbf{下} & \textbf{左} & \textbf{右} \\
+\hline
+$s_2$ & -1.0 & -2.8 & -2.5 & -2.7 \\
+\hline
+$s_5$ & -2.5 & -2.5 & -2.7 & -2.7 \\
+\hline
+$s_8$ & -2.7 & -1.0 & -2.7 & -1.0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{第2次迭代后的Q函数（部分）}
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{状态} & \textbf{上} & \textbf{下} & \textbf{左} & \textbf{右} \\
+\hline
+$s_2$ & -1.0 & -1.9 & -1.9 & -1.9 \\
+\hline
+$s_5$ & -1.9 & -1.9 & -2.71 & -1.9 \\
+\hline
+$s_8$ & -2.71 & -1.0 & -2.71 & -1.0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{与基于状态价值函数的对比}
+
+\subsection{计算过程对比}
+
+\textbf{基于状态价值函数}：
+\begin{enumerate}
+    \item 迭代 $V(s)$ 直到收敛到 $v_\pi$
+    \item 策略改进时，对每个状态计算 $q(s, a) = \sum_{s', r} p(\cdot)[r + \gamma v_\pi(s')]$
+    \item 选择 $\arg\max_{a} q(s, a)$
+\end{enumerate}
+
+\textbf{基于动作价值函数}：
+\begin{enumerate}
+    \item 直接迭代 $Q(s, a)$ 直到收敛到 $q_\pi$
+    \item 策略改进时，直接选择 $\arg\max_{a} Q(s, a)$
+    \item 不需要重新计算动作价值
+\end{enumerate}
+
+\subsection{存储空间对比}
+
+\textbf{基于状态价值函数}：
+\begin{itemize}
+    \item 存储：$|\mathcal{S}|$ 个值
+    \item 策略改进时需要计算 $|\mathcal{S}| \times |\mathcal{A}|$ 个动作价值
+\end{itemize}
+
+\textbf{基于动作价值函数}：
+\begin{itemize}
+    \item 存储：$|\mathcal{S}| \times |\mathcal{A}|$ 个值
+    \item 策略改进时直接使用，不需要计算
+\end{itemize}
+
+\section{算法伪代码}
+
+\begin{algorithm}[H]
+\caption{基于动作价值函数的策略迭代算法}
+\begin{algorithmic}[1]
+\REQUIRE 环境动态 $p(s', r | s, a)$，折扣因子 $\gamma$，收敛阈值 $\theta$
+\ENSURE 最优动作价值函数 $q_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：$Q(s, a) = 0$ 和 $\pi(s)$ 任意初始化
+\REPEAT
+    \STATE \textbf{策略评估}（动作价值函数）：
+    \REPEAT
+        \STATE $\Delta \gets 0$
+        \FOR{每个状态 $s \in \mathcal{S}$}
+            \FOR{每个动作 $a \in \mathcal{A}(s)$}
+                \STATE $q \gets Q(s, a)$
+                \STATE $Q(s, a) \gets \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') Q(s', a')\right]$
+                \STATE $\Delta \gets \max(\Delta, |q - Q(s, a)|)$
+            \ENDFOR
+        \ENDFOR
+    \UNTIL{$\Delta < \theta$}
+    \STATE \textbf{策略改进}：
+    \STATE $\text{policy-stable} \gets \text{true}$
+    \FOR{每个状态 $s \in \mathcal{S}$}
+        \STATE $a_{\text{old}} \gets \pi(s)$
+        \STATE $\pi(s) \gets \arg\max_{a} Q(s, a)$
+        \IF{$a_{\text{old}} \neq \pi(s)$}
+            \STATE $\text{policy-stable} \gets \text{false}$
+        \ENDIF
+    \ENDFOR
+\UNTIL{$\text{policy-stable} = \text{true}$}
+\RETURN $q_* = Q$，$\pi_* = \pi$
+\end{algorithmic}
+\end{algorithmic}
+
+\section{总结}
+
+\subsection{关键步骤}
+
+\begin{enumerate}
+    \item \textbf{策略评估}（动作价值函数）：
+    \begin{itemize}
+        \item 输入：策略 $\pi_k$
+        \item 输出：动作价值函数 $q_{\pi_k}$
+        \item 方法：迭代更新 $Q(s, a)$
+    \end{itemize}
+    
+    \item \textbf{策略改进}：
+    \begin{itemize}
+        \item 输入：动作价值函数 $q_{\pi_k}$
+        \item 输出：新策略 $\pi_{k+1}$
+        \item 方法：$\pi_{k+1}(s) = \arg\max_{a} q_{\pi_k}(s, a)$
+    \end{itemize}
+    
+    \item \textbf{重复}：直到策略不再改变
+\end{enumerate}
+
+\subsection{优势}
+
+\begin{itemize}
+    \item \textbf{策略改进更直接}：不需要重新计算动作价值
+    \item \textbf{存储更多信息}：Q函数包含所有状态-动作对的信息
+    \item \textbf{为后续算法奠定基础}：Q学习等算法都基于Q函数
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4, Exercise 4.5.
+\end{itemize}
+
+\end{document}
+

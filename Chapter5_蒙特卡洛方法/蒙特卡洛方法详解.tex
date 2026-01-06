@@ -1,0 +1,659 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{蒙特卡洛方法详解}
+\subtitle{第5章：从经验中学习价值函数和最优策略}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+\subsection{什么是蒙特卡洛方法？}
+
+\begin{definition}[蒙特卡洛方法]
+\textbf{蒙特卡洛方法}（Monte Carlo Methods）是一类基于平均样本回报来解决强化学习问题的方法。它们只需要经验——从与环境实际或模拟交互中获得的样本序列（状态、动作和奖励）。
+\end{definition}
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item \textbf{不需要完整的环境模型}：只需要经验样本
+    \item \textbf{基于平均样本回报}：通过平均观察到的回报来估计价值函数
+    \item \textbf{只适用于回合制任务}：需要完整的回合才能计算回报
+    \item \textbf{不使用自举法}：不使用其他状态的估计值
+\end{itemize}
+
+\subsection{蒙特卡洛方法的优势}
+
+\textbf{1. 不需要完整的环境模型}：
+\begin{itemize}
+    \item 动态规划需要完整的环境动态 $p(s', r | s, a)$
+    \item 蒙特卡洛方法只需要样本经验
+    \item 可以从实际交互中学习
+\end{itemize}
+
+\textbf{2. 只需要样本生成}：
+\begin{itemize}
+    \item 即使有模型，也只需要生成样本转移
+    \item 不需要完整的概率分布
+    \item 在很多情况下，生成样本比计算分布更容易
+\end{itemize}
+
+\textbf{3. 可以学习最优行为}：
+\begin{itemize}
+    \item 从实际经验中学习，无需先验知识
+    \item 仍然可以达到最优行为
+    \item 适用于未知环境
+\end{itemize}
+
+\subsection{蒙特卡洛方法的限制}
+
+\textbf{1. 只适用于回合制任务}：
+\begin{itemize}
+    \item 需要完整的回合才能计算回报
+    \item 回合必须终止
+    \item 不适用于持续任务
+\end{itemize}
+
+\textbf{2. 回合结束后才能更新}：
+\begin{itemize}
+    \item 不能在线学习（步进式）
+    \item 只能回合式增量学习
+    \item 需要等待回合结束
+\end{itemize}
+
+\section{蒙特卡洛方法 vs 动态规划}
+
+\subsection{对比表格}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{动态规划} & \textbf{蒙特卡洛方法} \\
+\hline
+\textbf{需要模型} & 是（完整模型） & 否（只需要经验） \\
+\hline
+\textbf{更新方式} & 期望更新 & 采样更新 \\
+\hline
+\textbf{自举法} & 是 & 否 \\
+\hline
+\textbf{适用任务} & 所有MDP & 只适用于回合制任务 \\
+\hline
+\textbf{更新时机} & 可以立即更新 & 需要等待回合结束 \\
+\hline
+\textbf{计算复杂度} & $O(|\mathcal{S}|^2 \times |\mathcal{A}|)$ & $O(|\mathcal{S}|)$（每个状态独立） \\
+\hline
+\textbf{方差} & 无（精确） & 有（估计） \\
+\hline
+\textbf{偏差} & 无 & 无（无偏估计） \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{关键区别}
+
+\textbf{1. 更新方式}：
+
+\textbf{动态规划}（期望更新）：
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\textbf{蒙特卡洛方法}（采样更新）：
+\begin{equation}
+v(s) \gets v(s) + \alpha [G_t - v(s)]
+\end{equation}
+
+其中 $G_t$ 是完整的真实回报。
+
+\textbf{2. 自举法}：
+
+\textbf{动态规划}：
+\begin{itemize}
+    \item 使用其他状态的估计值 $v_k(s')$
+    \item 基于估计值更新估计值
+    \item 使用自举法
+\end{itemize}
+
+\textbf{蒙特卡洛方法}：
+\begin{itemize}
+    \item 使用完整的真实回报 $G_t$
+    \item 不依赖其他状态的估计值
+    \item 不使用自举法
+\end{itemize}
+
+\textbf{3. 状态独立性}：
+
+\textbf{动态规划}：
+\begin{itemize}
+    \item 状态之间相互依赖
+    \item 一个状态的更新依赖于其他状态
+    \item 需要扫描整个状态空间
+\end{itemize}
+
+\textbf{蒙特卡洛方法}：
+\begin{itemize}
+    \item 每个状态的估计是独立的
+    \item 一个状态的估计不依赖于其他状态
+    \item 只需要访问过的状态
+\end{itemize}
+
+\section{蒙特卡洛预测（策略评估）}
+
+\subsection{基本思想}
+
+\textbf{目标}：估计给定策略 $\pi$ 的状态价值函数 $v_\pi(s)$。
+
+\textbf{方法}：
+\begin{quote}
+\textbf{平均观察到的回报}：从状态 $s$ 开始，遵循策略 $\pi$，观察回报，然后平均这些回报。
+\end{quote}
+
+\textbf{数学基础}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
+\end{equation}
+
+根据大数定律，如果我们观察足够多的回报，平均值会收敛到期望值。
+
+\subsection{首次访问 vs 每次访问}
+
+\textbf{问题}：一个状态可能在同一个回合中被访问多次。
+
+\textbf{两种方法}：
+
+\textbf{1. 首次访问蒙特卡洛方法}（First-Visit MC）：
+\begin{itemize}
+    \item 只计算\textbf{首次访问}状态 $s$ 后的回报
+    \item 忽略同一回合中的后续访问
+    \item 更广泛研究，理论性质更清楚
+\end{itemize}
+
+\textbf{2. 每次访问蒙特卡洛方法}（Every-Visit MC）：
+\begin{itemize}
+    \item 计算\textbf{所有访问}状态 $s$ 后的回报
+    \item 包括同一回合中的多次访问
+    \item 更自然地扩展到函数逼近和资格迹
+\end{itemize}
+
+\subsection{首次访问蒙特卡洛预测算法}
+
+\begin{algorithm}[H]
+\caption{首次访问蒙特卡洛预测（估计 $v_\pi$）}
+\begin{algorithmic}[1]
+\REQUIRE 要评估的策略 $\pi$
+\ENSURE 状态价值函数 $v_\pi$ 的估计 $V$
+\STATE \textbf{初始化}：
+\STATE $V(s) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$
+\STATE $\text{Returns}(s) \gets$ 空列表，对所有 $s \in \mathcal{S}$
+\STATE
+\REPEAT
+    \STATE \textbf{生成回合}：遵循策略 $\pi$ 生成回合 $S_0, A_0, R_1, S_1, A_1, R_2, \ldots, S_{T-1}, A_{T-1}, R_T$
+    \STATE $G \gets 0$
+    \STATE \textbf{对回合的每一步，$t = T-1, T-2, \ldots, 0$}：
+    \STATE $G \gets \gamma G + R_{t+1}$ \COMMENT{计算回报}
+    \IF{$S_t$ 不在 $S_0, S_1, \ldots, S_{t-1}$ 中出现}
+        \STATE 将 $G$ 追加到 $\text{Returns}(S_t)$
+        \STATE $V(S_t) \gets \text{average}(\text{Returns}(S_t))$
+    \ENDIF
+\UNTIL{收敛}
+\RETURN $V$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{关键步骤}：
+\begin{enumerate}
+    \item \textbf{生成回合}：遵循策略 $\pi$ 生成一个完整的回合
+    \item \textbf{反向计算回报}：从回合结束向前计算每个状态的回报
+    \item \textbf{首次访问检查}：只对首次访问的状态更新
+    \item \textbf{平均回报}：将回报加入列表，计算平均值
+\end{enumerate}
+
+\subsection{回报的计算}
+
+\textbf{回报的定义}：
+\begin{equation}
+G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots + \gamma^{T-t-1} R_T
+\end{equation}
+
+\textbf{反向计算}：
+\begin{align}
+G_{T-1} &= R_T \\
+G_{T-2} &= R_{T-1} + \gamma R_T = R_{T-1} + \gamma G_{T-1} \\
+G_{T-3} &= R_{T-2} + \gamma R_{T-1} + \gamma^2 R_T = R_{T-2} + \gamma G_{T-2} \\
+&\vdots \\
+G_t &= R_{t+1} + \gamma G_{t+1}
+\end{align}
+
+\textbf{算法中的实现}：
+\begin{verbatim}
+G = 0
+for t = T-1, T-2, ..., 0:
+    G = γ * G + R_{t+1}  # 反向计算
+\end{verbatim}
+
+\subsection{收敛性}
+
+\begin{theorem}[首次访问蒙特卡洛收敛性]
+首次访问蒙特卡洛方法在访问次数（或首次访问次数）趋于无穷时，收敛到 $v_\pi(s)$。
+\end{theorem}
+
+\textbf{证明思路}：
+\begin{itemize}
+    \item 每个回报是 $v_\pi(s)$ 的独立同分布估计
+    \item 回报有有限方差
+    \item 根据大数定律，平均值收敛到期望值
+    \item 每个平均值都是无偏估计
+    \item 误差的标准差以 $1/\sqrt{n}$ 的速度下降，其中 $n$ 是平均的回报数量
+\end{itemize}
+
+\textbf{每次访问蒙特卡洛}：
+\begin{itemize}
+    \item 也收敛到 $v_\pi(s)$
+    \item 理论分析更复杂
+    \item 估计也以二次速度收敛
+\end{itemize}
+
+\section{蒙特卡洛估计动作价值函数}
+
+\subsection{为什么需要动作价值函数？}
+
+\textbf{问题}：如果只有状态价值函数 $v_\pi(s)$，如何改进策略？
+
+\textbf{困难}：
+\begin{itemize}
+    \item 策略改进需要比较动作价值：$q_\pi(s, a)$
+    \item 如果只有 $v_\pi(s)$，需要知道环境模型 $p(s', r | s, a)$
+    \item 但蒙特卡洛方法的目标是\textbf{不需要模型}
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{quote}
+\textbf{直接估计动作价值函数 $q_\pi(s, a)$}，而不是状态价值函数 $v_\pi(s)$。
+\end{quote}
+
+\subsection{动作价值函数的估计}
+
+\textbf{方法}：
+\begin{quote}
+\textbf{平均观察到的回报}：在状态 $s$ 采取动作 $a$，然后遵循策略 $\pi$，观察回报，然后平均这些回报。
+\end{quote}
+
+\textbf{数学基础}：
+\begin{equation}
+q_\pi(s, a) = \mathbb{E}_\pi[G_t | S_t = s, A_t = a]
+\end{equation}
+
+\subsection{首次访问蒙特卡洛动作价值估计算法}
+
+\begin{algorithm}[H]
+\caption{首次访问蒙特卡洛动作价值估计（估计 $q_\pi$）}
+\begin{algorithmic}[1]
+\REQUIRE 要评估的策略 $\pi$
+\ENSURE 动作价值函数 $q_\pi$ 的估计 $Q$
+\STATE \textbf{初始化}：
+\STATE $Q(s, a) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE $\text{Returns}(s, a) \gets$ 空列表，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE
+\REPEAT
+    \STATE \textbf{生成回合}：遵循策略 $\pi$ 生成回合 $S_0, A_0, R_1, S_1, A_1, R_2, \ldots, S_{T-1}, A_{T-1}, R_T$
+    \STATE $G \gets 0$
+    \STATE \textbf{对回合的每一步，$t = T-1, T-2, \ldots, 0$}：
+    \STATE $G \gets \gamma G + R_{t+1}$ \COMMENT{计算回报}
+    \IF{$(S_t, A_t)$ 不在 $(S_0, A_0), (S_1, A_1), \ldots, (S_{t-1}, A_{t-1})$ 中出现}
+        \STATE 将 $G$ 追加到 $\text{Returns}(S_t, A_t)$
+        \STATE $Q(S_t, A_t) \gets \text{average}(\text{Returns}(S_t, A_t))$
+    \ENDIF
+\UNTIL{收敛}
+\RETURN $Q$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{探索问题}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 如果策略 $\pi$ 是确定性的，某些状态-动作对可能永远不会被访问
+    \item 如果 $(s, a)$ 从未被访问，$Q(s, a)$ 无法估计
+    \item 无法进行策略改进
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{enumerate}
+    \item \textbf{探索性开始}（Exploring Starts）：确保所有状态-动作对都有非零概率被访问
+    \item \textbf{随机策略}：使用随机策略，确保所有动作都有被选择的概率
+    \item \textbf{$\varepsilon$-贪婪策略}：以 $\varepsilon$ 的概率随机选择动作，以 $1-\varepsilon$ 的概率选择最优动作
+\end{enumerate}
+
+\section{蒙特卡洛控制}
+
+\subsection{广义策略迭代（GPI）}
+
+\textbf{蒙特卡洛控制也使用GPI框架}：
+
+\begin{enumerate}
+    \item \textbf{策略评估}：估计动作价值函数 $q_\pi$
+    \item \textbf{策略改进}：基于 $q_\pi$ 改进策略
+    \item \textbf{重复}：直到收敛到最优策略
+\end{enumerate}
+
+\textbf{与动态规划的区别}：
+\begin{itemize}
+    \item 动态规划：从模型计算价值函数
+    \item 蒙特卡洛：从样本回报学习价值函数
+    \item 但GPI框架相同
+\end{itemize}
+
+\subsection{蒙特卡洛控制算法（探索性开始）}
+
+\begin{algorithm}[H]
+\caption{蒙特卡洛控制（探索性开始）}
+\begin{algorithmic}[1]
+\REQUIRE 所有状态-动作对都有非零概率被访问
+\ENSURE 最优动作价值函数 $q_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：
+\STATE $Q(s, a) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE $\pi(s) \in \mathcal{A}(s)$ 任意初始化，对所有 $s \in \mathcal{S}$
+\STATE $\text{Returns}(s, a) \gets$ 空列表，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE
+\REPEAT
+    \STATE \textbf{生成回合}（探索性开始）：随机选择 $S_0 \in \mathcal{S}$，$A_0 \in \mathcal{A}(S_0)$，然后遵循策略 $\pi$ 生成回合
+    \STATE $G \gets 0$
+    \STATE \textbf{对回合的每一步，$t = T-1, T-2, \ldots, 0$}：
+    \STATE $G \gets \gamma G + R_{t+1}$
+    \IF{$(S_t, A_t)$ 不在 $(S_0, A_0), (S_1, A_1), \ldots, (S_{t-1}, A_{t-1})$ 中出现}
+        \STATE 将 $G$ 追加到 $\text{Returns}(S_t, A_t)$
+        \STATE $Q(S_t, A_t) \gets \text{average}(\text{Returns}(S_t, A_t))$
+        \STATE $\pi(S_t) \gets \arg\max_{a} Q(S_t, a)$ \COMMENT{策略改进}
+    \ENDIF
+\UNTIL{策略稳定}
+\RETURN $q_* = Q$，$\pi_* = \pi$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item \textbf{探索性开始}：每个回合从随机状态-动作对开始
+    \item \textbf{策略评估}：估计动作价值函数
+    \item \textbf{策略改进}：选择使动作价值最大的动作
+    \item \textbf{交替进行}：评估和改进交替进行
+\end{itemize}
+
+\section{无探索性开始的蒙特卡洛控制}
+
+\subsection{问题}
+
+\textbf{探索性开始的限制}：
+\begin{itemize}
+    \item 在实际应用中，可能无法控制起始状态-动作对
+    \item 需要确保所有状态-动作对都被访问
+    \item 探索性开始可能不现实
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{quote}
+\textbf{使用随机策略}，确保所有动作都有被选择的概率。
+\end{quote}
+
+\subsection{$\varepsilon$-贪婪策略}
+
+\begin{definition}[$\varepsilon$-贪婪策略]
+\textbf{$\varepsilon$-贪婪策略}以 $1-\varepsilon$ 的概率选择最优动作，以 $\varepsilon$ 的概率随机选择动作。
+\end{definition}
+
+\textbf{数学表达}：
+\begin{equation}
+\pi(a | s) = \begin{cases}
+1 - \varepsilon + \frac{\varepsilon}{|\mathcal{A}(s)|} & \text{如果 } a = \arg\max_{a'} Q(s, a') \\
+\frac{\varepsilon}{|\mathcal{A}(s)|} & \text{其他}
+\end{cases}
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 保证所有动作都有非零概率
+    \item 仍然主要选择最优动作
+    \item 平衡探索和利用
+\end{itemize}
+
+\subsection{无探索性开始的蒙特卡洛控制算法}
+
+\begin{algorithm}[H]
+\caption{蒙特卡洛控制（无探索性开始，$\varepsilon$-贪婪）}
+\begin{algorithmic}[1]
+\REQUIRE 所有状态-动作对都有非零概率被访问（通过 $\varepsilon$-贪婪策略）
+\ENSURE 最优动作价值函数 $q_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：
+\STATE $Q(s, a) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE $\pi$ 为 $\varepsilon$-贪婪策略，基于 $Q$
+\STATE $\text{Returns}(s, a) \gets$ 空列表，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE
+\REPEAT
+    \STATE \textbf{生成回合}：遵循策略 $\pi$ 生成回合
+    \STATE $G \gets 0$
+    \STATE \textbf{对回合的每一步，$t = T-1, T-2, \ldots, 0$}：
+    \STATE $G \gets \gamma G + R_{t+1}$
+    \IF{$(S_t, A_t)$ 不在 $(S_0, A_0), (S_1, A_1), \ldots, (S_{t-1}, A_{t-1})$ 中出现}
+        \STATE 将 $G$ 追加到 $\text{Returns}(S_t, A_t)$
+        \STATE $Q(S_t, A_t) \gets \text{average}(\text{Returns}(S_t, A_t))$
+        \STATE $\pi(S_t) \gets \varepsilon$-贪婪策略，基于 $Q(S_t, \cdot)$
+    \ENDIF
+\UNTIL{策略稳定}
+\RETURN $q_* = Q$，$\pi_* = \pi$
+\end{algorithmic}
+\end{algorithm}
+
+\section{离策略蒙特卡洛控制}
+
+\subsection{问题}
+
+\textbf{在策略 vs 离策略}：
+\begin{itemize}
+    \item \textbf{在策略}（On-Policy）：评估和改进的是同一个策略
+    \item \textbf{离策略}（Off-Policy）：评估一个策略，但改进另一个策略
+\end{itemize}
+
+\textbf{为什么需要离策略？}：
+\begin{itemize}
+    \item 学习最优策略，同时保持探索
+    \item 从其他智能体的经验中学习
+    \item 重用旧策略的数据
+\end{itemize}
+
+\subsection{重要性采样}
+
+\textbf{基本思想}：
+\begin{quote}
+使用一个策略（行为策略 $b$）生成数据，但评估另一个策略（目标策略 $\pi$）。
+\end{quote}
+
+\textbf{重要性采样比率}：
+\begin{equation}
+\rho_{t:T-1} = \prod_{k=t}^{T-1} \frac{\pi(A_k | S_k)}{b(A_k | S_k)} \frac{p(S_{k+1} | S_k, A_k)}{p(S_{k+1} | S_k, A_k)} = \prod_{k=t}^{T-1} \frac{\pi(A_k | S_k)}{b(A_k | S_k)}
+\end{equation}
+
+\textbf{加权回报}：
+\begin{equation}
+V(s) \gets V(s) + \alpha [\rho_{t:T-1} G_t - V(s)]
+\end{equation}
+
+\subsection{离策略蒙特卡洛控制算法}
+
+\begin{algorithm}[H]
+\caption{离策略蒙特卡洛控制}
+\begin{algorithmic}[1]
+\REQUIRE 行为策略 $b$（探索性），目标策略 $\pi$（确定性，贪婪）
+\ENSURE 最优动作价值函数 $q_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：
+\STATE $Q(s, a) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE $C(s, a) \gets 0$，对所有 $s \in \mathcal{S}$，$a \in \mathcal{A}(s)$
+\STATE $\pi$ 为确定性贪婪策略，基于 $Q$
+\STATE
+\REPEAT
+    \STATE \textbf{生成回合}：遵循行为策略 $b$ 生成回合
+    \STATE $G \gets 0$
+    \STATE $W \gets 1$ \COMMENT{重要性采样权重}
+    \STATE \textbf{对回合的每一步，$t = T-1, T-2, \ldots, 0$}：
+    \STATE $G \gets \gamma G + R_{t+1}$
+    \STATE $C(S_t, A_t) \gets C(S_t, A_t) + W$
+    \STATE $Q(S_t, A_t) \gets Q(S_t, A_t) + \frac{W}{C(S_t, A_t)} [G - Q(S_t, A_t)]$
+    \STATE $\pi(S_t) \gets \arg\max_{a} Q(S_t, a)$
+    \IF{$A_t \neq \pi(S_t)$}
+        \STATE \textbf{退出内层循环} \COMMENT{如果动作不匹配，停止更新}
+    \ENDIF
+    \STATE $W \gets W \frac{1}{b(A_t | S_t)}$ \COMMENT{更新重要性采样权重}
+\UNTIL{策略稳定}
+\RETURN $q_* = Q$，$\pi_* = \pi$
+\end{algorithmic}
+\end{algorithm}
+
+\section{蒙特卡洛方法的优缺点}
+
+\subsection{优点}
+
+\textbf{1. 不需要环境模型}：
+\begin{itemize}
+    \item 只需要经验样本
+    \item 可以从实际交互中学习
+    \item 适用于未知环境
+\end{itemize}
+
+\textbf{2. 可以只使用样本生成}：
+\begin{itemize}
+    \item 即使有模型，也只需要生成样本
+    \item 不需要完整的概率分布
+    \item 在很多情况下更容易
+\end{itemize}
+
+\textbf{3. 状态独立性}：
+\begin{itemize}
+    \item 每个状态的估计是独立的
+    \item 只需要访问过的状态
+    \item 计算复杂度与状态数量无关（对单个状态）
+\end{itemize}
+
+\textbf{4. 无偏估计}：
+\begin{itemize}
+    \item 估计是无偏的
+    \item 收敛到真实值
+    \item 不需要自举法
+\end{itemize}
+
+\subsection{缺点}
+
+\textbf{1. 只适用于回合制任务}：
+\begin{itemize}
+    \item 需要完整的回合
+    \item 回合必须终止
+    \item 不适用于持续任务
+\end{itemize}
+
+\textbf{2. 需要等待回合结束}：
+\begin{itemize}
+    \item 不能在线学习
+    \item 只能回合式学习
+    \item 学习速度可能较慢
+\end{itemize}
+
+\textbf{3. 高方差}：
+\begin{itemize}
+    \item 使用单个样本回报
+    \item 方差可能很大
+    \item 需要很多样本才能收敛
+\end{itemize}
+
+\textbf{4. 探索问题}：
+\begin{itemize}
+    \item 需要确保所有状态-动作对被访问
+    \item 可能需要探索性开始或随机策略
+    \item 探索策略可能不是最优的
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{定义}：蒙特卡洛方法基于平均样本回报来估计价值函数
+    
+    \item \textbf{关键特征}：
+    \begin{itemize}
+        \item 不需要完整的环境模型
+        \item 只需要经验样本
+        \item 只适用于回合制任务
+        \item 不使用自举法
+    \end{itemize}
+    
+    \item \textbf{主要算法}：
+    \begin{itemize}
+        \item 首次访问蒙特卡洛预测
+        \item 每次访问蒙特卡洛预测
+        \item 蒙特卡洛控制（探索性开始）
+        \item 蒙特卡洛控制（$\varepsilon$-贪婪）
+        \item 离策略蒙特卡洛控制
+    \end{itemize}
+    
+    \item \textbf{与动态规划的区别}：
+    \begin{itemize}
+        \item 动态规划：期望更新，需要模型，使用自举法
+        \item 蒙特卡洛：采样更新，不需要模型，不使用自举法
+    \end{itemize}
+    
+    \item \textbf{优势}：
+    \begin{itemize}
+        \item 不需要环境模型
+        \item 状态独立性
+        \item 无偏估计
+    \end{itemize}
+    
+    \item \textbf{局限性}：
+    \begin{itemize}
+        \item 只适用于回合制任务
+        \item 需要等待回合结束
+        \item 高方差
+        \item 探索问题
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{蒙特卡洛方法通过平均观察到的回报来估计价值函数，不需要完整的环境模型，只需要经验样本。虽然只适用于回合制任务，但它们提供了从实际交互中学习的能力，这对于许多实际应用非常重要。}
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 5.
+\end{itemize}
+
+\end{document}
+

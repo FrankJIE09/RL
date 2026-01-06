@@ -1,0 +1,531 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+
+\geometry{margin=2.5cm}
+
+\title{为什么单步搜索就能得到全局最优？}
+\subtitle{贝尔曼最优性方程的核心洞察}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+在强化学习中，有一个看似矛盾但极其重要的结论：
+
+\begin{quote}
+\textbf{最优的长期（全局）回报期望值可以转化为每个状态对应的一个当前局部量的计算。因此，一次单步搜索就可以产生长期（或说全局）最优的动作序列。}
+\end{quote}
+
+这个结论是贝尔曼最优性方程（Bellman Optimality Equation）的核心洞察。本文档将详细解释为什么这个看似不可能的事情是成立的。
+
+\section{问题的本质}
+
+\subsection{全局优化问题的挑战}
+
+在马尔可夫决策过程（MDP）中，我们的目标是找到一个策略 $\pi$，使得从任意初始状态 $s_0$ 开始，期望累积回报最大：
+
+\begin{equation}
+\max_\pi \mathbb{E}_\pi\left[\sum_{k=0}^\infty \gamma^k R_{t+k+1} \Big| S_t = s_0\right]
+\label{eq:global_objective}
+\end{equation}
+
+这是一个\textbf{全局优化问题}，因为：
+\begin{itemize}
+    \item 需要同时考虑所有时间步的决策
+    \item 当前决策会影响未来所有时间步的回报
+    \item 理论上需要搜索所有可能的动作序列
+\end{itemize}
+
+如果状态空间和动作空间都很大，直接求解这个全局优化问题在计算上是不可行的。
+
+\subsection{贝尔曼最优性方程的奇迹}
+
+然而，贝尔曼最优性方程告诉我们，这个全局优化问题可以转化为：
+
+\begin{enumerate}
+    \item \textbf{局部计算}：为每个状态 $s$ 计算一个局部量 $v_*(s)$
+    \item \textbf{单步决策}：在每个状态，只需比较一步内的动作选择
+    \item \textbf{自动全局最优}：这种局部贪婪选择自动产生全局最优策略
+\end{enumerate}
+
+这看起来像是一个"免费午餐"——为什么局部最优选择能保证全局最优？答案在于\textbf{最优子结构}（Optimal Substructure）和\textbf{马尔可夫性质}。
+
+\section{最优状态价值函数}
+
+\subsection{定义}
+
+\begin{definition}[最优状态价值函数]
+最优状态价值函数 $v_*(s)$ 定义为所有可能策略中，状态 $s$ 的最大价值：
+\begin{equation}
+v_*(s) \doteq \max_\pi v_\pi(s) = \max_\pi \mathbb{E}_\pi\left[\sum_{k=0}^\infty \gamma^k R_{t+k+1} \Big| S_t = s\right]
+\label{eq:optimal_v_definition}
+\end{equation}
+\end{definition}
+
+\textbf{关键洞察}：$v_*(s)$ 已经\textbf{编码了全局信息}。它表示从状态 $s$ 开始，如果遵循最优策略，能够获得的\textbf{最大期望累积回报}。
+
+\subsection{为什么 $v_*(s)$ 是"局部量"？}
+
+虽然 $v_*(s)$ 表示全局最优回报，但它是一个\textbf{局部量}，因为：
+\begin{itemize}
+    \item 它只依赖于状态 $s$，不依赖于到达 $s$ 的路径
+    \item 它可以通过递归关系（贝尔曼方程）局部计算
+    \item 一旦计算出所有状态的 $v_*(s)$，就可以存储在表格中，每个状态一个值
+\end{itemize}
+
+\section{贝尔曼最优性方程}
+
+\subsection{状态价值函数的贝尔曼最优性方程}
+
+\begin{theorem}[状态价值函数的贝尔曼最优性方程]
+最优状态价值函数 $v_*(s)$ 满足以下递归关系：
+\begin{equation}
+v_*(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\label{eq:bellman_optimal_v}
+\end{equation}
+对所有 $s \in \mathcal{S}$ 成立。
+\end{theorem}
+
+\subsection{方程的含义}
+
+这个方程告诉我们：
+
+\begin{enumerate}
+    \item \textbf{全局最优 = 局部最优}：状态 $s$ 的全局最优价值 $v_*(s)$ 等于在当前状态选择最优动作，然后加上从下一状态开始的最优价值。
+    
+    \item \textbf{递归结构}：当前状态的最优价值依赖于下一状态的最优价值，形成递归关系。
+    
+    \item \textbf{单步决策}：要计算 $v_*(s)$，只需要考虑\textbf{一步}内的动作选择，不需要考虑整个动作序列。
+\end{enumerate}
+
+\subsection{推导过程}
+
+从最优价值函数的定义出发：
+
+\begin{align}
+v_*(s) &= \max_\pi v_\pi(s) \\
+       &= \max_\pi \mathbb{E}_\pi\left[\sum_{k=0}^\infty \gamma^k R_{t+k+1} \Big| S_t = s\right]
+\end{align}
+
+将回报分解为即时奖励和未来回报：
+
+\begin{align}
+v_*(s) &= \max_\pi \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s]
+\end{align}
+
+对动作和下一状态进行全概率展开：
+
+\begin{align}
+v_*(s) &= \max_\pi \sum_{a \in \mathcal{A}(s)} \pi(a | s) \sum_{s', r} p(s', r | s, a) \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s, A_t = a, S_{t+1} = s', R_{t+1} = r]
+\end{align}
+
+由于马尔可夫性质，给定 $S_{t+1} = s'$，$G_{t+1}$ 的分布只依赖于 $s'$ 和后续策略：
+
+\begin{align}
+v_*(s) &= \max_\pi \sum_{a \in \mathcal{A}(s)} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma \mathbb{E}_\pi[G_{t+1} | S_{t+1} = s']] \\
+       &= \max_\pi \sum_{a \in \mathcal{A}(s)} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{align}
+
+\textbf{关键步骤}：对于最优策略，在状态 $s$ 下应该选择使期望回报最大的动作。因此，最优策略在状态 $s$ 是\textbf{确定性的}，只选择最优动作：
+
+\begin{align}
+v_*(s) &= \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\end{align}
+
+注意：这里 $v_\pi(s')$ 变成了 $v_*(s')$，因为最优策略在状态 $s'$ 也应该是最优的。
+
+\section{为什么单步搜索就能得到全局最优？}
+
+\subsection{最优子结构}
+
+贝尔曼最优性方程揭示了MDP问题的\textbf{最优子结构}（Optimal Substructure）：
+
+\begin{quote}
+\textbf{如果从状态 $s$ 开始的最优策略是选择动作 $a$，然后从状态 $s'$ 开始遵循最优策略，那么从状态 $s'$ 开始的最优策略就是从 $s'$ 开始的最优策略。}
+\end{quote}
+
+这意味着：
+\begin{itemize}
+    \item 全局最优解由局部最优解组成
+    \item 如果每一步都选择局部最优动作，整个序列就是全局最优的
+    \item 不需要考虑"未来可能改变策略"的情况
+\end{itemize}
+
+\subsection{贪婪策略的最优性}
+
+\begin{proposition}[贪婪策略的最优性]
+定义策略 $\pi_*$ 为：
+\begin{equation}
+\pi_*(a | s) = \begin{cases}
+1, & \text{如果 } a = \arg\max_{a'} \sum_{s', r} p(s', r | s, a') [r + \gamma v_*(s')] \\
+0, & \text{否则}
+\end{cases}
+\label{eq:greedy_policy}
+\end{equation}
+则 $\pi_*$ 是最优策略。
+\end{proposition}
+
+\textbf{证明思路}：
+
+\begin{enumerate}
+    \item 贪婪策略 $\pi_*$ 在每一步都选择使 $r + \gamma v_*(s')$ 最大的动作。
+    
+    \item 由于 $v_*(s')$ 已经是从 $s'$ 开始的全局最优价值，选择使 $r + \gamma v_*(s')$ 最大的动作，就是选择使从 $s$ 开始的全局期望回报最大的动作。
+    
+    \item 因此，$\pi_*$ 的价值函数 $v_{\pi_*}(s)$ 满足：
+    \begin{equation}
+    v_{\pi_*}(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_{\pi_*}(s')]
+    \end{equation}
+    
+    \item 这与 $v_*(s)$ 的贝尔曼最优性方程相同，因此 $v_{\pi_*}(s) = v_*(s)$ 对所有 $s$ 成立。
+    
+    \item 所以 $\pi_*$ 是最优策略。
+\end{enumerate}
+
+\subsection{为什么不需要搜索整个动作序列？}
+
+关键在于 $v_*(s')$ 已经\textbf{预计算}了从 $s'$ 开始的全局最优回报。因此：
+
+\begin{itemize}
+    \item 在状态 $s$，我们不需要知道"如果选择动作 $a$，未来会采取什么动作序列"
+    \item 我们只需要知道"如果选择动作 $a$，会到达状态 $s'$，而从 $s'$ 开始的最优价值是 $v_*(s')$"
+    \item 比较所有动作的 $r + \gamma v_*(s')$，选择最大值即可
+\end{itemize}
+
+这就是为什么\textbf{一次单步搜索}就能产生全局最优动作序列的原因。
+
+\section{直观理解}
+
+\subsection{类比：最短路径问题}
+
+贝尔曼最优性方程类似于图论中的最短路径问题：
+
+\begin{itemize}
+    \item \textbf{全局问题}：找到从起点到终点的最短路径
+    \item \textbf{局部计算}：为每个节点计算"从该节点到终点的最短距离"
+    \item \textbf{单步决策}：在每个节点，选择使"当前边权重 + 下一节点最短距离"最小的边
+    \item \textbf{全局最优}：这种局部贪婪选择自动产生全局最短路径
+\end{itemize}
+
+在MDP中：
+\begin{itemize}
+    \item 节点 = 状态
+    \item 边 = 动作
+    \item 边权重 = 即时奖励
+    \item 节点距离 = 状态价值函数
+    \item 折扣因子 = 考虑未来距离的权重
+\end{itemize}
+
+\subsection{为什么这可行？}
+
+关键在于\textbf{马尔可夫性质}：
+
+\begin{quote}
+\textbf{给定当前状态，未来与过去独立。}
+\end{quote}
+
+这意味着：
+\begin{itemize}
+    \item 从状态 $s$ 开始的最优策略，不依赖于如何到达 $s$
+    \item 因此，$v_*(s)$ 是一个\textbf{状态函数}，只依赖于 $s$，不依赖于历史
+    \item 一旦计算出 $v_*(s)$，它就可以被"重用"，无论从哪个路径到达 $s$
+\end{itemize}
+
+\section{计算过程}
+
+\subsection{价值迭代算法}
+
+价值迭代（Value Iteration）算法展示了如何通过局部计算得到全局最优：
+
+\begin{algorithm}[H]
+\caption{价值迭代算法}
+\begin{algorithmic}[1]
+\REQUIRE 环境动态 $p(s', r | s, a)$，折扣因子 $\gamma$
+\ENSURE 最优价值函数 $v_*$
+\STATE 初始化 $v_0(s) = 0$ 对所有 $s$
+\REPEAT
+    \FOR{每个状态 $s$}
+        \STATE $v_{k+1}(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]$
+    \ENDFOR
+\UNTIL{收敛}
+\RETURN $v_* = v_k$
+\end{algorithmic}
+\end{algorithmic}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 每次迭代只更新\textbf{一个状态}的价值（局部计算）
+    \item 不需要考虑整个动作序列
+    \item 通过迭代，所有状态的价值收敛到全局最优值
+\end{itemize}
+
+\subsection{从最优价值函数得到最优策略}
+
+一旦计算出 $v_*(s)$，最优策略可以通过\textbf{单步搜索}得到：
+
+\begin{algorithm}[H]
+\caption{从最优价值函数得到最优策略}
+\begin{algorithmic}[1]
+\REQUIRE 最优价值函数 $v_*$，环境动态 $p(s', r | s, a)$
+\ENSURE 最优策略 $\pi_*$
+\FOR{每个状态 $s$}
+    \STATE $\pi_*(s) = \arg\max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]$
+\ENDFOR
+\RETURN $\pi_*$
+\end{algorithmic}
+\end{algorithmic}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 对每个状态，只需要\textbf{比较一步内的动作}
+    \item 不需要搜索整个动作序列
+    \item 这种局部贪婪选择自动产生全局最优策略
+\end{itemize}
+
+\section{数学证明}
+
+\subsection{最优策略的存在性}
+
+\begin{theorem}[最优策略的存在性]
+在有限MDP中，如果 $\gamma < 1$ 或所有策略都是适当的（proper），则存在唯一的最优价值函数 $v_*$，以及至少一个最优策略 $\pi_*$。
+\end{theorem}
+
+\textbf{证明思路}：
+\begin{enumerate}
+    \item 贝尔曼最优性方程定义了一个算子 $T_*$：
+    \begin{equation}
+    (T_* v)(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v(s')]
+    \end{equation}
+    
+    \item $T_*$ 是一个\textbf{压缩映射}（contraction mapping），即存在 $\gamma < 1$ 使得：
+    \begin{equation}
+    \|T_* v_1 - T_* v_2\|_\infty \leq \gamma \|v_1 - v_2\|_\infty
+    \end{equation}
+    
+    \item 根据压缩映射定理，$T_*$ 有唯一不动点 $v_*$，满足 $T_* v_* = v_*$。
+    
+    \item 这个不动点就是最优价值函数。
+    
+    \item 从 $v_*$ 构造的贪婪策略 $\pi_*$ 是最优策略。
+\end{enumerate}
+
+\subsection{贪婪策略的最优性证明}
+
+\begin{theorem}[贪婪策略的最优性]
+如果策略 $\pi$ 相对于价值函数 $v$ 是贪婪的，即：
+\begin{equation}
+\pi(a | s) = \begin{cases}
+1, & \text{如果 } a = \arg\max_{a'} \sum_{s', r} p(s', r | s, a') [r + \gamma v(s')] \\
+0, & \text{否则}
+\end{cases}
+\end{equation}
+且 $v$ 满足 $v = T_* v$（即 $v$ 是最优价值函数），则 $\pi$ 是最优策略。
+\end{theorem}
+
+\textbf{证明}：
+
+由于 $\pi$ 相对于 $v_*$ 是贪婪的，我们有：
+\begin{equation}
+\sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')] = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')] = v_*(s)
+\end{equation}
+
+因此，$\pi$ 的价值函数 $v_\pi$ 满足：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+由于 $v_*$ 是唯一满足 $v_* = T_* v_*$ 的函数，且 $v_\pi$ 也满足这个方程（因为 $\pi$ 是贪婪的），我们有 $v_\pi = v_*$。
+
+因此，$\pi$ 是最优策略。$\square$
+
+\section{数值示例}
+
+\subsection{简单网格世界}
+
+考虑一个 $3 \times 3$ 网格世界：
+\begin{itemize}
+    \item 状态：9个格子，编号为 $s_1$ 到 $s_9$
+    \item 动作：上、下、左、右
+    \item 目标：$s_9$ 是终止状态，到达获得奖励 $+10$
+    \item 每步移动奖励：$-1$
+    \item 折扣因子：$\gamma = 0.9$
+\end{itemize}
+
+\subsection{计算最优价值函数}
+
+使用价值迭代算法，经过多次迭代后，得到最优价值函数 $v_*$（近似值）：
+
+\begin{center}
+\begin{tabular}{c|c|c}
+$v_*(s_1) \approx 5.3$ & $v_*(s_2) \approx 6.2$ & $v_*(s_3) \approx 7.1$ \\
+\hline
+$v_*(s_4) \approx 6.2$ & $v_*(s_5) \approx 7.1$ & $v_*(s_6) \approx 8.0$ \\
+\hline
+$v_*(s_7) \approx 7.1$ & $v_*(s_8) \approx 8.0$ & $v_*(s_9) = 10.0$ \\
+\end{tabular}
+\end{center}
+
+\subsection{单步搜索得到最优策略}
+
+在状态 $s_5$（中心），计算每个动作的价值：
+
+\begin{align}
+q_*(s_5, \text{上}) &= -1 + 0.9 \times v_*(s_2) = -1 + 0.9 \times 6.2 = 4.58 \\
+q_*(s_5, \text{下}) &= -1 + 0.9 \times v_*(s_8) = -1 + 0.9 \times 8.0 = 6.20 \\
+q_*(s_5, \text{左}) &= -1 + 0.9 \times v_*(s_4) = -1 + 0.9 \times 6.2 = 4.58 \\
+q_*(s_5, \text{右}) &= -1 + 0.9 \times v_*(s_6) = -1 + 0.9 \times 8.0 = 6.20
+\end{align}
+
+因此，在状态 $s_5$ 的最优动作是"下"或"右"（两者价值相同）。
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 我们只需要\textbf{比较一步内的动作}（单步搜索）
+    \item 不需要考虑"如果选择'上'，未来会采取什么动作序列"
+    \item $v_*(s_2)$ 已经编码了从 $s_2$ 开始的全局最优回报
+    \item 因此，选择使 $r + \gamma v_*(s')$ 最大的动作，就是全局最优选择
+\end{itemize}
+
+\section{为什么这很重要？}
+
+\subsection{计算效率}
+
+如果直接搜索所有可能的动作序列：
+\begin{itemize}
+    \item 状态数：$|\mathcal{S}|$
+    \item 每个状态的动作数：$|\mathcal{A}|$
+    \item 时间步数：$T$（可能是无穷）
+    \item 可能的动作序列数：$|\mathcal{A}|^T$（指数级增长）
+\end{itemize}
+
+使用贝尔曼最优性方程：
+\begin{itemize}
+    \item 需要计算的状态价值数：$|\mathcal{S}|$（线性）
+    \item 每个状态的计算：比较 $|\mathcal{A}|$ 个动作（线性）
+    \item 总计算复杂度：$O(|\mathcal{S}| \times |\mathcal{A}|)$（多项式）
+\end{itemize}
+
+\textbf{从指数级降低到多项式级！}
+
+\subsection{理论基础}
+
+贝尔曼最优性方程是许多强化学习算法的理论基础：
+\begin{itemize}
+    \item \textbf{价值迭代}：直接使用贝尔曼最优性方程迭代更新价值函数
+    \item \textbf{策略迭代}：交替进行策略评估和策略改进
+    \item \textbf{Q学习}：使用最优动作价值函数的贝尔曼方程
+    \item \textbf{深度Q网络（DQN）}：使用神经网络近似最优Q函数
+\end{itemize}
+
+\section{常见误解}
+
+\subsection{误解一：局部最优 = 全局最优总是成立}
+
+\textbf{误解}：在任何优化问题中，局部最优选择都能保证全局最优。
+
+\textbf{澄清}：这\textbf{不是}普遍成立的。只有在具有\textbf{最优子结构}的问题中才成立，而MDP恰好具有这个性质。
+
+\textbf{反例}：在一般的非凸优化问题中，局部最优可能不是全局最优。
+
+\subsection{误解二：不需要考虑未来}
+
+\textbf{误解}：单步搜索意味着不需要考虑未来。
+
+\textbf{澄清}：我们\textbf{确实}考虑了未来，但通过 $v_*(s')$ 间接考虑。$v_*(s')$ 已经编码了从 $s'$ 开始的所有未来最优决策。
+
+\subsection{误解三：贪婪策略总是最优}
+
+\textbf{误解}：在任何情况下，贪婪策略都是最优的。
+
+\textbf{澄清}：只有在\textbf{已知最优价值函数}的情况下，贪婪策略才是最优的。如果价值函数不准确，贪婪策略可能不是最优的。
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{全局到局部的转化}：
+    \begin{itemize}
+        \item 最优的长期回报期望值 $v_*(s)$ 可以存储在局部量中
+        \item 每个状态只需要一个数值
+        \item 通过贝尔曼最优性方程递归计算
+    \end{itemize}
+    
+    \item \textbf{单步搜索的可行性}：
+    \begin{itemize}
+        \item 由于最优子结构，局部贪婪选择保证全局最优
+        \item 不需要搜索整个动作序列
+        \item 只需要比较一步内的动作选择
+    \end{itemize}
+    
+    \item \textbf{马尔可夫性质的关键作用}：
+    \begin{itemize}
+        \item 使得 $v_*(s)$ 只依赖于 $s$，不依赖于历史
+        \item 使得最优策略可以"重用"已计算的价值函数
+    \end{itemize}
+    
+    \item \textbf{计算效率的巨大提升}：
+    \begin{itemize}
+        \item 从指数级复杂度降低到多项式级
+        \item 使得大规模MDP问题的求解成为可能
+    \end{itemize}
+\end{enumerate}
+
+\subsection{数学表达}
+
+贝尔曼最优性方程的核心是：
+
+\begin{equation}
+v_*(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\end{equation}
+
+这个方程告诉我们：
+\begin{itemize}
+    \item \textbf{左边}：全局最优价值（从 $s$ 开始的长期最优回报）
+    \item \textbf{右边}：局部计算（一步内的最优选择 + 未来最优价值）
+    \item \textbf{等号}：全局最优 = 局部最优
+\end{itemize}
+
+\subsection{哲学意义}
+
+贝尔曼最优性方程揭示了：
+\begin{itemize}
+    \item \textbf{结构的重要性}：问题的结构（最优子结构）使得复杂问题可以简化
+    \item \textbf{递归的力量}：通过递归关系，局部信息可以编码全局信息
+    \item \textbf{数学的美妙}：看似不可能的事情，通过正确的数学框架，变得可能
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 3.
+    \item Bellman, R. (1957). \textit{Dynamic Programming}. Princeton University Press.
+    \item Puterman, M. L. (2014). \textit{Markov Decision Processes: Discrete Stochastic Dynamic Programming}. John Wiley \& Sons.
+\end{itemize}
+
+\end{document}
+

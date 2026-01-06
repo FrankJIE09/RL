@@ -1,0 +1,911 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{异步动态规划详解}
+\subtitle{4.5节：异步更新与同步更新的对比}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+\subsection{同步动态规划的局限性}
+
+到目前为止讨论的动态规划方法（策略迭代、价值迭代）都有一个主要缺点：
+
+\textbf{问题}：
+\begin{itemize}
+    \item 它们涉及对整个状态集的操作
+    \item 需要\textbf{系统性地扫描}（sweep）整个状态集
+    \item 如果状态集非常大，即使单次扫描也可能非常昂贵
+\end{itemize}
+
+\textbf{例子}：
+\begin{itemize}
+    \item 西洋双陆棋（backgammon）有超过 $10^{20}$ 个状态
+    \item 即使每秒能更新100万个状态，完成单次扫描也需要超过1000年
+\end{itemize}
+
+\subsection{异步动态规划的提出}
+
+\textbf{关键思想}：
+\begin{quote}
+能否避免系统性地扫描整个状态集？能否以任意顺序更新状态，使用当前可用的任何值？
+\end{quote}
+
+\textbf{异步动态规划}：
+\begin{itemize}
+    \item 不需要系统性地扫描状态集
+    \item 可以以任意顺序更新状态
+    \item 使用当前可用的任何状态值
+    \item 某些状态可能被更新多次，而其他状态只更新一次
+\end{itemize}
+
+\section{什么是"异步"？}
+
+\subsection{基本概念}
+
+\begin{definition}[异步（Asynchronous）]
+\textbf{异步}指的是操作的执行顺序不是预先确定的、系统性的，而是可以以任意顺序、任意时机执行。
+\end{definition}
+
+\textbf{在计算机科学中}：
+\begin{itemize}
+    \item \textbf{同步}：操作按固定顺序、固定时机执行
+    \item \textbf{异步}：操作可以以任意顺序、任意时机执行
+\end{itemize}
+
+\textbf{在动态规划中}：
+\begin{itemize}
+    \item \textbf{同步}：按固定顺序（如从左到右、从上到下）更新所有状态
+    \item \textbf{异步}：以任意顺序更新状态，可能跳过某些状态，某些状态可能被多次更新
+\end{itemize}
+
+\subsection{生活中的类比}
+
+\textbf{同步的例子}：
+\begin{itemize}
+    \item 工厂流水线：每个工位按固定顺序处理产品
+    \item 学生按学号顺序交作业
+\end{itemize}
+
+\textbf{异步的例子}：
+\begin{itemize}
+    \item 餐厅点餐：顾客可以任意顺序点餐，不需要排队
+    \item 学生可以任意顺序交作业，不需要按学号
+\end{itemize}
+
+\section{同步动态规划 vs 异步动态规划}
+
+\subsection{同步动态规划（Synchronous DP）}
+
+\textbf{特点}：
+\begin{itemize}
+    \item \textbf{系统性扫描}：按固定顺序遍历所有状态
+    \item \textbf{批量更新}：在一次迭代中，所有状态都使用\textbf{上一次迭代}的值进行更新
+    \item \textbf{需要存储两个数组}：$V_k$ 和 $V_{k+1}$
+\end{itemize}
+
+\textbf{价值迭代的同步版本}：
+
+\begin{algorithm}[H]
+\caption{同步价值迭代}
+\begin{algorithmic}[1]
+\REQUIRE 环境动态 $p(s', r | s, a)$，折扣因子 $\gamma$，收敛阈值 $\theta > 0$
+\ENSURE 最优价值函数 $v_*$
+\STATE \textbf{初始化}：$V_{\text{old}}(s) = 0$，对所有 $s \in \mathcal{S}$
+\REPEAT
+    \STATE $V_{\text{new}}(s) \gets 0$，对所有 $s \in \mathcal{S}$ \COMMENT{创建新数组}
+    \STATE $\Delta \gets 0$
+    \FOR{每个状态 $s \in \mathcal{S}$ \textbf{按固定顺序}}
+        \STATE $V_{\text{new}}(s) \gets \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma V_{\text{old}}(s')]$
+        \STATE $\Delta \gets \max(\Delta, |V_{\text{new}}(s) - V_{\text{old}}(s)|)$
+    \ENDFOR
+    \STATE $V_{\text{old}} \gets V_{\text{new}}$ \COMMENT{批量替换}
+\UNTIL{$\Delta < \theta$}
+\RETURN $v_* = V_{\text{old}}$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{关键特征}：
+\begin{enumerate}
+    \item 使用 $V_{\text{old}}$ 计算所有 $V_{\text{new}}$ 的值
+    \item 所有状态更新完成后，才将 $V_{\text{new}}$ 赋值给 $V_{\text{old}}$
+    \item 需要存储两个完整的价值函数数组
+\end{enumerate}
+
+\subsection{异步动态规划（Asynchronous DP）}
+
+\begin{definition}[异步动态规划]
+\textbf{异步动态规划}是一种就地（in-place）迭代DP算法，它不按系统扫描的方式组织。这些算法以任意顺序更新状态值，使用当前可用的任何其他状态的值。
+\end{definition}
+
+\textbf{特点}：
+\begin{itemize}
+    \item \textbf{就地更新}：直接修改当前价值函数，不需要两个数组
+    \item \textbf{任意顺序}：可以以任意顺序更新状态
+    \item \textbf{使用最新值}：更新状态 $s$ 时，使用当前最新的其他状态值（可能已经更新过）
+    \item \textbf{灵活选择}：可以选择更新哪些状态，跳过哪些状态
+\end{itemize}
+
+\textbf{价值迭代的异步版本}：
+
+\begin{algorithm}[H]
+\caption{异步价值迭代}
+\begin{algorithmic}[1]
+\REQUIRE 环境动态 $p(s', r | s, a)$，折扣因子 $\gamma$，收敛阈值 $\theta > 0$
+\ENSURE 最优价值函数 $v_*$
+\STATE \textbf{初始化}：$V(s) = 0$，对所有 $s \in \mathcal{S}$
+\REPEAT
+    \STATE 选择状态 $s$（任意顺序，可能重复选择）
+    \STATE $v_{\text{old}} \gets V(s)$
+    \STATE $V(s) \gets \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]$ \COMMENT{使用当前最新的 $V(s')$}
+    \STATE $\Delta \gets |V(s) - v_{\text{old}}|$
+\UNTIL{所有状态都满足 $\Delta < \theta$ 且每个状态都被更新过}
+\RETURN $v_* = V$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{关键特征}：
+\begin{enumerate}
+    \item 只使用一个数组 $V$
+    \item 更新状态 $s$ 时，使用当前 $V$ 中的值（可能已经更新过）
+    \item 某些状态可能被更新多次，其他状态可能还没更新
+\end{enumerate}
+
+\section{具体例子对比}
+
+\subsection{Gridworld例子}
+
+考虑一个3×3的Gridworld：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+$s_1$ & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & $s_9$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{初始价值函数}：$V_0(s_i) = 0$，对所有 $i$
+
+\subsection{同步价值迭代（第1次迭代）}
+
+\textbf{更新顺序}：$s_1, s_2, s_3, s_4, s_5, s_6, s_7, s_8, s_9$
+
+\textbf{所有状态都使用 $V_0$ 的值}：
+
+\begin{align}
+V_1(s_1) &= \max_{a} \sum_{s', r} p(s', r | s_1, a) [r + \gamma V_0(s')] \\
+V_1(s_2) &= \max_{a} \sum_{s', r} p(s', r | s_2, a) [r + \gamma V_0(s')] \\
+&\vdots \\
+V_1(s_9) &= \max_{a} \sum_{s', r} p(s', r | s_9, a) [r + \gamma V_0(s')]
+\end{align}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 计算 $V_1(s_2)$ 时，使用 $V_0(s_1)$，而不是 $V_1(s_1)$
+    \item 所有状态都基于"旧"的值更新
+    \item 更新完成后，$V_1$ 替换 $V_0$
+\end{itemize}
+
+\subsection{异步价值迭代（第1次迭代）}
+
+\textbf{更新顺序}：$s_5, s_2, s_5, s_8, s_1, s_5, s_3, \ldots$（任意顺序，可能重复）
+
+\textbf{使用当前最新的值}：
+
+\begin{enumerate}
+    \item \textbf{更新 $s_5$}：
+    \begin{equation}
+    V(s_5) \gets \max_{a} \sum_{s', r} p(s', r | s_5, a) [r + \gamma V(s')]
+    \end{equation}
+    使用 $V(s_2) = 0$，$V(s_4) = 0$，$V(s_6) = 0$，$V(s_8) = 0$（都是初始值）
+    
+    \item \textbf{更新 $s_2$}：
+    \begin{equation}
+    V(s_2) \gets \max_{a} \sum_{s', r} p(s', r | s_2, a) [r + \gamma V(s')]
+    \end{equation}
+    使用 $V(s_5)$（已经更新过！），$V(s_1) = 0$，$V(s_3) = 0$
+    
+    \item \textbf{再次更新 $s_5$}：
+    \begin{equation}
+    V(s_5) \gets \max_{a} \sum_{s', r} p(s', r | s_5, a) [r + \gamma V(s')]
+    \end{equation}
+    使用 $V(s_2)$（已经更新过！），$V(s_4) = 0$，$V(s_6) = 0$，$V(s_8) = 0$
+    
+    \item \textbf{更新 $s_8$}：
+    \begin{equation}
+    V(s_8) \gets \max_{a} \sum_{s', r} p(s', r | s_8, a) [r + \gamma V(s')]
+    \end{equation}
+    使用 $V(s_5)$（已经更新过两次！），$V(s_7) = 0$，$V(s_9) = 0$
+\end{enumerate}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 计算 $V(s_2)$ 时，使用 $V(s_5)$（已经更新过）
+    \item 再次更新 $s_5$ 时，使用 $V(s_2)$（已经更新过）
+    \item 信息传播更快：更新的值立即被后续更新使用
+    \item 某些状态（如 $s_5$）可能被更新多次
+\end{itemize}
+
+\section{异步动态规划的优势}
+
+\subsection{1. 内存效率}
+
+\textbf{同步DP}：
+\begin{itemize}
+    \item 需要存储两个数组：$V_{\text{old}}$ 和 $V_{\text{new}}$
+    \item 内存需求：$2|\mathcal{S}|$
+\end{itemize}
+
+\textbf{异步DP}：
+\begin{itemize}
+    \item 只需要一个数组：$V$
+    \item 内存需求：$|\mathcal{S}|$
+    \item \textbf{节省50\%的内存}
+\end{itemize}
+
+\subsection{2. 信息传播速度}
+
+\textbf{同步DP}：
+\begin{itemize}
+    \item 信息传播需要等待一次完整迭代
+    \item 如果状态 $s_1$ 更新，状态 $s_2$ 要等到下一次迭代才能使用新值
+\end{itemize}
+
+\textbf{异步DP}：
+\begin{itemize}
+    \item 信息传播更快：更新的值立即被后续更新使用
+    \item 如果先更新 $s_1$，然后更新 $s_2$，$s_2$ 可以使用 $s_1$ 的新值
+    \item \textbf{可能更快收敛}
+\end{itemize}
+
+\subsection{3. 灵活性}
+
+\textbf{同步DP}：
+\begin{itemize}
+    \item 必须更新所有状态
+    \item 必须按固定顺序
+    \item 不能跳过任何状态
+\end{itemize}
+
+\textbf{异步DP}：
+\begin{itemize}
+    \item 可以选择更新哪些状态
+    \item 可以跳过不重要的状态
+    \item 可以优先更新重要的状态
+    \item 可以按任意顺序更新
+\end{itemize}
+
+\subsection{4. 实时交互}
+
+\textbf{异步DP的优势}：
+\begin{itemize}
+    \item 可以在智能体实际体验MDP的同时运行DP算法
+    \item 智能体的经验可以决定更新哪些状态
+    \item 可以只更新智能体访问过的状态
+    \item 最新的价值函数可以指导智能体的决策
+\end{itemize}
+
+\textbf{例子}：
+\begin{quote}
+智能体在Gridworld中移动，每访问一个状态，就更新该状态的价值函数。这样可以将计算集中在智能体实际访问的状态上。
+\end{quote}
+
+\section{异步动态规划的收敛性}
+
+\subsection{收敛条件}
+
+\begin{theorem}[异步价值迭代收敛性]
+如果 $0 \leq \gamma < 1$，且序列 $\{s_k\}$ 中所有状态都出现无限次，则异步价值迭代保证收敛到 $v_*$。
+\end{theorem}
+
+\textbf{关键条件}：
+\begin{enumerate}
+    \item \textbf{折扣因子}：$\gamma < 1$（或所有策略都是适当的）
+    \item \textbf{所有状态都被更新}：每个状态在序列中出现无限次
+    \item \textbf{不能忽略任何状态}：在计算的某个点之后，不能忽略任何状态
+\end{enumerate}
+
+\textbf{注意}：
+\begin{itemize}
+    \item 更新顺序可以是任意的，甚至可以是随机的
+    \item 某些状态可能被更新多次，其他状态可能只更新一次
+    \item 只要所有状态都被无限次更新，就能保证收敛
+\end{itemize}
+
+\subsection{为什么需要所有状态都被更新？}
+
+\textbf{反例}：
+\begin{itemize}
+    \item 如果某个状态 $s$ 从未被更新，它的值将保持初始值
+    \item 其他状态可能依赖于 $s$ 的值
+    \item 如果 $s$ 的值不正确，其他状态也无法收敛到正确值
+\end{itemize}
+
+\textbf{正确做法}：
+\begin{itemize}
+    \item 必须继续更新所有状态的值
+    \item 不能忽略任何状态
+    \item 可以以任意顺序、任意频率更新
+\end{itemize}
+
+\section{异步动态规划的类型}
+
+\subsection{1. 异步价值迭代}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 每次只更新一个状态
+    \item 使用价值迭代更新公式
+    \item 状态选择可以是任意的
+\end{itemize}
+
+\textbf{更新公式}：
+\begin{equation}
+V(s_k) \gets \max_{a} \sum_{s', r} p(s', r | s_k, a) [r + \gamma V(s')]
+\end{equation}
+
+其中 $s_k$ 是第 $k$ 步选择的状态。
+
+\subsection{2. 异步截断策略迭代}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 混合策略评估和价值迭代更新
+    \item 某些状态使用策略评估更新
+    \item 某些状态使用价值迭代更新
+\end{itemize}
+
+\textbf{策略评估更新}：
+\begin{equation}
+V(s) \gets \sum_{s', r} p(s', r | s, \pi(s)) [r + \gamma V(s')]
+\end{equation}
+
+\textbf{价值迭代更新}：
+\begin{equation}
+V(s) \gets \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]
+\end{equation}
+
+\subsection{3. 实时动态规划（RTDP）}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 智能体在环境中实际体验
+    \item 只更新智能体访问过的状态
+    \item 将计算集中在相关状态上
+\end{itemize}
+
+\textbf{算法}：
+\begin{enumerate}
+    \item 智能体在状态 $s$ 选择动作 $a$
+    \item 转移到状态 $s'$，获得奖励 $r$
+    \item 更新状态 $s$ 的价值函数：
+    \begin{equation}
+    V(s) \gets \max_{a'} \sum_{s'', r'} p(s'', r' | s, a') [r' + \gamma V(s'')]
+    \end{equation}
+    \item 重复
+\end{enumerate}
+
+\section{状态选择策略}
+
+\subsection{1. 随机选择}
+
+\textbf{方法}：
+\begin{itemize}
+    \item 每次随机选择一个状态
+    \item 确保所有状态都有被选中的概率
+\end{itemize}
+
+\textbf{优点}：
+\begin{itemize}
+    \item 简单
+    \item 保证所有状态都被更新
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item 可能更新不重要的状态
+    \item 效率可能不高
+\end{itemize}
+
+\subsection{2. 优先扫描（Prioritized Sweeping）}
+
+\textbf{方法}：
+\begin{itemize}
+    \item 根据状态价值的变化量确定优先级
+    \item 优先更新价值变化大的状态
+\end{itemize}
+
+\textbf{优先级}：
+\begin{equation}
+\text{priority}(s) = |V_{\text{new}}(s) - V_{\text{old}}(s)|
+\end{equation}
+
+\textbf{优点}：
+\begin{itemize}
+    \item 更快收敛
+    \item 将计算集中在重要的状态上
+\end{itemize}
+
+\subsection{3. 基于经验的选择}
+
+\textbf{方法}：
+\begin{itemize}
+    \item 智能体在环境中实际体验
+    \item 只更新智能体访问过的状态
+\end{itemize}
+
+\textbf{优点}：
+\begin{itemize}
+    \item 只计算相关状态
+    \item 可以与实际交互结合
+    \item 适用于大规模状态空间
+\end{itemize}
+
+\section{同步 vs 异步：详细对比}
+
+\subsection{对比表格}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{同步DP} & \textbf{异步DP} \\
+\hline
+\textbf{更新顺序} & 固定顺序（系统性扫描） & 任意顺序 \\
+\hline
+\textbf{使用的值} & 上一次迭代的值 & 当前最新的值 \\
+\hline
+\textbf{内存需求} & 两个数组（$2|\mathcal{S}|$） & 一个数组（$|\mathcal{S}|$） \\
+\hline
+\textbf{信息传播} & 需要等待一次迭代 & 立即传播 \\
+\hline
+\textbf{状态选择} & 必须更新所有状态 & 可以选择更新哪些状态 \\
+\hline
+\textbf{灵活性} & 低 & 高 \\
+\hline
+\textbf{实现复杂度} & 简单 & 中等 \\
+\hline
+\textbf{收敛保证} & 强（$\gamma < 1$） & 强（$\gamma < 1$，所有状态无限次更新） \\
+\hline
+\textbf{实时交互} & 困难 & 容易 \\
+\hline
+\textbf{大规模问题} & 不适合 & 适合 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{选择建议}
+
+\textbf{使用同步DP的情况}：
+\begin{itemize}
+    \item 状态空间较小
+    \item 需要简单实现
+    \item 不需要实时交互
+    \item 内存充足
+\end{itemize}
+
+\textbf{使用异步DP的情况}：
+\begin{itemize}
+    \item 状态空间非常大
+    \item 内存受限
+    \item 需要实时交互
+    \item 可以智能选择更新哪些状态
+    \item 需要更快的信息传播
+\end{itemize}
+
+\section{具体例子：异步价值迭代}
+
+\subsection{问题设置}
+
+考虑一个简单的3×3 Gridworld：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+$s_1$ & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{设置}：
+\begin{itemize}
+    \item 所有转移的奖励都是 $-1$
+    \item 折扣因子：$\gamma = 0.9$
+    \item 初始价值：$V(s_i) = 0$，对所有 $i$
+\end{itemize}
+
+\subsection{同步价值迭代（前3次迭代）}
+
+\textbf{第1次迭代}（使用 $V_0$）：
+
+所有状态都使用 $V_0 = 0$：
+\begin{align}
+V_1(s_1) &= -1.0 \\
+V_1(s_2) &= -1.0 \\
+V_1(s_5) &= -1.0 \\
+&\vdots
+\end{align}
+
+\textbf{第2次迭代}（使用 $V_1$）：
+
+所有状态都使用 $V_1$：
+\begin{align}
+V_2(s_1) &= \max\{-1 + 0.9 \times 0, -1 + 0.9 \times (-1.0), \ldots\} = -1.0 \\
+V_2(s_5) &= \max\{-1 + 0.9 \times (-1.0), \ldots\} = -1.9 \\
+&\vdots
+\end{align}
+
+\subsection{异步价值迭代（前几步）}
+
+\textbf{更新序列}：$s_5, s_2, s_5, s_8, s_1, s_5, s_3, \ldots$
+
+\textbf{步骤1：更新 $s_5$}
+\begin{align}
+V(s_5) &\gets \max\{-1 + 0.9 \times V(s_2), -1 + 0.9 \times V(s_4), \\
+     &\quad -1 + 0.9 \times V(s_6), -1 + 0.9 \times V(s_8)\} \\
+     &= \max\{-1.0, -1.0, -1.0, -1.0\} = -1.0
+\end{align}
+当前：$V(s_5) = -1.0$，其他状态仍为 $0$
+
+\textbf{步骤2：更新 $s_2$}
+\begin{align}
+V(s_2) &\gets \max\{-1 + 0.9 \times V(s_1), -1 + 0.9 \times V(s_5), \\
+     &\quad -1 + 0.9 \times V(s_2), -1 + 0.9 \times V(s_3)\} \\
+     &= \max\{-1.0, -1 + 0.9 \times (-1.0), -1.0, -1.0\} \\
+     &= \max\{-1.0, -1.9, -1.0, -1.0\} = -1.0
+\end{align}
+当前：$V(s_2) = -1.0$，$V(s_5) = -1.0$，其他状态仍为 $0$
+
+\textbf{关键观察}：更新 $s_2$ 时使用了 $V(s_5) = -1.0$（已经更新过），而不是初始值 $0$。
+
+\textbf{步骤3：再次更新 $s_5$}
+\begin{align}
+V(s_5) &\gets \max\{-1 + 0.9 \times V(s_2), -1 + 0.9 \times V(s_4), \\
+     &\quad -1 + 0.9 \times V(s_6), -1 + 0.9 \times V(s_8)\} \\
+     &= \max\{-1 + 0.9 \times (-1.0), -1.0, -1.0, -1.0\} \\
+     &= \max\{-1.9, -1.0, -1.0, -1.0\} = -1.0
+\end{align}
+当前：$V(s_5) = -1.0$（没有变化，因为其他方向的值更差）
+
+\textbf{关键观察}：再次更新 $s_5$ 时使用了 $V(s_2) = -1.0$（已经更新过）。
+
+\textbf{步骤4：更新 $s_8$}
+\begin{align}
+V(s_8) &\gets \max\{-1 + 0.9 \times V(s_5), -1 + 0.9 \times V(\text{终止}), \\
+     &\quad -1 + 0.9 \times V(s_7), -1 + 0.9 \times V(\text{终止})\} \\
+     &= \max\{-1 + 0.9 \times (-1.0), -1 + 0.9 \times 0, -1.0, -1 + 0.9 \times 0\} \\
+     &= \max\{-1.9, -1.0, -1.0, -1.0\} = -1.0
+\end{align}
+当前：$V(s_8) = -1.0$，$V(s_5) = -1.0$，$V(s_2) = -1.0$
+
+\textbf{关键观察}：更新 $s_8$ 时使用了 $V(s_5) = -1.0$（已经更新过）。
+
+\subsection{异步 vs 同步的对比}
+
+\textbf{同步方法}：
+\begin{itemize}
+    \item 第1次迭代：所有状态都使用 $V_0 = 0$
+    \item 第2次迭代：所有状态都使用 $V_1$（第1次迭代的结果）
+    \item 信息传播需要等待一次完整迭代
+\end{itemize}
+
+\textbf{异步方法}：
+\begin{itemize}
+    \item 更新 $s_2$ 时立即使用 $s_5$ 的新值
+    \item 再次更新 $s_5$ 时立即使用 $s_2$ 的新值
+    \item 信息传播更快，可能更快收敛
+\end{itemize}
+
+\section{异步动态规划的实现细节}
+
+\subsection{就地更新（In-Place Update）}
+
+\textbf{同步方法}：
+\begin{verbatim}
+V_old = [0, 0, 0, 0, 0, 0, 0, 0]  # 初始值
+V_new = [0, 0, 0, 0, 0, 0, 0, 0]  # 新数组
+
+# 第1次迭代
+for s in states:
+    V_new[s] = update(V_old, s)  # 使用 V_old
+
+V_old = V_new  # 批量替换
+\end{verbatim}
+
+\textbf{异步方法}：
+\begin{verbatim}
+V = [0, 0, 0, 0, 0, 0, 0, 0]  # 只有一个数组
+
+# 第1次迭代
+for s in selected_states:  # 任意顺序
+    V[s] = update(V, s)  # 直接修改 V，使用当前最新的值
+\end{verbatim}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item 同步：需要两个数组，批量替换
+    \item 异步：只需要一个数组，就地更新
+\end{itemize}
+
+\subsection{更新顺序的影响}
+
+\textbf{例子}：考虑状态 $s_1 \to s_2 \to s_3$ 的链
+
+\textbf{同步方法}（顺序：$s_1, s_2, s_3$）：
+\begin{enumerate}
+    \item 更新 $s_1$：使用 $V_0(s_2) = 0$
+    \item 更新 $s_2$：使用 $V_0(s_3) = 0$（不能使用 $s_1$ 的新值）
+    \item 更新 $s_3$：使用 $V_0(\text{终止}) = 0$
+\end{enumerate}
+
+\textbf{异步方法}（顺序：$s_3, s_2, s_1$）：
+\begin{enumerate}
+    \item 更新 $s_3$：使用 $V(\text{终止}) = 0$，得到 $V(s_3) = -1.0$
+    \item 更新 $s_2$：使用 $V(s_3) = -1.0$（已经更新！），得到 $V(s_2) = -1.9$
+    \item 更新 $s_1$：使用 $V(s_2) = -1.9$（已经更新！），得到 $V(s_1) = -2.71$
+\end{enumerate}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 异步方法中，从后向前的顺序可以立即传播信息
+    \item 同步方法中，无论什么顺序，都要等待一次迭代
+\end{itemize}
+
+\section{异步动态规划的应用场景}
+
+\subsection{1. 大规模状态空间}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 状态空间非常大（如 $10^{20}$ 个状态）
+    \item 无法系统性地扫描所有状态
+    \item 只能访问部分状态
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 使用异步DP，只更新访问过的状态
+    \item 智能选择要更新的状态
+    \item 将计算集中在相关状态上
+\end{itemize}
+
+\subsection{2. 实时交互}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 智能体在环境中实际体验
+    \item 需要在线学习
+    \item 不能等待完整的扫描
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 使用异步DP，智能体访问哪个状态就更新哪个状态
+    \item 最新的价值函数可以立即指导决策
+    \item 计算和交互可以并行进行
+\end{itemize}
+
+\subsection{3. 内存受限}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 内存有限，无法存储两个完整的状态价值数组
+    \item 需要节省内存
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 使用异步DP，只需要一个数组
+    \item 节省50\%的内存
+\end{itemize}
+
+\section{异步动态规划的变体}
+
+\subsection{1. 部分更新（Partial Updates）}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 只更新部分状态
+    \item 可以跳过不重要的状态
+    \item 将计算集中在关键状态上
+\end{itemize}
+
+\textbf{适用场景}：
+\begin{itemize}
+    \item 状态空间非常大
+    \item 某些状态更重要
+    \item 计算资源有限
+\end{itemize}
+
+\subsection{2. 优先扫描（Prioritized Sweeping）}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 根据状态价值的变化量确定优先级
+    \item 优先更新价值变化大的状态
+    \item 更快收敛
+\end{itemize}
+
+\textbf{优先级计算}：
+\begin{equation}
+\text{priority}(s) = |V_{\text{new}}(s) - V_{\text{old}}(s)|
+\end{equation}
+
+\textbf{算法}：
+\begin{enumerate}
+    \item 计算所有状态的优先级
+    \item 按优先级排序
+    \item 优先更新高优先级的状态
+\end{enumerate}
+
+\subsection{3. 实时动态规划（RTDP）}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 智能体在环境中实际体验
+    \item 只更新智能体访问过的状态
+    \item 将计算集中在相关状态上
+\end{itemize}
+
+\textbf{算法流程}：
+\begin{enumerate}
+    \item 智能体在状态 $s$ 选择动作 $a$（基于当前价值函数）
+    \item 转移到状态 $s'$，获得奖励 $r$
+    \item 更新状态 $s$ 的价值函数
+    \item 重复
+\end{enumerate}
+
+\section{异步动态规划的收敛性分析}
+
+\subsection{收敛条件}
+
+\begin{theorem}[异步价值迭代收敛性（详细版）]
+如果满足以下条件，异步价值迭代保证收敛到 $v_*$：
+\begin{enumerate}
+    \item \textbf{折扣因子}：$0 \leq \gamma < 1$（或所有策略都是适当的）
+    \item \textbf{所有状态都被更新}：序列 $\{s_k\}$ 中，每个状态 $s$ 都出现无限次
+    \item \textbf{更新公式正确}：使用正确的贝尔曼更新公式
+\end{enumerate}
+\end{theorem}
+
+\textbf{证明思路}：
+\begin{itemize}
+    \item 贝尔曼算子 $T_*$ 是一个压缩映射
+    \item 即使更新顺序是任意的，只要所有状态都被无限次更新
+    \item 价值函数序列会收敛到唯一不动点 $v_*$
+\end{itemize}
+
+\subsection{收敛速度}
+
+\textbf{影响因素}：
+\begin{itemize}
+    \item \textbf{更新顺序}：某些顺序可能更快收敛
+    \item \textbf{状态选择策略}：优先更新重要状态可能更快
+    \item \textbf{折扣因子}：$\gamma$ 越小，收敛越快
+\end{itemize}
+
+\textbf{与同步方法的对比}：
+\begin{itemize}
+    \item 异步方法可能更快收敛（如果更新顺序好）
+    \item 也可能更慢收敛（如果更新顺序差）
+    \item 平均情况下，两者收敛速度相近
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{定义}：异步动态规划是一种就地迭代DP算法，不按系统扫描的方式组织，可以以任意顺序更新状态值。
+    
+    \item \textbf{关键特征}：
+    \begin{itemize}
+        \item 就地更新：只使用一个数组
+        \item 任意顺序：可以以任意顺序更新状态
+        \item 使用最新值：更新时使用当前最新的其他状态值
+        \item 灵活选择：可以选择更新哪些状态
+    \end{itemize}
+    
+    \item \textbf{优势}：
+    \begin{itemize}
+        \item 内存效率：节省50\%的内存
+        \item 信息传播：信息传播更快
+        \item 灵活性：可以选择更新哪些状态
+        \item 实时交互：可以与实际交互结合
+    \end{itemize}
+    
+    \item \textbf{收敛性}：
+    \begin{itemize}
+        \item 在 $\gamma < 1$ 且所有状态都被无限次更新的条件下保证收敛
+        \item 更新顺序可以是任意的，甚至可以是随机的
+    \end{itemize}
+    
+    \item \textbf{应用场景}：
+    \begin{itemize}
+        \item 大规模状态空间
+        \item 实时交互
+        \item 内存受限
+        \item 需要智能选择更新状态
+    \end{itemize}
+    
+    \item \textbf{变体}：
+    \begin{itemize}
+        \item 异步价值迭代
+        \item 异步截断策略迭代
+        \item 实时动态规划（RTDP）
+        \item 优先扫描
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{异步动态规划通过允许以任意顺序更新状态，使用当前最新的值，提供了更大的灵活性。这使得我们可以将计算集中在相关状态上，节省内存，并实现实时交互。虽然更新顺序是任意的，但只要所有状态都被无限次更新，算法仍然保证收敛到最优解。}
+\end{quote}
+
+\subsection{与同步方法的对比总结}
+
+\textbf{同步动态规划}：
+\begin{itemize}
+    \item 简单、直观
+    \item 需要两个数组
+    \item 适合小规模问题
+    \item 信息传播需要等待一次迭代
+\end{itemize}
+
+\textbf{异步动态规划}：
+\begin{itemize}
+    \item 灵活、高效
+    \item 只需要一个数组
+    \item 适合大规模问题
+    \item 信息传播更快
+    \item 可以与实际交互结合
+\end{itemize}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4.5.
+    \item Bertsekas, D. P. (1982). Distributed asynchronous computation of fixed points. \textit{Mathematical Programming}, 27(1), 107-120.
+    \item Bertsekas, D. P. (1983). Asynchronous distributed computation of fixed points. \textit{Mathematical Programming}, 27(1), 107-120.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,786 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{价值迭代详解：Gridworld例子}
+\subtitle{4.4节：价值迭代算法的完整讲解}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+\subsection{策略迭代的局限性}
+
+策略迭代算法的一个缺点是：每次迭代都涉及策略评估，而策略评估本身可能需要多次遍历状态空间才能收敛到 $v_\pi$。
+
+\textbf{问题}：
+\begin{itemize}
+    \item 策略评估需要迭代多次才能收敛
+    \item 必须等待策略评估完全收敛吗？
+    \item 能否提前停止策略评估？
+\end{itemize}
+
+\subsection{价值迭代的提出}
+
+\textbf{关键观察}：
+\begin{quote}
+在图4.1的例子中，策略评估迭代超过前3次后，对相应的贪婪策略没有影响。这说明可以截断策略评估。
+\end{quote}
+
+\textbf{价值迭代}：
+\begin{itemize}
+    \item 策略评估只执行一次遍历（one sweep）
+    \item 将策略评估和策略改进合并为一个更新操作
+    \item 更简单、更高效
+\end{itemize}
+
+\section{价值迭代算法}
+
+\subsection{算法定义}
+
+\begin{definition}[价值迭代]
+\textbf{价值迭代}（Value Iteration）是一种动态规划算法，通过直接迭代最优价值函数来找到最优策略。它将策略评估和策略改进合并为一个更新操作。
+\end{definition}
+
+\textbf{更新公式}：
+
+\begin{equation}
+v_{k+1}(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\label{eq:value_iteration}
+\end{equation}
+
+对所有 $s \in \mathcal{S}$ 成立。
+
+\subsection{与策略迭代的关系}
+
+\textbf{策略迭代}：
+\begin{enumerate}
+    \item 策略评估：多次迭代直到收敛到 $v_\pi$
+    \item 策略改进：基于 $v_\pi$ 改进策略
+\end{enumerate}
+
+\textbf{价值迭代}：
+\begin{itemize}
+    \item 将策略评估截断为一次遍历
+    \item 同时进行策略改进（通过 $\max$ 操作）
+    \item 每次迭代都执行一次策略评估和一次策略改进
+\end{itemize}
+
+\textbf{关系}：
+\begin{quote}
+价值迭代本质上是策略迭代的特殊情况，其中策略评估只执行一次遍历。
+\end{quote}
+
+\subsection{与贝尔曼最优性方程的关系}
+
+\textbf{贝尔曼最优性方程}：
+
+\begin{equation}
+v_*(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\end{equation}
+
+\textbf{价值迭代}：
+
+\begin{equation}
+v_{k+1}(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{关键洞察}：
+\begin{quote}
+价值迭代就是将贝尔曼最优性方程转化为更新规则。通过迭代，$v_k$ 收敛到 $v_*$。
+\end{quote}
+
+\section{价值迭代算法}
+
+\begin{algorithm}[H]
+\caption{价值迭代算法（计算 $v_*$ 和 $\pi_*$）}
+\begin{algorithmic}[1]
+\REQUIRE 环境动态 $p(s', r | s, a)$，折扣因子 $\gamma$，收敛阈值 $\theta > 0$
+\ENSURE 最优价值函数 $v_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：$V(s)$ 任意初始化（通常为0），对所有 $s \in \mathcal{S}$，但 $V(\text{终止}) = 0$
+\REPEAT
+    \STATE $\Delta \gets 0$
+    \FOR{每个状态 $s \in \mathcal{S}$}
+        \STATE $v \gets V(s)$
+        \STATE $V(s) \gets \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]$
+        \STATE $\Delta \gets \max(\Delta, |v - V(s)|)$
+    \ENDFOR
+\UNTIL{$\Delta < \theta$}
+\STATE \textbf{输出策略}：
+\FOR{每个状态 $s \in \mathcal{S}$}
+    \STATE $\pi_*(s) \gets \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]$
+\ENDFOR
+\RETURN $v_* = V$，$\pi_*$
+\end{algorithmic}
+\end{algorithmic}
+
+\subsection{算法特点}
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item \textbf{不显式维护策略}：在迭代过程中不存储策略
+    \item \textbf{只更新价值函数}：每次迭代只更新 $V(s)$
+    \item \textbf{最后提取策略}：算法结束后，从 $v_*$ 提取最优策略
+    \item \textbf{合并操作}：每次遍历同时执行策略评估和策略改进
+\end{itemize}
+
+\section{Gridworld例子}
+
+\subsection{问题设置}
+
+考虑一个3×3的Gridworld：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{终止} & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{环境设置}：
+\begin{itemize}
+    \item \textbf{非终止状态}：$\mathcal{S} = \{s_2, s_3, s_4, s_5, s_6, s_7, s_8\}$
+    \item \textbf{终止状态}：左上角和右下角
+    \item \textbf{动作空间}：每个状态有4个动作：上、下、左、右
+    \item \textbf{奖励}：所有转移的奖励都是 $-1$，直到到达终止状态
+    \item \textbf{折扣因子}：$\gamma = 0.9$
+\end{itemize}
+
+\subsection{初始化}
+
+\textbf{初始价值函数 $V_0$}：
+\begin{equation}
+V_0(s) = 0 \quad \text{对所有 } s \in \mathcal{S}
+\end{equation}
+
+\textbf{终止状态}：
+\begin{equation}
+V_0(\text{终止}) = 0
+\end{equation}
+
+\subsection{第1次迭代（$k=1$）}
+
+\textbf{对每个状态更新价值函数}：
+
+\textbf{状态 $s_2$}（第1行第2列）：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_2, \text{上}) &= -1 + 0.9 \times V_0(\text{终止}) = -1 + 0.9 \times 0 = -1.0 \\
+q(s_2, \text{下}) &= -1 + 0.9 \times V_0(s_5) = -1 + 0.9 \times 0 = -1.0 \\
+q(s_2, \text{左}) &= -1 + 0.9 \times V_0(s_2) = -1 + 0.9 \times 0 = -1.0 \\
+q(s_2, \text{右}) &= -1 + 0.9 \times V_0(s_3) = -1 + 0.9 \times 0 = -1.0
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_1(s_2) = \max\{-1.0, -1.0, -1.0, -1.0\} = -1.0
+\end{equation}
+
+\textbf{状态 $s_5$}（中心状态）：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_5, \text{上}) &= -1 + 0.9 \times V_0(s_2) = -1.0 \\
+q(s_5, \text{下}) &= -1 + 0.9 \times V_0(s_8) = -1.0 \\
+q(s_5, \text{左}) &= -1 + 0.9 \times V_0(s_4) = -1.0 \\
+q(s_5, \text{右}) &= -1 + 0.9 \times V_0(s_6) = -1.0
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_1(s_5) = \max\{-1.0, -1.0, -1.0, -1.0\} = -1.0
+\end{equation}
+
+\textbf{状态 $s_8$}（第3行第2列）：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_8, \text{上}) &= -1 + 0.9 \times V_0(s_5) = -1.0 \\
+q(s_8, \text{下}) &= -1 + 0.9 \times V_0(\text{终止}) = -1.0 \\
+q(s_8, \text{左}) &= -1 + 0.9 \times V_0(s_7) = -1.0 \\
+q(s_8, \text{右}) &= -1 + 0.9 \times V_0(\text{终止}) = -1.0
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_1(s_8) = \max\{-1.0, -1.0, -1.0, -1.0\} = -1.0
+\end{equation}
+
+\textbf{第1次迭代后的价值函数}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & -1.0 & -1.0 \\
+\hline
+-1.0 & -1.0 & -1.0 \\
+\hline
+-1.0 & -1.0 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{第2次迭代（$k=2$）}
+
+\textbf{状态 $s_2$}：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_2, \text{上}) &= -1 + 0.9 \times V_1(\text{终止}) = -1 + 0.9 \times 0 = -1.0 \\
+q(s_2, \text{下}) &= -1 + 0.9 \times V_1(s_5) = -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_2, \text{左}) &= -1 + 0.9 \times V_1(s_2) = -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_2, \text{右}) &= -1 + 0.9 \times V_1(s_3) = -1 + 0.9 \times (-1.0) = -1.9
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_2(s_2) = \max\{-1.0, -1.9, -1.9, -1.9\} = -1.0
+\end{equation}
+
+\textbf{状态 $s_5$}：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_5, \text{上}) &= -1 + 0.9 \times V_1(s_2) = -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_5, \text{下}) &= -1 + 0.9 \times V_1(s_8) = -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_5, \text{左}) &= -1 + 0.9 \times V_1(s_4) = -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_5, \text{右}) &= -1 + 0.9 \times V_1(s_6) = -1 + 0.9 \times (-1.0) = -1.9
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_2(s_5) = \max\{-1.9, -1.9, -1.9, -1.9\} = -1.9
+\end{equation}
+
+\textbf{状态 $s_8$}：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_8, \text{上}) &= -1 + 0.9 \times V_1(s_5) = -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_8, \text{下}) &= -1 + 0.9 \times V_1(\text{终止}) = -1 + 0.9 \times 0 = -1.0 \\
+q(s_8, \text{左}) &= -1 + 0.9 \times V_1(s_7) = -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_8, \text{右}) &= -1 + 0.9 \times V_1(\text{终止}) = -1 + 0.9 \times 0 = -1.0
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_2(s_8) = \max\{-1.9, -1.0, -1.9, -1.0\} = -1.0
+\end{equation}
+
+\textbf{第2次迭代后的价值函数}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & -1.0 & -1.0 \\
+\hline
+-1.9 & -1.9 & -1.0 \\
+\hline
+-1.9 & -1.0 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{第3次迭代（$k=3$）}
+
+\textbf{状态 $s_2$}：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_2, \text{上}) &= -1 + 0.9 \times 0 = -1.0 \\
+q(s_2, \text{下}) &= -1 + 0.9 \times (-1.9) = -2.71 \\
+q(s_2, \text{左}) &= -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_2, \text{右}) &= -1 + 0.9 \times (-1.0) = -1.9
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_3(s_2) = \max\{-1.0, -2.71, -1.9, -1.9\} = -1.0
+\end{equation}
+
+\textbf{状态 $s_5$}：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_5, \text{上}) &= -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_5, \text{下}) &= -1 + 0.9 \times (-1.0) = -1.9 \\
+q(s_5, \text{左}) &= -1 + 0.9 \times (-1.9) = -2.71 \\
+q(s_5, \text{右}) &= -1 + 0.9 \times (-1.0) = -1.9
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_3(s_5) = \max\{-1.9, -1.9, -2.71, -1.9\} = -1.9
+\end{equation}
+
+\textbf{状态 $s_8$}：
+
+计算所有动作的动作价值：
+\begin{align}
+q(s_8, \text{上}) &= -1 + 0.9 \times (-1.9) = -2.71 \\
+q(s_8, \text{下}) &= -1 + 0.9 \times 0 = -1.0 \\
+q(s_8, \text{左}) &= -1 + 0.9 \times (-1.9) = -2.71 \\
+q(s_8, \text{右}) &= -1 + 0.9 \times 0 = -1.0
+\end{align}
+
+选择最大值：
+\begin{equation}
+V_3(s_8) = \max\{-2.71, -1.0, -2.71, -1.0\} = -1.0
+\end{equation}
+
+\textbf{第3次迭代后的价值函数}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & -1.0 & -1.0 \\
+\hline
+-1.9 & -1.9 & -1.0 \\
+\hline
+-1.9 & -1.0 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{继续迭代}
+
+\textbf{第4次迭代}：
+
+价值函数继续更新，但变化逐渐减小。
+
+\textbf{收敛}：
+
+假设经过多次迭代后，价值函数收敛到最优价值函数 $v_*$。
+
+\subsection{提取最优策略}
+
+\textbf{算法结束后，从 $v_*$ 提取最优策略}：
+
+对每个状态 $s$：
+\begin{equation}
+\pi_*(s) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\end{equation}
+
+\textbf{状态 $s_2$}：
+
+假设 $v_*(s_2) = -1.0$，$v_*(s_5) = -1.9$，$v_*(s_3) = -1.0$：
+
+\begin{align}
+q_*(s_2, \text{上}) &= -1 + 0.9 \times 0 = -1.0 \quad \text{（最大）} \\
+q_*(s_2, \text{下}) &= -1 + 0.9 \times (-1.9) = -2.71 \\
+q_*(s_2, \text{左}) &= -1 + 0.9 \times (-1.0) = -1.9 \\
+q_*(s_2, \text{右}) &= -1 + 0.9 \times (-1.0) = -1.9
+\end{align}
+
+因此：$\pi_*(s_2) = \text{上}$
+
+\textbf{状态 $s_5$}：
+
+假设 $v_*(s_2) = -1.0$，$v_*(s_8) = -1.0$，$v_*(s_4) = -1.9$，$v_*(s_6) = -1.0$：
+
+\begin{align}
+q_*(s_5, \text{上}) &= -1 + 0.9 \times (-1.0) = -1.9 \\
+q_*(s_5, \text{下}) &= -1 + 0.9 \times (-1.0) = -1.9 \\
+q_*(s_5, \text{左}) &= -1 + 0.9 \times (-1.9) = -2.71 \\
+q_*(s_5, \text{右}) &= -1 + 0.9 \times (-1.0) = -1.9
+\end{align}
+
+因此：$\pi_*(s_5) = \text{上}$（或下、右）
+
+\textbf{最优策略}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{终止} & $\uparrow$ & $\uparrow$ \\
+\hline
+$\uparrow$ & $\uparrow$ & $\rightarrow$ \\
+\hline
+$\rightarrow$ & $\downarrow$ & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{价值迭代 vs 策略迭代}
+
+\subsection{对比表格}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{策略迭代} & \textbf{价值迭代} \\
+\hline
+\textbf{策略评估} & 多次迭代直到收敛 & 只执行一次遍历 \\
+\hline
+\textbf{策略维护} & 显式维护策略 & 不显式维护策略 \\
+\hline
+\textbf{更新公式} & $v_\pi^{k+1} = \sum_a \pi(a|s) \sum_{s',r} p(\cdot)[r + \gamma v_\pi^k(s')]$ & $v_{k+1} = \max_a \sum_{s',r} p(\cdot)[r + \gamma v_k(s')]$ \\
+\hline
+\textbf{每次迭代} & 策略评估 + 策略改进 & 合并为一个更新 \\
+\hline
+\textbf{迭代次数} & 通常较少 & 可能较多 \\
+\hline
+\textbf{每次迭代计算量} & 较大（多次评估） & 较小（一次更新） \\
+\hline
+\textbf{策略提取} & 迭代过程中 & 算法结束后 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{关键区别}
+
+\textbf{策略迭代}：
+\begin{itemize}
+    \item 先完全评估策略，再改进策略
+    \item 每次迭代需要多次子迭代来评估策略
+    \item 迭代次数通常较少
+\end{itemize}
+
+\textbf{价值迭代}：
+\begin{itemize}
+    \item 每次迭代只更新一次价值函数
+    \item 将策略评估和策略改进合并
+    \item 迭代次数可能较多，但每次迭代更快
+\end{itemize}
+
+\section{价值迭代的收敛性}
+
+\subsection{收敛定理}
+
+\begin{theorem}[价值迭代收敛性]
+对于任意初始价值函数 $v_0$，价值迭代算法在 $\gamma < 1$ 或所有策略都是适当的条件下，序列 $\{v_k\}$ 收敛到唯一的最优价值函数 $v_*$。
+\end{theorem}
+
+\textbf{证明思路}：
+\begin{itemize}
+    \item 贝尔曼最优性算子 $T_*$ 是一个压缩映射
+    \item 压缩映射有唯一不动点
+    \item 价值迭代收敛到该不动点 $v_*$
+\end{itemize}
+
+\subsection{收敛速度}
+
+\textbf{收敛速度取决于}：
+\begin{itemize}
+    \item \textbf{折扣因子} $\gamma$：$\gamma$ 越小，收敛越快
+    \item \textbf{初始值}：通常初始化为0
+    \item \textbf{状态空间大小}：状态越多，可能需要更多迭代
+\end{itemize}
+
+\section{截断策略迭代}
+
+\subsection{一般形式}
+
+价值迭代是截断策略迭代的一个极端情况。
+
+\textbf{截断策略迭代}：
+\begin{itemize}
+    \item 策略评估执行 $k$ 次遍历（$k \geq 1$）
+    \item $k = 1$：价值迭代
+    \item $k = \infty$：策略迭代
+\end{itemize}
+
+\textbf{一般算法}：
+\begin{enumerate}
+    \item 策略评估：执行 $k$ 次遍历
+    \item 策略改进：基于当前价值函数改进策略
+    \item 重复
+\end{enumerate}
+
+\section{价值迭代的本质理解}
+
+\subsection{你的理解}
+
+\begin{quote}
+\textbf{价值迭代可以理解为：把策略评估的方程改成了贝尔曼最优方程，然后不需要策略改进部分。}
+\end{quote}
+
+\textbf{这个理解基本正确，但需要一些澄清}：
+
+\subsection{正确的理解}
+
+\textbf{1. 策略评估方程 vs 贝尔曼最优方程}
+
+\textbf{策略评估方程}（策略 $\pi$ 的价值函数）：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{贝尔曼最优方程}（最优价值函数）：
+\begin{equation}
+v_*(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\end{equation}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item 策略评估：对动作求\textbf{加权平均}（按策略 $\pi$）
+    \item 贝尔曼最优方程：对动作求\textbf{最大值}
+\end{itemize}
+
+\textbf{2. 价值迭代的更新公式}
+
+\begin{equation}
+v_{k+1}(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{这确实是贝尔曼最优方程的迭代形式}！
+
+\subsection{策略改进部分去哪了？}
+
+\textbf{关键洞察}：
+
+策略改进并没有"消失"，而是\textbf{合并}到了更新公式中！
+
+\textbf{策略迭代}（分离的）：
+\begin{enumerate}
+    \item \textbf{策略评估}：
+    \begin{equation}
+    v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+    \end{equation}
+    
+    \item \textbf{策略改进}：
+    \begin{equation}
+    \pi'(s) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+    \end{equation}
+\end{enumerate}
+
+\textbf{价值迭代}（合并的）：
+\begin{equation}
+v_{k+1}(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 价值迭代的 $\max$ 操作\textbf{同时执行了策略评估和策略改进}
+    \item 策略评估：计算每个动作的价值
+    \item 策略改进：选择最大值（隐含地选择了最优动作）
+    \item 两者合并为一个更新操作
+\end{itemize}
+
+\subsection{详细对比}
+
+\textbf{策略迭代的两步}：
+
+\textbf{步骤1：策略评估}
+\begin{align}
+v_\pi^{k+1}(s) &= \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')] \\
+               &= \sum_{a} \pi(a | s) q_\pi^k(s, a)
+\end{align}
+
+\textbf{步骤2：策略改进}
+\begin{equation}
+\pi'(s) = \arg\max_{a} q_\pi(s, a)
+\end{equation}
+
+\textbf{价值迭代的一步}：
+
+\begin{align}
+v_{k+1}(s) &= \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')] \\
+           &= \max_{a} q_k(s, a)
+\end{align}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 价值迭代直接计算 $\max_{a} q_k(s, a)$
+    \item 这\textbf{隐含地}选择了最优动作
+    \item 策略改进被"嵌入"到了 $\max$ 操作中
+\end{itemize}
+
+\subsection{为什么不需要显式的策略改进？}
+
+\textbf{原因}：
+
+\begin{enumerate}
+    \item \textbf{$\max$ 操作已经选择了最优动作}：
+    \begin{itemize}
+        \item 计算 $\max_{a} q_k(s, a)$ 时，已经找到了最优动作
+        \item 不需要单独的策略改进步骤
+    \end{itemize}
+    
+    \item \textbf{不显式维护策略}：
+    \begin{itemize}
+        \item 价值迭代不存储策略 $\pi$
+        \item 只更新价值函数 $v_k$
+        \item 算法结束后，从 $v_*$ 提取策略
+    \end{itemize}
+    
+    \item \textbf{策略改进是"隐式的"}：
+    \begin{itemize}
+        \item 每次更新都选择最优动作（通过 $\max$）
+        \item 策略改进的效果体现在价值函数的更新中
+    \end{itemize}
+\end{enumerate}
+
+\subsection{数学上的等价性}
+
+\textbf{策略迭代}（完整形式）：
+\begin{align}
+v_{\pi_{k+1}}(s) &= \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_{\pi_k}(s')] \\
+                  &= \max_{a} q_{\pi_k}(s, a)
+\end{align}
+
+\textbf{价值迭代}：
+\begin{align}
+v_{k+1}(s) &= \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')] \\
+           &= \max_{a} q_k(s, a)
+\end{align}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item 策略迭代：$v_{\pi_k}$ 是策略 $\pi_k$ 的价值函数（完全评估后）
+    \item 价值迭代：$v_k$ 是迭代过程中的价值函数（只更新一次）
+\end{itemize}
+
+\textbf{等价性}：
+\begin{quote}
+价值迭代可以看作是策略迭代的截断版本，其中策略评估只执行一次遍历，策略改进通过 $\max$ 操作隐式执行。
+\end{quote}
+
+\subsection{具体例子说明}
+
+\textbf{状态 $s_2$ 的更新}：
+
+\textbf{策略迭代方式}：
+\begin{enumerate}
+    \item \textbf{策略评估}（假设当前策略是随机策略）：
+    \begin{align}
+    v_\pi(s_2) &= \frac{1}{4} \times q(s_2, \text{上}) + \frac{1}{4} \times q(s_2, \text{下}) \\
+               &\quad + \frac{1}{4} \times q(s_2, \text{左}) + \frac{1}{4} \times q(s_2, \text{右}) \\
+               &= \frac{1}{4} \times (-1.0 - 1.9 - 1.9 - 1.9) = -1.675
+    \end{align}
+    
+    \item \textbf{策略改进}：
+    \begin{align}
+    \pi'(s_2) &= \arg\max_{a} q(s_2, a) = \text{上} \quad \text{（因为 } q(s_2, \text{上}) = -1.0 \text{ 最大）}
+    \end{align}
+\end{enumerate}
+
+\textbf{价值迭代方式}：
+\begin{align}
+v_{k+1}(s_2) &= \max_{a} q_k(s_2, a) \\
+             &= \max\{-1.0, -1.9, -1.9, -1.9\} \\
+             &= -1.0
+\end{align}
+
+\textbf{观察}：
+\begin{itemize}
+    \item 价值迭代直接得到 $-1.0$（最优动作的价值）
+    \item 策略迭代先得到 $-1.675$（随机策略的平均），然后改进策略
+    \item 价值迭代"跳过"了中间的平均步骤，直接选择最优
+\end{itemize}
+
+\subsection{总结：你的理解修正}
+
+\textbf{你的理解}：
+\begin{quote}
+价值迭代 = 把策略评估方程改成贝尔曼最优方程 + 不需要策略改进部分
+\end{quote}
+
+\textbf{更准确的表述}：
+\begin{quote}
+\textbf{价值迭代 = 将策略评估方程改为贝尔曼最优方程 + 策略改进通过 $\max$ 操作隐式执行}
+\end{quote}
+
+\textbf{关键点}：
+\begin{enumerate}
+    \item \textbf{是的}：将策略评估的加权平均改为最大值（贝尔曼最优方程）
+    
+    \item \textbf{但是}：策略改进并没有"不需要"，而是\textbf{合并}到了更新公式中
+    
+    \item \textbf{$\max$ 操作的作用}：
+    \begin{itemize}
+        \item 计算每个动作的价值（策略评估的一部分）
+        \item 选择最优动作（策略改进）
+        \item 两者合并为一个操作
+    \end{itemize}
+    
+    \item \textbf{不显式维护策略}：
+    \begin{itemize}
+        \item 不需要存储策略 $\pi$
+        \item 策略改进的效果体现在价值函数的更新中
+        \item 算法结束后从 $v_*$ 提取策略
+    \end{itemize}
+\end{enumerate}
+
+\section{总结}
+
+\subsection{价值迭代的核心要点}
+
+\begin{enumerate}
+    \item \textbf{定义}：将策略评估截断为一次遍历，同时进行策略改进
+    
+    \item \textbf{更新公式}：
+    \begin{equation}
+    v_{k+1}(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+    \end{equation}
+    
+    \item \textbf{特点}：
+    \begin{itemize}
+        \item 不显式维护策略
+        \item 每次迭代只更新一次价值函数
+        \item 算法结束后提取策略
+    \end{itemize}
+    
+    \item \textbf{优势}：
+    \begin{itemize}
+        \item 每次迭代计算量小
+        \item 实现简单
+        \item 不需要等待策略评估完全收敛
+    \end{itemize}
+    
+    \item \textbf{与策略迭代的关系}：
+    \begin{itemize}
+        \item 价值迭代是策略迭代的特殊情况
+        \item 策略评估只执行一次遍历
+        \item 将策略评估和策略改进合并
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{价值迭代有效地将策略评估和策略改进合并。在每次遍历中，它同时执行一次策略评估和一次策略改进。通过迭代，价值函数收敛到最优价值函数 $v_*$，然后可以提取最优策略 $\pi_*$。}
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 4.4.
+\end{itemize}
+
+\end{document}
+
