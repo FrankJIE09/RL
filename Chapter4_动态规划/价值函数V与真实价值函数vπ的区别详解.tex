@@ -1,0 +1,371 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{价值函数 $V$ 与真实价值函数 $v_\pi$ 的区别详解}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+在强化学习中，\textbf{价值函数 $V$} 和 \textbf{真实价值函数 $v_\pi$} 是两个容易混淆但非常重要的概念。理解它们的区别对于掌握强化学习算法至关重要。
+
+\section{基本定义}
+
+\subsection{真实价值函数 $v_\pi$}
+
+\begin{definition}[真实价值函数 $v_\pi$]
+\textbf{真实价值函数} $v_\pi(s)$ 是策略 $\pi$ 的\textbf{理论上的真实价值}，定义为从状态 $s$ 开始，遵循策略 $\pi$ 的期望回报：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
+\label{eq:true_value_function}
+\end{equation}
+\end{definition}
+
+\textbf{特点}：
+\begin{itemize}
+    \item $v_\pi$ 是\textbf{理论值}，是策略 $\pi$ 的"真实"价值
+    \item $v_\pi$ 满足策略 $\pi$ 的贝尔曼方程
+    \item $v_\pi$ 是唯一的，由策略 $\pi$ 和环境动态 $p(s', r | s, a)$ 唯一确定
+    \item 在算法中，我们通常\textbf{无法直接计算} $v_\pi$（除非有完整的环境模型）
+\end{itemize}
+
+\subsection{价值函数 $V$}
+
+\begin{definition}[价值函数 $V$]
+\textbf{价值函数} $V(s)$ 是我们\textbf{估计}或\textbf{计算}的状态价值，是算法中实际使用的价值函数。
+\end{definition}
+
+\textbf{特点}：
+\begin{itemize}
+    \item $V$ 是\textbf{估计值}或\textbf{近似值}
+    \item $V$ 是算法中\textbf{实际存储和更新}的值
+    \item $V$ 可能等于 $v_\pi$（当一致时），也可能不等于（当不一致时）
+    \item $V$ 在算法迭代过程中不断更新，逐渐接近 $v_\pi$
+\end{itemize}
+
+\section{关键区别}
+
+\subsection{概念层面}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{特征} & \textbf{真实价值函数 $v_\pi$} & \textbf{价值函数 $V$} \\
+\hline
+\textbf{性质} & 理论值、真实值 & 估计值、近似值 \\
+\hline
+\textbf{存在性} & 总是存在（理论上） & 算法中的变量 \\
+\hline
+\textbf{唯一性} & 由策略 $\pi$ 唯一确定 & 可能不唯一（取决于初始化和算法） \\
+\hline
+\textbf{可计算性} & 需要完整环境模型 & 可以通过算法估计 \\
+\hline
+\textbf{在算法中} & 目标值 & 实际使用的值 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{数学关系}
+
+\textbf{目标}：
+\begin{equation}
+V \to v_\pi
+\end{equation}
+
+即：通过算法使价值函数 $V$ 逐渐接近真实价值函数 $v_\pi$。
+
+\textbf{一致性条件}：
+\begin{equation}
+V(s) = v_\pi(s) \quad \text{对所有 } s \in \mathcal{S}
+\end{equation}
+
+当这个条件满足时，我们说"价值函数 $V$ 与策略 $\pi$ 一致"。
+
+\section{具体例子}
+
+\subsection{例子1：策略评估过程}
+
+\textbf{初始状态}：
+\begin{itemize}
+    \item 策略 $\pi$：等概率随机策略
+    \item 价值函数 $V^0(s) = 0$（初始估计，可能不等于 $v_\pi$）
+\end{itemize}
+
+\textbf{迭代过程}：
+
+\textbf{第1次迭代}：
+\begin{equation}
+V^1(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V^0(s')]
+\end{equation}
+
+此时 $V^1 \neq v_\pi$（还没有收敛）
+
+\textbf{第2次迭代}：
+\begin{equation}
+V^2(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V^1(s')]
+\end{equation}
+
+\textbf{继续迭代}，直到：
+\begin{equation}
+V^k(s) = V^{k+1}(s) \quad \text{对所有 } s
+\end{equation}
+
+\textbf{收敛后}：
+\begin{equation}
+V^k = v_\pi
+\end{equation}
+
+此时，价值函数 $V$ 等于真实价值函数 $v_\pi$。
+
+\subsection{例子2：策略迭代中的变化}
+
+\textbf{第1次迭代}：
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 给定策略 $\pi_0$
+    \item 计算 $V = v_{\pi_0}$（使 $V$ 与 $\pi_0$ 一致）
+    \item 此时 $V = v_{\pi_0}$（一致）
+\end{itemize}
+
+\textbf{策略改进}：
+\begin{itemize}
+    \item 基于 $V$ 改进策略，得到 $\pi_1$
+    \item 但 $V$ 还没有更新
+    \item 此时 $V = v_{\pi_0} \neq v_{\pi_1}$（不一致！）
+\end{itemize}
+
+\textbf{第2次迭代}：
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 给定策略 $\pi_1$
+    \item 重新计算 $V = v_{\pi_1}$（使 $V$ 与 $\pi_1$ 一致）
+    \item 此时 $V = v_{\pi_1}$（再次一致）
+\end{itemize}
+
+\section{在不同方法中的体现}
+
+\subsection{动态规划}
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 使用迭代更新：$V^{k+1}(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V^k(s')]$
+    \item $V^k$ 是迭代过程中的估计值
+    \item 当 $k \to \infty$ 时，$V^k \to v_\pi$
+    \item 收敛后，$V = v_\pi$
+\end{itemize}
+
+\subsection{蒙特卡洛方法}
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 使用样本回报估计：$V(s) \approx \frac{1}{n} \sum_{i=1}^{n} G_i$
+    \item $V(s)$ 是样本平均，是对 $v_\pi(s)$ 的估计
+    \item 当样本数 $n \to \infty$ 时，$V(s) \to v_\pi(s)$（大数定律）
+    \item 在有限样本下，$V(s) \approx v_\pi(s)$（近似相等）
+\end{itemize}
+
+\subsection{时序差分学习}
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 使用TD更新：$V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]$
+    \item $V$ 是逐步更新的估计值
+    \item 在适当条件下，$V \to v_\pi$（收敛）
+    \item 在收敛前，$V \approx v_\pi$（近似）
+\end{itemize}
+
+\section{符号约定}
+
+\subsection{标准符号}
+
+\textbf{真实价值函数}：
+\begin{itemize}
+    \item $v_\pi(s)$：策略 $\pi$ 的状态价值函数（真实值）
+    \item $q_\pi(s, a)$：策略 $\pi$ 的动作价值函数（真实值）
+    \item $v_*(s)$：最优状态价值函数（真实值）
+    \item $q_*(s, a)$：最优动作价值函数（真实值）
+\end{itemize}
+
+\textbf{估计价值函数}：
+\begin{itemize}
+    \item $V(s)$：状态价值函数的估计
+    \item $Q(s, a)$：动作价值函数的估计
+    \item $\hat{v}(s, w)$：参数化的状态价值函数估计（$w$ 是参数）
+    \item $\hat{q}(s, a, w)$：参数化的动作价值函数估计
+\end{itemize}
+
+\subsection{在算法中的使用}
+
+\textbf{策略评估的目标}：
+\begin{equation}
+V(s) \to v_\pi(s) \quad \text{对所有 } s
+\end{equation}
+
+\textbf{一致性条件}：
+\begin{equation}
+V(s) = v_\pi(s) \quad \text{对所有 } s
+\end{equation}
+
+\textbf{等价表述}：
+\begin{equation}
+V = v_\pi
+\end{equation}
+
+\section{为什么需要区分？}
+
+\subsection{算法设计}
+
+\textbf{理解算法目标}：
+\begin{itemize}
+    \item 算法的目标是使 $V \to v_\pi$
+    \item 需要知道 $V$ 是估计值，$v_\pi$ 是目标值
+    \item 算法通过更新 $V$ 使其接近 $v_\pi$
+\end{itemize}
+
+\textbf{理解收敛性}：
+\begin{itemize}
+    \item 收敛意味着 $V = v_\pi$
+    \item 在收敛前，$V \neq v_\pi$（不一致）
+    \item 算法通过迭代使它们逐渐接近
+\end{itemize}
+
+\subsection{理解GPI}
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 目标：使 $V \to v_\pi$（使价值函数与策略一致）
+    \item 过程：更新 $V$，使其满足策略 $\pi$ 的贝尔曼方程
+    \item 结果：当 $V = v_\pi$ 时，评估完成
+\end{itemize}
+
+\textbf{策略改进}：
+\begin{itemize}
+    \item 输入：价值函数 $V$（可能是 $v_\pi$，也可能不是）
+    \item 过程：基于 $V$ 改进策略
+    \item 结果：新策略 $\pi'$
+\end{itemize}
+
+\section{具体计算例子}
+
+\subsection{Gridworld例子}
+
+考虑一个简单的Gridworld，策略 $\pi$ 是等概率随机策略。
+
+\textbf{真实价值函数 $v_\pi$}（理论值）：
+
+假设通过解析计算或无限次迭代，我们得到：
+\begin{align}
+v_\pi(s_2) &= -10.5 \\
+v_\pi(s_5) &= -12.3 \\
+v_\pi(s_8) &= -11.8
+\end{align}
+
+这些是策略 $\pi$ 的\textbf{真实价值}。
+
+\textbf{价值函数 $V$}（算法中的估计值）：
+
+\textbf{第0次迭代}：
+\begin{align}
+V^0(s_2) &= 0 \quad \text{（初始值，不等于 } v_\pi(s_2) = -10.5 \text{）} \\
+V^0(s_5) &= 0 \quad \text{（初始值，不等于 } v_\pi(s_5) = -12.3 \text{）} \\
+V^0(s_8) &= 0 \quad \text{（初始值，不等于 } v_\pi(s_8) = -11.8 \text{）}
+\end{align}
+
+\textbf{第1次迭代}：
+\begin{align}
+V^1(s_2) &= -1 \quad \text{（更接近 } v_\pi(s_2) = -10.5 \text{，但仍不相等）} \\
+V^1(s_5) &= -1 \quad \text{（更接近 } v_\pi(s_5) = -12.3 \text{，但仍不相等）} \\
+V^1(s_8) &= -1 \quad \text{（更接近 } v_\pi(s_8) = -11.8 \text{，但仍不相等）}
+\end{align}
+
+\textbf{继续迭代}，逐渐接近真实值。
+
+\textbf{收敛后}（假设第100次迭代）：
+\begin{align}
+V^{100}(s_2) &= -10.5 = v_\pi(s_2) \quad \text{（相等！）} \\
+V^{100}(s_5) &= -12.3 = v_\pi(s_5) \quad \text{（相等！）} \\
+V^{100}(s_8) &= -11.8 = v_\pi(s_8) \quad \text{（相等！）}
+\end{align}
+
+此时 $V^{100} = v_\pi$，价值函数与策略一致。
+
+\section{总结}
+
+\subsection{核心区别}
+
+\begin{enumerate}
+    \item \textbf{$v_\pi$}：策略 $\pi$ 的\textbf{真实价值函数}，理论值，由策略和环境唯一确定
+    
+    \item \textbf{$V$}：算法中\textbf{估计的价值函数}，实际使用的值，通过算法迭代更新
+    
+    \item \textbf{关系}：$V$ 是 $v_\pi$ 的估计，算法的目标是使 $V \to v_\pi$
+    
+    \item \textbf{一致性}：当 $V = v_\pi$ 时，我们说价值函数与策略一致
+\end{enumerate}
+
+\subsection{关键公式}
+
+\textbf{真实价值函数定义}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
+\end{equation}
+
+\textbf{真实价值函数的贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{价值函数的迭代更新}：
+\begin{equation}
+V^{k+1}(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V^k(s')]
+\end{equation}
+
+\textbf{收敛条件}：
+\begin{equation}
+V^k = V^{k+1} \implies V^k = v_\pi
+\end{equation}
+
+\subsection{直观理解}
+
+\begin{quote}
+\textbf{$v_\pi$} 是策略 $\pi$ 的"标准答案"，是理论上应该得到的价值。
+
+\textbf{$V$} 是我们算法中"正在计算的答案"，通过迭代逐渐接近"标准答案"。
+
+当 $V = v_\pi$ 时，我们的"答案"正确了，价值函数与策略一致。
+\end{quote}
+
+\subsection{类比}
+
+\begin{itemize}
+    \item \textbf{$v_\pi$}：就像数学题的"标准答案"
+    \item \textbf{$V$}：就像我们"正在计算的答案"
+    \item \textbf{策略评估}：就像"检查计算过程，使答案接近标准答案"
+    \item \textbf{一致性}：就像"我们的答案等于标准答案"
+\end{itemize}
+
+\end{document}
+

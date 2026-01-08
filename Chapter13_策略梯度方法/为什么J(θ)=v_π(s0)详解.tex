@@ -1,0 +1,411 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{为什么回合制任务：$J(\theta) = v_{\pi_\theta}(s_0)$？}
+\subtitle{性能指标定义的合理性解释}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题}
+
+\textbf{问题}：为什么回合制任务的性能指标定义为：
+\begin{equation}
+J(\theta) = v_{\pi_\theta}(s_0)
+\label{eq:performance}
+\end{equation}
+
+其中 $s_0$ 是起始状态，$v_{\pi_\theta}$ 是策略 $\pi_\theta$ 的真实价值函数？
+
+\section{回合制任务的特点}
+
+\subsection{什么是回合制任务？}
+
+\textbf{回合制任务（Episodic Task）}：
+\begin{itemize}
+    \item 任务有明确的开始和结束
+    \item 每个episode从起始状态 $s_0$ 开始
+    \item 在某个终止状态结束
+    \item 每个episode是独立的
+\end{itemize}
+
+\textbf{例子}：
+\begin{itemize}
+    \item 游戏：每局游戏从开始到结束
+    \item 导航任务：从起点到终点
+    \item 控制任务：完成一个操作序列
+\end{itemize}
+
+\subsection{回合制任务的目标}
+
+\textbf{目标}：
+\begin{itemize}
+    \item 最大化从起始状态 $s_0$ 开始的期望回报
+    \item 我们希望策略在从 $s_0$ 开始时表现最好
+    \item 这是最自然的性能度量
+\end{itemize}
+
+\section{为什么选择 $v_{\pi_\theta}(s_0)$？}
+
+\subsection{价值函数的定义}
+
+\textbf{状态价值函数}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s] = \mathbb{E}_\pi\left[\sum_{k=0}^{\infty} \gamma^k R_{t+k+1} \middle| S_t = s\right]
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item $v_\pi(s)$ 是从状态 $s$ 开始，遵循策略 $\pi$ 的期望回报
+    \item 它量化了"从状态 $s$ 开始，使用策略 $\pi$ 能获得多少回报"
+\end{itemize}
+
+\subsection{起始状态的价值函数}
+
+\textbf{起始状态的价值函数}：
+\begin{equation}
+v_{\pi_\theta}(s_0) = \mathbb{E}_{\pi_\theta}[G_0 | S_0 = s_0]
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item $v_{\pi_\theta}(s_0)$ 是从起始状态 $s_0$ 开始，遵循策略 $\pi_\theta$ 的期望回报
+    \item 它量化了"从起始状态开始，使用策略 $\pi_\theta$ 能获得多少回报"
+    \item 这正是我们想要最大化的量！
+\end{itemize}
+
+\subsection{为什么这是合理的性能指标？}
+
+\textbf{理由1：直接对应目标}
+\begin{itemize}
+    \item 回合制任务的目标是：从起始状态 $s_0$ 开始，获得尽可能高的回报
+    \item $v_{\pi_\theta}(s_0)$ 正是从 $s_0$ 开始的期望回报
+    \item 最大化 $v_{\pi_\theta}(s_0)$ 就是最大化从起始状态开始的期望回报
+\end{itemize}
+
+\textbf{理由2：自然的性能度量}
+\begin{itemize}
+    \item 在回合制任务中，我们总是从 $s_0$ 开始
+    \item 我们关心的是"从 $s_0$ 开始的表现"
+    \item $v_{\pi_\theta}(s_0)$ 直接度量了这个表现
+\end{itemize}
+
+\textbf{理由3：数学上的简洁性}
+\begin{itemize}
+    \item $v_{\pi_\theta}(s_0)$ 是一个标量，易于优化
+    \item 可以计算梯度 $\nabla_\theta v_{\pi_\theta}(s_0)$
+    \item 策略梯度定理提供了计算这个梯度的方法
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{例子1：Gridworld导航}
+
+\textbf{场景}：从起点 $s_0$ 导航到终点 $G$。
+
+\textbf{性能指标}：
+\begin{equation}
+J(\theta) = v_{\pi_\theta}(s_0)
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item $v_{\pi_\theta}(s_0)$ 是从起点 $s_0$ 开始，使用策略 $\pi_\theta$ 到达终点的期望回报
+    \item 如果回报是负的步数（每步 $-1$），则 $v_{\pi_\theta}(s_0)$ 是期望步数的负值
+    \item 最大化 $v_{\pi_\theta}(s_0)$ 就是最小化期望步数
+    \item 这正是我们想要的！
+\end{itemize}
+
+\textbf{计算例子}：
+\begin{itemize}
+    \item 如果最优策略从 $s_0$ 到 $G$ 需要 $5$ 步，则 $v_{\pi_*}(s_0) = -5$
+    \item 如果次优策略需要 $10$ 步，则 $v_{\pi}(s_0) = -10$
+    \item 显然 $-5 > -10$，所以最优策略更好
+    \item 最大化 $v_{\pi_\theta}(s_0)$ 确实能找到最优策略
+\end{itemize}
+
+\subsection{例子2：游戏}
+
+\textbf{场景}：玩一个游戏，每局从开始状态 $s_0$ 开始。
+
+\textbf{性能指标}：
+\begin{equation}
+J(\theta) = v_{\pi_\theta}(s_0)
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item $v_{\pi_\theta}(s_0)$ 是从游戏开始，使用策略 $\pi_\theta$ 的期望得分
+    \item 最大化 $v_{\pi_\theta}(s_0)$ 就是最大化期望得分
+    \item 这正是我们想要的！
+\end{itemize}
+
+\section{与其他可能的定义对比}
+
+\subsection{为什么不使用其他状态的价值？}
+
+\textbf{选项1：所有状态的平均价值}
+\begin{equation}
+J(\theta) = \frac{1}{|\mathcal{S}|} \sum_{s} v_{\pi_\theta}(s)
+\end{equation}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 在回合制任务中，不是所有状态都会被访问
+    \item 某些状态可能永远不会被访问到
+    \item 这些状态的价值对性能没有影响
+    \item 不应该在性能指标中考虑它们
+\end{itemize}
+
+\textbf{选项2：加权平均}
+\begin{equation}
+J(\theta) = \sum_{s} \mu(s) v_{\pi_\theta}(s)
+\end{equation}
+
+其中 $\mu(s)$ 是状态分布。
+
+\textbf{问题}：
+\begin{itemize}
+    \item 状态分布 $\mu(s)$ 依赖于策略 $\pi_\theta$
+    \item 这会使性能指标的计算变得复杂
+    \item 而且，在回合制任务中，我们主要关心从 $s_0$ 开始的表现
+\end{itemize}
+
+\textbf{选项3：终止状态的价值}
+\begin{equation}
+J(\theta) = v_{\pi_\theta}(s_{\text{terminal}})
+\end{equation}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 终止状态的价值通常是 $0$（定义）
+    \item 这不能区分不同策略的好坏
+    \item 没有意义
+\end{itemize}
+
+\subsection{为什么选择起始状态？}
+
+\textbf{优势}：
+\begin{itemize}
+    \item \textbf{直接对应目标}：从 $s_0$ 开始的表现正是我们关心的
+    \item \textbf{数学简洁}：只需要计算一个状态的价值
+    \item \textbf{自然定义}：符合回合制任务的特点
+    \item \textbf{易于优化}：可以计算梯度并优化
+\end{itemize}
+
+\section{数学上的合理性}
+
+\subsection{价值函数的性质}
+
+\textbf{性质1：单调性}
+\begin{itemize}
+    \item 如果策略 $\pi_1$ 在所有状态的价值都不小于策略 $\pi_2$，则 $\pi_1$ 至少和 $\pi_2$ 一样好
+    \item 特别地，如果 $v_{\pi_1}(s_0) \geq v_{\pi_2}(s_0)$，则从 $s_0$ 开始，$\pi_1$ 至少和 $\pi_2$ 一样好
+\end{itemize}
+
+\textbf{性质2：最优性}
+\begin{itemize}
+    \item 最优策略 $\pi_*$ 在所有状态的价值都不小于任何其他策略
+    \item 特别地，$v_{\pi_*}(s_0) \geq v_{\pi}(s_0)$ 对所有策略 $\pi$ 成立
+    \item 最大化 $v_{\pi_\theta}(s_0)$ 可以找到最优策略
+\end{itemize}
+
+\subsection{策略梯度定理的适用性}
+
+\textbf{策略梯度定理}：
+\begin{equation}
+\nabla_\theta J(\theta) = \nabla_\theta v_{\pi_\theta}(s_0) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 策略梯度定理提供了计算 $\nabla_\theta v_{\pi_\theta}(s_0)$ 的方法
+    \item 不涉及状态分布的导数
+    \item 可以估计和优化
+\end{itemize}
+
+\section{与持续任务的对比}
+
+\subsection{持续任务}
+
+\textbf{持续任务（Continuing Task）}：
+\begin{itemize}
+    \item 没有明确的起始状态
+    \item 任务持续进行，没有终止
+    \item 性能定义为平均奖励率
+\end{itemize}
+
+\textbf{性能指标}：
+\begin{equation}
+J(\theta) = r(\pi) = \lim_{h \to \infty} \frac{1}{h} \sum_{t=1}^{h} \mathbb{E}[R_t | S_0, A_{0:t-1} \sim \pi]
+\end{equation}
+
+\textbf{区别}：
+\begin{itemize}
+    \item 持续任务：使用平均奖励率
+    \item 回合制任务：使用起始状态的价值函数
+    \item 这是因为任务性质不同
+\end{itemize}
+
+\section{具体计算例子}
+
+\subsection{例子：简单Gridworld}
+
+\textbf{环境}：
+\begin{itemize}
+    \item 状态：$s_0$（起始）→ $s_1$ → $s_2$ → $G$（终止）
+    \item 奖励：每步 $-1$
+    \item 折扣因子：$\gamma = 1$（无折扣）
+\end{itemize}
+
+\textbf{策略 $\pi_1$}：总是向右
+\begin{itemize}
+    \item 路径：$s_0 \to s_1 \to s_2 \to G$
+    \item 步数：$3$ 步
+    \item 回报：$G_0 = -1 - 1 - 1 = -3$
+    \item 价值：$v_{\pi_1}(s_0) = -3$
+\end{itemize}
+
+\textbf{策略 $\pi_2$}：总是向左（然后可能随机）
+\begin{itemize}
+    \item 路径：可能很长，甚至无法到达 $G$
+    \item 期望步数：很大（如 $20$ 步）
+    \item 价值：$v_{\pi_2}(s_0) = -20$
+\end{itemize}
+
+\textbf{比较}：
+\begin{itemize}
+    \item $v_{\pi_1}(s_0) = -3 > -20 = v_{\pi_2}(s_0)$
+    \item 策略 $\pi_1$ 更好
+    \item 最大化 $v_{\pi_\theta}(s_0)$ 确实能找到更好的策略
+\end{itemize}
+
+\subsection{性能指标的作用}
+
+\textbf{优化过程}：
+\begin{enumerate}
+    \item 初始策略：$\pi_{\theta_0}$，$v_{\pi_{\theta_0}}(s_0) = -20$
+    \item 计算梯度：$\nabla_\theta v_{\pi_{\theta_0}}(s_0)$
+    \item 更新参数：$\theta_1 = \theta_0 + \alpha \nabla_\theta v_{\pi_{\theta_0}}(s_0)$
+    \item 新策略：$\pi_{\theta_1}$，$v_{\pi_{\theta_1}}(s_0) = -15$（改进）
+    \item 继续优化，最终：$v_{\pi_{\theta_*}}(s_0) = -3$（最优）
+\end{enumerate}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 性能指标 $v_{\pi_\theta}(s_0)$ 量化了策略的好坏
+    \item 通过最大化这个指标，我们找到了更好的策略
+    \item 这正是我们想要的！
+\end{itemize}
+
+\section{为什么可以简化假设？}
+
+\subsection{假设：每个episode从 $s_0$ 开始}
+
+\textbf{原书中的简化}：
+\begin{itemize}
+    \item 假设每个episode从某个特定的（非随机的）状态 $s_0$ 开始
+    \item 这简化了符号和推导
+    \item 不失一般性
+\end{itemize}
+
+\textbf{如果起始状态是随机的}：
+\begin{itemize}
+    \item 如果起始状态是从分布 $\mu_0(s)$ 中随机选择的
+    \item 性能指标应该是：$J(\theta) = \sum_{s} \mu_0(s) v_{\pi_\theta}(s)$
+    \item 但可以简化为：$J(\theta) = v_{\pi_\theta}(s_0)$，其中 $s_0$ 是某个代表性的起始状态
+    \item 或者，可以重新定义 $s_0$ 为起始状态的分布
+\end{itemize}
+
+\subsection{不失一般性}
+
+\textbf{原因}：
+\begin{itemize}
+    \item 如果起始状态是随机的，我们可以引入一个虚拟的起始状态
+    \item 这个虚拟状态以概率 $\mu_0(s)$ 转移到实际起始状态
+    \item 然后从虚拟状态开始，问题就变成了从固定状态 $s_0$ 开始
+    \item 因此，假设从 $s_0$ 开始不失一般性
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心原因}
+
+\begin{enumerate}
+    \item \textbf{直接对应目标}：
+    \begin{itemize}
+        \item 回合制任务的目标是从起始状态 $s_0$ 开始获得高回报
+        \item $v_{\pi_\theta}(s_0)$ 正是从 $s_0$ 开始的期望回报
+        \item 最大化 $v_{\pi_\theta}(s_0)$ 就是最大化目标
+    \end{itemize}
+    
+    \item \textbf{自然的性能度量}：
+    \begin{itemize}
+        \item 在回合制任务中，我们总是从 $s_0$ 开始
+        \item 我们关心的是"从 $s_0$ 开始的表现"
+        \item $v_{\pi_\theta}(s_0)$ 直接度量了这个表现
+    \end{itemize}
+    
+    \item \textbf{数学上的合理性}：
+    \begin{itemize}
+        \item $v_{\pi_\theta}(s_0)$ 是一个标量，易于优化
+        \item 策略梯度定理提供了计算梯度的方法
+        \item 可以有效地优化
+    \end{itemize}
+    
+    \item \textbf{与其他定义的对比}：
+    \begin{itemize}
+        \item 使用所有状态的平均价值：不合理（不是所有状态都会被访问）
+        \item 使用终止状态的价值：无意义（终止状态价值为0）
+        \item 使用起始状态的价值：最合理（直接对应目标）
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键公式}
+
+\textbf{性能指标定义}：
+\begin{equation}
+J(\theta) = v_{\pi_\theta}(s_0)
+\end{equation}
+
+\textbf{价值函数定义}：
+\begin{equation}
+v_{\pi_\theta}(s_0) = \mathbb{E}_{\pi_\theta}[G_0 | S_0 = s_0] = \mathbb{E}_{\pi_\theta}\left[\sum_{k=0}^{\infty} \gamma^k R_{k+1} \middle| S_0 = s_0\right]
+\end{equation}
+
+\textbf{优化目标}：
+\begin{equation}
+\theta^* = \arg\max_\theta J(\theta) = \arg\max_\theta v_{\pi_\theta}(s_0)
+\end{equation}
+
+\subsection{直观理解}
+
+\begin{quote}
+\textbf{为什么 $J(\theta) = v_{\pi_\theta}(s_0)$？}
+
+因为回合制任务总是从起始状态 $s_0$ 开始，我们关心的是"从 $s_0$ 开始，使用策略 $\pi_\theta$ 能获得多少回报"。$v_{\pi_\theta}(s_0)$ 正是这个期望回报，所以它是性能指标的自然选择。最大化 $v_{\pi_\theta}(s_0)$ 就是最大化从起始状态开始的期望回报，这正是我们想要的目标。
+\end{quote}
+
+\end{document}
+

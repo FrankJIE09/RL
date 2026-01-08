@@ -1,0 +1,459 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+
+\geometry{margin=2.5cm}
+
+\title{TD(0)详解}
+\subtitle{什么是TD(0)？为什么叫"0"？}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{什么是TD(0)？}
+
+\subsection{基本定义}
+
+\begin{definition}[TD(0)]
+\textbf{TD(0)}是最简单的时序差分学习方法，它使用\textbf{一步前瞻}来更新价值函数估计。更新公式为：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+\label{eq:td0}
+\end{equation}
+其中：
+\begin{itemize}
+    \item $V(S_t)$ 是状态 $S_t$ 的当前价值估计
+    \item $R_{t+1}$ 是即时奖励
+    \item $V(S_{t+1})$ 是下一状态 $S_{t+1}$ 的当前价值估计
+    \item $\alpha$ 是步长参数（学习率）
+    \item $\gamma$ 是折扣因子
+\end{itemize}
+\end{definition}
+
+\subsection{为什么叫"TD(0)"？}
+
+\textbf{关键问题}：为什么叫"0"？这个"0"是什么意思？
+
+\textbf{答案}：TD(0)中的"0"表示\textbf{向前看0步的真实奖励}，即只使用一步转移，不使用未来的真实奖励。
+
+\subsubsection{n步TD方法的一般形式}
+
+为了理解"0"的含义，我们需要了解n步TD方法的一般形式：
+
+\textbf{n步回报}：
+\begin{equation}
+G_{t:t+n} = R_{t+1} + \gamma R_{t+2} + \cdots + \gamma^{n-1} R_{t+n} + \gamma^n V(S_{t+n})
+\label{eq:n_step_return}
+\end{equation}
+
+\textbf{n步TD更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_{t:t+n} - V(S_t)]
+\label{eq:n_step_td}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $n$ 表示使用多少步的\textbf{真实奖励}
+    \item $G_{t:t+n}$ 使用前 $n$ 步的真实奖励，然后用 $V(S_{t+n})$ 估计剩余部分
+    \item 当 $n=0$ 时，就是TD(0)
+\end{itemize}
+
+\subsubsection{TD(0)的特殊情况}
+
+\textbf{当 $n=0$ 时}：
+\begin{align}
+G_{t:t+0} &= \gamma^0 V(S_{t+0}) = V(S_t) \quad \text{（这不对）}
+\end{align}
+
+实际上，TD(0)对应的是 $n=1$ 的情况，但传统上称为TD(0)是因为它使用\textbf{0步的真实奖励}（只使用一步转移，不等待真实奖励）。
+
+\textbf{更准确的理解}：
+\begin{itemize}
+    \item \textbf{TD(0)}：使用 $0$ 步的真实奖励，即立即使用 $R_{t+1} + \gamma V(S_{t+1})$
+    \item \textbf{TD(1)}：使用 $1$ 步的真实奖励，即 $R_{t+1} + \gamma R_{t+2} + \gamma^2 V(S_{t+2})$
+    \item \textbf{TD(n)}：使用 $n$ 步的真实奖励
+    \item \textbf{蒙特卡洛}：使用所有步的真实奖励（$n = \infty$）
+\end{itemize}
+
+\textbf{TD(0)的更新目标}：
+\begin{equation}
+\text{目标} = R_{t+1} + \gamma V(S_{t+1})
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 使用 $0$ 步的真实奖励（只使用 $R_{t+1}$，这是即时奖励，不是"未来"的奖励）
+    \item 立即使用价值函数估计 $V(S_{t+1})$ 来估计剩余部分
+    \item 因此称为TD(0)
+\end{itemize}
+
+\section{TD(0)的完整算法}
+
+\subsection{算法伪代码}
+
+\begin{algorithm}[H]
+\caption{TD(0)算法（估计 $v_\pi$）}
+\begin{algorithmic}[1]
+\REQUIRE 要评估的策略 $\pi$
+\ENSURE 状态价值函数 $v_\pi$ 的估计 $V$
+\STATE \textbf{初始化}：$V(s) \in \mathbb{R}$ 任意初始化，对所有 $s \in \mathcal{S}$，但 $V(\text{终止}) = 0$
+\STATE \textbf{算法参数}：步长 $\alpha \in (0, 1]$
+\STATE
+\REPEAT
+    \STATE 初始化 $S$（回合的起始状态）
+    \REPEAT
+        \STATE $A \gets$ 策略 $\pi$ 给出的动作
+        \STATE 执行动作 $A$，观察奖励 $R$ 和下一状态 $S'$
+        \STATE $V(S) \gets V(S) + \alpha [R + \gamma V(S') - V(S)]$
+        \STATE $S \gets S'$
+    \UNTIL{$S$ 是终止状态}
+\UNTIL{收敛}
+\RETURN $V$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{关键步骤}
+
+\textbf{步骤1}：初始化价值函数 $V(s)$
+
+\textbf{步骤2}：对每个回合：
+\begin{enumerate}
+    \item 从起始状态开始
+    \item 对每个时间步：
+    \begin{itemize}
+        \item 根据策略选择动作
+        \item 执行动作，观察奖励和下一状态
+        \item 使用TD(0)更新当前状态的价值
+        \item 转移到下一状态
+    \end{itemize}
+\end{enumerate}
+
+\textbf{步骤3}：重复直到收敛
+
+\section{TD(0) vs 其他方法}
+
+\subsection{与蒙特卡洛方法对比}
+
+\textbf{蒙特卡洛更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\end{equation}
+
+其中 $G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots$ 是完整回报。
+
+\textbf{对比}：
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{蒙特卡洛} & \textbf{TD(0)} \\
+\hline
+更新目标 & $G_t$（完整回报） & $R_{t+1} + \gamma V(S_{t+1})$ \\
+\hline
+真实奖励步数 & 所有步（$\infty$） & 0步（只使用即时奖励） \\
+\hline
+更新时机 & 回合结束后 & 每个时间步 \\
+\hline
+需要等待 & 是 & 否 \\
+\hline
+偏差 & 无偏 & 可能有偏 \\
+\hline
+方差 & 高方差 & 低方差 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{与动态规划对比}
+
+\textbf{动态规划更新}：
+\begin{equation}
+V(s) \gets \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')]
+\end{equation}
+
+\textbf{对比}：
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{动态规划} & \textbf{TD(0)} \\
+\hline
+需要环境模型 & 是 & 否 \\
+\hline
+更新方式 & 期望更新 & 采样更新 \\
+\hline
+更新目标 & $r + \gamma V(s')$（期望） & $R_{t+1} + \gamma V(S_{t+1})$（样本） \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{与n步TD方法对比}
+
+\textbf{TD(0)}：
+\begin{equation}
+\text{目标} = R_{t+1} + \gamma V(S_{t+1})
+\end{equation}
+
+\textbf{TD(1)}：
+\begin{equation}
+\text{目标} = R_{t+1} + \gamma R_{t+2} + \gamma^2 V(S_{t+2})
+\end{equation}
+
+\textbf{TD(2)}：
+\begin{equation}
+\text{目标} = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \gamma^3 V(S_{t+3})
+\end{equation}
+
+\textbf{蒙特卡洛}（$n = \infty$）：
+\begin{equation}
+\text{目标} = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots
+\end{equation}
+
+\textbf{对比}：
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{方法} & \textbf{真实奖励步数} & \textbf{估计步数} \\
+\hline
+TD(0) & 0步（只即时奖励） & 1步 \\
+\hline
+TD(1) & 1步 & 1步 \\
+\hline
+TD(2) & 2步 & 1步 \\
+\hline
+蒙特卡洛 & 所有步 & 0步 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{TD(0)的特点}
+
+\subsection{优点}
+
+\begin{enumerate}
+    \item \textbf{在线学习}：
+    \begin{itemize}
+        \item 每个时间步都可以更新
+        \item 不需要等待回合结束
+        \item 可以立即利用新信息
+    \end{itemize}
+    
+    \item \textbf{无模型}：
+    \begin{itemize}
+        \item 不需要环境模型 $p(s', r | s, a)$
+        \item 只需要经验样本
+        \item 可以从实际交互中学习
+    \end{itemize}
+    
+    \item \textbf{低方差}：
+    \begin{itemize}
+        \item 只依赖一步转移
+        \item 比蒙特卡洛方法的方差小
+        \item 通常收敛更快
+    \end{itemize}
+    
+    \item \textbf{自举法}：
+    \begin{itemize}
+        \item 使用估计值更新估计值
+        \item 信息传播快
+        \item 数据效率高
+    \end{itemize}
+\end{enumerate}
+
+\subsection{缺点}
+
+\begin{enumerate}
+    \item \textbf{可能有偏}：
+    \begin{itemize}
+        \item 如果 $V(S_{t+1})$ 不准确，TD目标也不准确
+        \item 需要多次迭代才能收敛
+    \end{itemize}
+    
+    \item \textbf{需要初始估计}：
+    \begin{itemize}
+        \item 需要初始化 $V(s)$
+        \item 初始值可能影响收敛速度
+    \end{itemize}
+    
+    \item \textbf{只使用一步信息}：
+    \begin{itemize}
+        \item 可能忽略长期依赖
+        \item 在某些任务中可能不如n步TD方法
+    \end{itemize}
+\end{enumerate}
+
+\section{TD误差}
+
+\subsection{TD误差的定义}
+
+\textbf{TD误差}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+\label{eq:td_error}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $\delta_t$ 衡量当前估计 $V(S_t)$ 与更好估计 $R_{t+1} + \gamma V(S_{t+1})$ 之间的差异
+    \item 如果 $\delta_t > 0$，说明当前估计过低，应该增加
+    \item 如果 $\delta_t < 0$，说明当前估计过高，应该减少
+    \item 如果 $\delta_t = 0$，说明当前估计正好
+\end{itemize}
+
+\subsection{TD更新用TD误差表示}
+
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha \delta_t
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 更新量与TD误差成正比
+    \item 步长 $\alpha$ 控制更新幅度
+    \item TD误差越大，更新幅度越大
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{Gridworld例子}
+
+\textbf{设置}：
+\begin{itemize}
+    \item 状态：$s_5$（中心状态）
+    \item 执行动作"上"，观察到：$R_1 = -1$，$S_1 = s_2$
+    \item 当前估计：$V(s_5) = -2.0$，$V(s_2) = -1.0$
+    \item 折扣因子：$\gamma = 0.9$
+    \item 步长：$\alpha = 0.1$
+\end{itemize}
+
+\textbf{TD(0)更新}：
+
+\textbf{步骤1}：计算TD目标
+\begin{align}
+\text{目标} &= R_1 + \gamma V(S_1) \\
+           &= -1 + 0.9 \times (-1.0) = -1.9
+\end{align}
+
+\textbf{步骤2}：计算TD误差
+\begin{align}
+\delta_0 &= R_1 + \gamma V(S_1) - V(S_0) \\
+         &= -1.9 - (-2.0) = 0.1
+\end{align}
+
+\textbf{步骤3}：更新价值函数
+\begin{align}
+V(s_5) &\gets V(s_5) + \alpha \delta_0 \\
+       &= -2.0 + 0.1 \times 0.1 = -1.99
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item TD目标 $-1.9$ 比当前估计 $-2.0$ 更好（更接近真实值）
+    \item TD误差 $0.1$ 表示当前估计略低
+    \item 更新后，$V(s_5)$ 从 $-2.0$ 增加到 $-1.99$
+\end{itemize}
+
+\section{为什么TD(0)有效？}
+
+\subsection{理论基础：贝尔曼方程}
+
+\textbf{状态价值函数的贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s]
+\end{equation}
+
+\textbf{关键洞察}：
+\begin{quote}
+根据贝尔曼方程，$v_\pi(S_t)$ 的真实值等于 $R_{t+1} + \gamma v_\pi(S_{t+1})$ 的期望值。TD(0)使用观察到的样本 $R_{t+1} + \gamma V(S_{t+1})$ 来估计这个期望值。
+\end{quote}
+
+\subsection{收敛性}
+
+\begin{theorem}[TD(0)收敛性]
+对于任何固定策略 $\pi$，TD(0)在以下条件下收敛到 $v_\pi$：
+\begin{enumerate}
+    \item 步长 $\alpha$ 满足 Robbins-Monro 条件：
+    \begin{align}
+    \sum_{t=0}^{\infty} \alpha_t &= \infty \\
+    \sum_{t=0}^{\infty} \alpha_t^2 &< \infty
+    \end{align}
+    \item 每个状态被访问无限次
+    \item 价值函数在回合期间不更新（或更新很小）
+\end{enumerate}
+\end{theorem}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 如果步长满足条件，TD(0)保证收敛
+    \item 收敛到真实价值函数 $v_\pi$
+    \item 这是TD(0)有效性的理论保证
+\end{itemize}
+
+\section{总结}
+
+\subsection{TD(0)的核心特征}
+
+\begin{enumerate}
+    \item \textbf{定义}：使用一步前瞻 $R_{t+1} + \gamma V(S_{t+1})$ 更新价值函数
+    
+    \item \textbf{"0"的含义}：使用0步的真实奖励（只使用即时奖励），立即使用价值函数估计
+    
+    \item \textbf{更新公式}：
+    \begin{equation}
+    V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+    \end{equation}
+    
+    \item \textbf{TD误差}：
+    \begin{equation}
+    \delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+    \end{equation}
+    
+    \item \textbf{特点}：
+    \begin{itemize}
+        \item 在线学习：每个时间步都可以更新
+        \item 无模型：不需要环境模型
+        \item 低方差：只依赖一步转移
+        \item 自举法：使用估计值更新估计值
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{TD(0)是最简单的时序差分学习方法，它通过结合即时奖励和下一状态的估计值来更新当前状态的价值。虽然它只使用一步信息，但通过自举法和在线学习，它能够高效地学习价值函数。}
+\end{quote}
+
+\subsection{与其他方法的关系}
+
+\begin{itemize}
+    \item \textbf{TD(0)} $\to$ \textbf{TD(n)}：增加使用的真实奖励步数
+    \item \textbf{TD(0)} $\to$ \textbf{蒙特卡洛}：使用所有步的真实奖励
+    \item \textbf{TD(0)} $\to$ \textbf{动态规划}：使用期望值而不是样本
+\end{itemize}
+
+TD(0)是时序差分学习的基础，理解TD(0)是理解更复杂TD方法的关键。
+
+\end{document}
+

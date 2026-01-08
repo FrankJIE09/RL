@@ -1,0 +1,326 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+
+\geometry{margin=2.5cm}
+
+\title{练习6.1解答}
+\subtitle{当价值函数在回合期间变化时，TD误差之和与蒙特卡洛误差的关系}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题陈述}
+
+\textbf{练习6.1}：如果 $V$ 在回合期间发生变化（如TD(0)中），那么方程(6.6)只近似成立；两边的差异是什么？让 $V_t$ 表示在时间 $t$ 用于TD误差(6.5)和TD更新(6.2)的状态值数组。重新推导上述内容，以确定必须添加到TD误差之和中的额外量，以便等于蒙特卡洛误差。
+
+\section{背景知识}
+
+\subsection{方程(6.5)：TD误差}
+
+\textbf{TD误差的定义}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+\label{eq:td_error}
+\end{equation}
+
+\subsection{方程(6.6)：当 $V$ 不变时的关系}
+
+\textbf{当 $V$ 在回合期间不变时}，蒙特卡洛误差可以写成TD误差的折扣和：
+\begin{equation}
+G_t - V(S_t) = \sum_{k=t}^{T-1} \gamma^{k-t} \delta_k
+\label{eq:mc_td_relation}
+\end{equation}
+
+其中 $T$ 是终止时间步。
+
+\textbf{推导过程}（当 $V$ 不变时）：
+
+\begin{align}
+G_t - V(S_t) &= R_{t+1} + \gamma G_{t+1} - V(S_t) \quad \text{（回报的递归关系）} \\
+             &= R_{t+1} + \gamma G_{t+1} - V(S_t) + \gamma V(S_{t+1}) - \gamma V(S_{t+1}) \\
+             &= [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)] + \gamma [G_{t+1} - V(S_{t+1})] \\
+             &= \delta_t + \gamma [G_{t+1} - V(S_{t+1})] \\
+             &= \delta_t + \gamma \delta_{t+1} + \gamma^2 [G_{t+2} - V(S_{t+2})] \\
+             &= \delta_t + \gamma \delta_{t+1} + \gamma^2 \delta_{t+2} + \cdots + \gamma^{T-t-1} \delta_{T-1} + \gamma^{T-t} [G_T - V(S_T)] \\
+             &= \sum_{k=t}^{T-1} \gamma^{k-t} \delta_k
+\end{align}
+
+其中最后一步使用了 $G_T = 0$ 和 $V(S_T) = 0$（终止状态）。
+
+\section{问题分析}
+
+\subsection{当 $V$ 在回合期间变化时}
+
+\textbf{关键观察}：在TD(0)中，$V$ 在每个时间步都会更新，因此：
+\begin{itemize}
+    \item 在时间 $t$ 使用的价值函数是 $V_t$
+    \item 在时间 $t+1$ 使用的价值函数是 $V_{t+1}$（已经更新过）
+    \item $V_t \neq V_{t+1}$（因为中间有更新）
+\end{itemize}
+
+\textbf{记号}：
+\begin{itemize}
+    \item $V_t(S)$：在时间 $t$ 使用的状态 $S$ 的价值估计
+    \item $\delta_t$：在时间 $t$ 计算的TD误差，使用 $V_t$
+    \item $G_t$：从时间 $t$ 开始的完整回报
+\end{itemize}
+
+\subsection{重新推导}
+
+\textbf{步骤1：从回报的递归关系开始}
+
+\begin{align}
+G_t - V_t(S_t) &= R_{t+1} + \gamma G_{t+1} - V_t(S_t)
+\end{align}
+
+\textbf{步骤2：添加和减去 $\gamma V_t(S_{t+1})$}
+
+\begin{align}
+G_t - V_t(S_t) &= R_{t+1} + \gamma G_{t+1} - V_t(S_t) + \gamma V_t(S_{t+1}) - \gamma V_t(S_{t+1}) \\
+               &= [R_{t+1} + \gamma V_t(S_{t+1}) - V_t(S_t)] + \gamma [G_{t+1} - V_t(S_{t+1})]
+\end{align}
+
+\textbf{关键点}：第一个括号是 $\delta_t$（使用 $V_t$），但第二个括号中的 $V_t(S_{t+1})$ 不是 $V_{t+1}(S_{t+1})$。
+
+\textbf{步骤3：处理 $V_t(S_{t+1})$ 和 $V_{t+1}(S_{t+1})$ 的差异}
+
+\begin{align}
+G_{t+1} - V_t(S_{t+1}) &= G_{t+1} - V_{t+1}(S_{t+1}) + [V_{t+1}(S_{t+1}) - V_t(S_{t+1})]
+\end{align}
+
+因此：
+\begin{align}
+G_t - V_t(S_t) &= \delta_t + \gamma [G_{t+1} - V_{t+1}(S_{t+1})] + \gamma [V_{t+1}(S_{t+1}) - V_t(S_{t+1})]
+\end{align}
+
+\textbf{步骤4：递归展开}
+
+对 $G_{t+1} - V_{t+1}(S_{t+1})$ 应用相同的过程：
+
+\begin{align}
+G_{t+1} - V_{t+1}(S_{t+1}) &= \delta_{t+1} + \gamma [G_{t+2} - V_{t+2}(S_{t+2})] + \gamma [V_{t+2}(S_{t+2}) - V_{t+1}(S_{t+2})]
+\end{align}
+
+其中 $\delta_{t+1} = R_{t+2} + \gamma V_{t+1}(S_{t+2}) - V_{t+1}(S_{t+1})$。
+
+\textbf{步骤5：完全展开}
+
+继续递归展开，我们得到：
+
+\begin{align}
+G_t - V_t(S_t) &= \delta_t + \gamma \delta_{t+1} + \gamma^2 \delta_{t+2} + \cdots + \gamma^{T-t-1} \delta_{T-1} \\
+                &\quad + \gamma [V_{t+1}(S_{t+1}) - V_t(S_{t+1})] \\
+                &\quad + \gamma^2 [V_{t+2}(S_{t+2}) - V_{t+1}(S_{t+2})] \\
+                &\quad + \cdots \\
+                &\quad + \gamma^{T-t-1} [V_{T-1}(S_{T-1}) - V_{T-2}(S_{T-1})]
+\end{align}
+
+\textbf{步骤6：简化表达式}
+
+\begin{align}
+G_t - V_t(S_t) &= \sum_{k=t}^{T-1} \gamma^{k-t} \delta_k + \sum_{k=t+1}^{T-1} \gamma^{k-t} [V_k(S_k) - V_{k-1}(S_k)]
+\label{eq:exact_relation}
+\end{align}
+
+\section{最终答案}
+
+\subsection{主要结果}
+
+\textbf{定理}：当价值函数 $V$ 在回合期间变化时，蒙特卡洛误差与TD误差之和的关系为：
+
+\begin{equation}
+G_t - V_t(S_t) = \sum_{k=t}^{T-1} \gamma^{k-t} \delta_k + \sum_{k=t+1}^{T-1} \gamma^{k-t} [V_k(S_k) - V_{k-1}(S_k)]
+\label{eq:final_answer}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\delta_k = R_{k+1} + \gamma V_k(S_{k+1}) - V_k(S_k)$ 是在时间 $k$ 计算的TD误差
+    \item $V_k(S_k)$ 是在时间 $k$ 使用的状态 $S_k$ 的价值估计
+    \item $V_{k-1}(S_k)$ 是在时间 $k-1$ 使用的状态 $S_k$ 的价值估计
+\end{itemize}
+
+\subsection{差异项的解释}
+
+\textbf{差异项}：
+\begin{equation}
+\sum_{k=t+1}^{T-1} \gamma^{k-t} [V_k(S_k) - V_{k-1}(S_k)]
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 这一项衡量了由于价值函数在回合期间更新而产生的\textbf{累积差异}
+    \item 每一项 $V_k(S_k) - V_{k-1}(S_k)$ 表示状态 $S_k$ 的价值从时间 $k-1$ 到时间 $k$ 的变化
+    \item 这个变化是由于在时间 $k-1$ 对状态 $S_{k-1}$ 的TD更新引起的
+\end{itemize}
+
+\textbf{为什么会出现这个差异？}
+
+\begin{itemize}
+    \item 在时间 $k$，我们使用 $V_k$ 来计算 $\delta_k$
+    \item 但 $V_k$ 已经根据之前的状态更新过了
+    \item 因此，$V_k(S_k)$ 和 $V_{k-1}(S_k)$ 不同
+    \item 这个差异必须被考虑进去，才能准确地将蒙特卡洛误差表示为TD误差之和
+\end{itemize}
+
+\section{特殊情况}
+
+\subsection{当 $V$ 不变时}
+
+如果 $V$ 在回合期间不变，即 $V_k = V_{k-1}$ 对所有 $k$，那么：
+\begin{align}
+V_k(S_k) - V_{k-1}(S_k) &= 0 \quad \text{对所有 } k
+\end{align}
+
+因此，差异项为零，我们得到：
+\begin{equation}
+G_t - V_t(S_t) = \sum_{k=t}^{T-1} \gamma^{k-t} \delta_k
+\end{equation}
+
+这就是原始的方程(6.6)。
+
+\subsection{当步长很小时}
+
+如果TD更新的步长 $\alpha$ 很小，那么每次更新对 $V$ 的改变也很小：
+\begin{align}
+V_k(S_k) - V_{k-1}(S_k) &\approx 0
+\end{align}
+
+因此，差异项近似为零，方程(6.6)近似成立：
+\begin{equation}
+G_t - V_t(S_t) \approx \sum_{k=t}^{T-1} \gamma^{k-t} \delta_k
+\end{equation}
+
+\section{具体例子}
+
+\subsection{简单例子}
+
+\textbf{设置}：
+\begin{itemize}
+    \item 回合长度：$T = 3$（从 $t=0$ 到 $t=2$）
+    \item 折扣因子：$\gamma = 0.9$
+    \item 初始价值：$V_0(s_0) = 0$，$V_0(s_1) = 0$，$V_0(s_2) = 0$
+    \item 步长：$\alpha = 0.1$
+\end{itemize}
+
+\textbf{轨迹}：
+\begin{align}
+S_0 &= s_0, \quad R_1 = 1, \quad S_1 = s_1 \\
+S_1 &= s_1, \quad R_2 = 2, \quad S_2 = s_2 \\
+S_2 &= s_2 \quad \text{（终止）}
+\end{align}
+
+\textbf{计算过程}：
+
+\textbf{时间 $t=0$}：
+\begin{align}
+\delta_0 &= R_1 + \gamma V_0(S_1) - V_0(S_0) = 1 + 0.9 \times 0 - 0 = 1 \\
+V_1(S_0) &= V_0(S_0) + \alpha \delta_0 = 0 + 0.1 \times 1 = 0.1
+\end{align}
+
+\textbf{时间 $t=1$}：
+\begin{align}
+\delta_1 &= R_2 + \gamma V_1(S_2) - V_1(S_1) = 2 + 0.9 \times 0 - 0 = 2 \\
+V_2(S_1) &= V_1(S_1) + \alpha \delta_1 = 0 + 0.1 \times 2 = 0.2
+\end{align}
+
+\textbf{完整回报}：
+\begin{align}
+G_0 &= R_1 + \gamma R_2 = 1 + 0.9 \times 2 = 2.8
+\end{align}
+
+\textbf{验证方程}：
+
+\textbf{左边}：
+\begin{align}
+G_0 - V_0(S_0) &= 2.8 - 0 = 2.8
+\end{align}
+
+\textbf{右边（TD误差之和）}：
+\begin{align}
+\sum_{k=0}^{1} \gamma^{k} \delta_k &= \delta_0 + \gamma \delta_1 = 1 + 0.9 \times 2 = 2.8
+\end{align}
+
+\textbf{差异项}：
+\begin{align}
+\sum_{k=1}^{1} \gamma^{k} [V_k(S_k) - V_{k-1}(S_k)] &= \gamma [V_1(S_1) - V_0(S_1)] = 0.9 \times (0 - 0) = 0
+\end{align}
+
+在这个例子中，差异项为零，因为 $V_0(S_1) = V_1(S_1) = 0$（$S_1$ 的价值在时间 $t=0$ 没有更新）。
+
+\textbf{更复杂的例子}：
+
+假设在时间 $t=0$，我们也更新了 $S_1$ 的价值（虽然这在实际TD(0)中不会发生，但为了说明差异项，我们假设它发生了）：
+
+\textbf{时间 $t=0$}（假设也更新 $S_1$）：
+\begin{align}
+V_1(S_1) &= V_0(S_1) + \alpha \times \text{某个值} = 0 + 0.1 \times 0.5 = 0.05
+\end{align}
+
+\textbf{差异项}：
+\begin{align}
+\sum_{k=1}^{1} \gamma^{k} [V_k(S_k) - V_{k-1}(S_k)] &= \gamma [V_1(S_1) - V_0(S_1)] = 0.9 \times (0.05 - 0) = 0.045
+\end{align}
+
+现在，完整的方程是：
+\begin{align}
+G_0 - V_0(S_0) &= \sum_{k=0}^{1} \gamma^{k} \delta_k + 0.045
+\end{align}
+
+\section{总结}
+
+\subsection{关键结果}
+
+当价值函数 $V$ 在回合期间变化时，蒙特卡洛误差与TD误差之和的精确关系为：
+
+\begin{equation}
+G_t - V_t(S_t) = \sum_{k=t}^{T-1} \gamma^{k-t} \delta_k + \sum_{k=t+1}^{T-1} \gamma^{k-t} [V_k(S_k) - V_{k-1}(S_k)]
+\end{equation}
+
+\textbf{差异项}：
+\begin{equation}
+\sum_{k=t+1}^{T-1} \gamma^{k-t} [V_k(S_k) - V_{k-1}(S_k)]
+\end{equation}
+
+这一项必须被添加到TD误差之和中，才能精确等于蒙特卡洛误差。
+
+\subsection{物理意义}
+
+\begin{itemize}
+    \item \textbf{TD误差之和}：表示基于当前价值估计的累积误差
+    \item \textbf{差异项}：表示由于价值函数在回合期间更新而产生的额外差异
+    \item \textbf{总和}：精确等于蒙特卡洛误差（真实回报与初始价值估计的差异）
+\end{itemize}
+
+\subsection{实际意义}
+
+\begin{itemize}
+    \item 当步长 $\alpha$ 很小时，差异项很小，方程(6.6)近似成立
+    \item 当步长 $\alpha$ 较大时，差异项不可忽略，必须考虑这个修正项
+    \item 这个结果对于理解TD学习的收敛性和误差分析很重要
+\end{itemize}
+
+\end{document}
+

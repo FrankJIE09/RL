@@ -1,0 +1,645 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{时序差分学习Gridworld例子}
+\subtitle{通过具体例子理解TD(0)、SARSA和Q-learning}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题设置}
+
+\subsection{Gridworld环境}
+
+考虑一个简单的3×3 Gridworld：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{终止} & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{环境设置}：
+\begin{itemize}
+    \item \textbf{非终止状态}：$\mathcal{S} = \{s_2, s_3, s_4, s_5, s_6, s_7, s_8\}$
+    \item \textbf{终止状态}：左上角和右下角
+    \item \textbf{动作空间}：每个状态有4个动作：上、下、左、右
+    \item \textbf{奖励}：所有转移的奖励都是 $-1$，直到到达终止状态
+    \item \textbf{折扣因子}：$\gamma = 0.9$
+    \item \textbf{转移}：动作确定性地使智能体移动到相邻格子，撞墙则状态不变
+\end{itemize}
+
+\subsection{要评估的策略}
+
+\textbf{策略 $\pi$}：等概率随机策略
+\begin{equation}
+\pi(a | s) = \frac{1}{4} \quad \text{对所有 } s \in \mathcal{S}, a \in \{\text{上}, \text{下}, \text{左}, \text{右}\}
+\end{equation}
+
+\textbf{目标}：使用TD(0)方法估计策略 $\pi$ 的状态价值函数 $v_\pi(s)$。
+
+\section{TD(0)预测：具体例子}
+
+\subsection{初始化}
+
+\textbf{初始价值函数}：
+\begin{equation}
+V(s) = 0 \quad \text{对所有 } s \in \mathcal{S}
+\end{equation}
+
+\textbf{算法参数}：
+\begin{itemize}
+    \item 步长：$\alpha = 0.1$
+    \item 折扣因子：$\gamma = 0.9$
+\end{itemize}
+
+\subsection{第1个回合}
+
+\textbf{生成回合}：遵循策略 $\pi$（等概率随机选择动作）
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_5, A_0 = \text{上}, R_1 = -1, S_1 = s_2, A_1 = \text{左}, R_2 = -1, S_2 = \text{终止}
+\end{equation}
+
+\textbf{回合序列}：
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+$t$ & $S_t$ & $A_t$ & $R_{t+1}$ \\
+\hline
+0 & $s_5$ & 上 & $-1$ \\
+\hline
+1 & $s_2$ & 左 & $-1$ \\
+\hline
+2 & 终止 & - & - \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{TD(0)更新过程}：
+
+\textbf{时间步 $t=0$}（状态 $s_5$）：
+\begin{itemize}
+    \item 当前价值：$V(s_5) = 0$
+    \item 执行动作：$A_0 = \text{上}$
+    \item 观察：$R_1 = -1$，$S_1 = s_2$
+    \item TD目标：$R_1 + \gamma V(S_1) = -1 + 0.9 \times V(s_2) = -1 + 0.9 \times 0 = -1$
+    \item TD误差：$\delta_0 = R_1 + \gamma V(S_1) - V(S_0) = -1 + 0.9 \times 0 - 0 = -1$
+    \item 更新：$V(s_5) \gets V(s_5) + \alpha \delta_0 = 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{时间步 $t=1$}（状态 $s_2$）：
+\begin{itemize}
+    \item 当前价值：$V(s_2) = 0$
+    \item 执行动作：$A_1 = \text{左}$
+    \item 观察：$R_2 = -1$，$S_2 = \text{终止}$
+    \item TD目标：$R_2 + \gamma V(\text{终止}) = -1 + 0.9 \times 0 = -1$
+    \item TD误差：$\delta_1 = R_2 + \gamma V(S_2) - V(S_1) = -1 + 0.9 \times 0 - 0 = -1$
+    \item 更新：$V(s_2) \gets V(s_2) + \alpha \delta_1 = 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{第1个回合后的价值函数}：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & $-0.1$ & 0 \\
+\hline
+0 & $-0.1$ & 0 \\
+\hline
+0 & 0 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{第2个回合}
+
+\textbf{生成回合}：
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_4, A_0 = \text{右}, R_1 = -1, S_1 = s_5, A_1 = \text{上}, R_2 = -1, S_2 = s_2, A_2 = \text{左}, R_3 = -1, S_3 = \text{终止}
+\end{equation}
+
+\textbf{TD(0)更新过程}：
+
+\textbf{时间步 $t=0$}（状态 $s_4$）：
+\begin{itemize}
+    \item 当前价值：$V(s_4) = 0$
+    \item 执行动作：$A_0 = \text{右}$
+    \item 观察：$R_1 = -1$，$S_1 = s_5$
+    \item TD目标：$R_1 + \gamma V(S_1) = -1 + 0.9 \times V(s_5) = -1 + 0.9 \times (-0.1) = -1.09$
+    \item TD误差：$\delta_0 = -1.09 - 0 = -1.09$
+    \item 更新：$V(s_4) \gets 0 + 0.1 \times (-1.09) = -0.109$
+\end{itemize}
+
+\textbf{时间步 $t=1$}（状态 $s_5$）：
+\begin{itemize}
+    \item 当前价值：$V(s_5) = -0.1$
+    \item 执行动作：$A_1 = \text{上}$
+    \item 观察：$R_2 = -1$，$S_2 = s_2$
+    \item TD目标：$R_2 + \gamma V(S_2) = -1 + 0.9 \times V(s_2) = -1 + 0.9 \times (-0.1) = -1.09$
+    \item TD误差：$\delta_1 = -1.09 - (-0.1) = -0.99$
+    \item 更新：$V(s_5) \gets -0.1 + 0.1 \times (-0.99) = -0.199$
+\end{itemize}
+
+\textbf{时间步 $t=2$}（状态 $s_2$）：
+\begin{itemize}
+    \item 当前价值：$V(s_2) = -0.1$
+    \item 执行动作：$A_2 = \text{左}$
+    \item 观察：$R_3 = -1$，$S_3 = \text{终止}$
+    \item TD目标：$R_3 + \gamma V(\text{终止}) = -1 + 0.9 \times 0 = -1$
+    \item TD误差：$\delta_2 = -1 - (-0.1) = -0.9$
+    \item 更新：$V(s_2) \gets -0.1 + 0.1 \times (-0.9) = -0.19$
+\end{itemize}
+
+\textbf{第2个回合后的价值函数}：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+0 & $-0.19$ & 0 \\
+\hline
+$-0.109$ & $-0.199$ & 0 \\
+\hline
+0 & 0 & 0 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{关键观察}
+
+\textbf{TD(0)的特点}：
+\begin{itemize}
+    \item \textbf{立即更新}：每个时间步都可以更新，不需要等待回合结束
+    \item \textbf{使用估计值}：使用 $V(S_{t+1})$ 来更新 $V(S_t)$（自举法）
+    \item \textbf{信息传播}：更新的价值立即被后续更新使用
+    \item \textbf{在线学习}：可以边交互边学习
+\end{itemize}
+
+\textbf{与蒙特卡洛的对比}：
+\begin{itemize}
+    \item \textbf{蒙特卡洛}：需要等待回合结束，使用完整回报 $G_t$
+    \item \textbf{TD(0)}：每个时间步更新，使用一步前瞻 $R_{t+1} + \gamma V(S_{t+1})$
+\end{itemize}
+
+\section{SARSA：On-policy TD控制}
+
+\subsection{问题设置}
+
+\textbf{目标}：找到最优策略 $\pi_*$ 和最优动作价值函数 $q_*$。
+
+\textbf{方法}：使用SARSA算法（On-policy TD控制）。
+
+\subsection{初始化}
+
+\textbf{初始动作价值函数}：
+\begin{equation}
+Q(s, a) = 0 \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\textbf{初始策略}：$\varepsilon$-贪婪策略（$\varepsilon = 0.1$）
+\begin{equation}
+\pi(a | s) = \begin{cases}
+0.9 + \frac{0.1}{4} = 0.925 & \text{如果 } a = \arg\max_{a'} Q(s, a') \\
+\frac{0.1}{4} = 0.025 & \text{其他}
+\end{cases}
+\end{equation}
+
+由于初始 $Q(s, a) = 0$ 对所有 $(s, a)$，所有动作价值相等，所以初始策略是等概率随机策略。
+
+\textbf{算法参数}：
+\begin{itemize}
+    \item 步长：$\alpha = 0.1$
+    \item 折扣因子：$\gamma = 0.9$
+    \item $\varepsilon = 0.1$
+\end{itemize}
+
+\subsection{第1个回合}
+
+\textbf{生成回合}：遵循策略 $\pi$（初始为随机策略）
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_5, A_0 = \text{上}, R_1 = -1, S_1 = s_2, A_1 = \text{左}, R_2 = -1, S_2 = \text{终止}
+\end{equation}
+
+\textbf{SARSA更新过程}：
+
+\textbf{时间步 $t=0$}（状态-动作对 $(s_5, \text{上})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_5, \text{上}) = 0$
+    \item 执行动作：$A_0 = \text{上}$
+    \item 观察：$R_1 = -1$，$S_1 = s_2$
+    \item 选择下一动作：$A_1 = \text{左}$（根据策略 $\pi$）
+    \item SARSA目标：$R_1 + \gamma Q(S_1, A_1) = -1 + 0.9 \times Q(s_2, \text{左}) = -1 + 0.9 \times 0 = -1$
+    \item TD误差：$\delta_0 = -1 - 0 = -1$
+    \item 更新：$Q(s_5, \text{上}) \gets 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{时间步 $t=1$}（状态-动作对 $(s_2, \text{左})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_2, \text{左}) = 0$
+    \item 执行动作：$A_1 = \text{左}$
+    \item 观察：$R_2 = -1$，$S_2 = \text{终止}$
+    \item 下一动作：$A_2 = -$（终止状态，无动作）
+    \item SARSA目标：$R_2 + \gamma Q(\text{终止}, -) = -1 + 0.9 \times 0 = -1$（终止状态价值为0）
+    \item TD误差：$\delta_1 = -1 - 0 = -1$
+    \item 更新：$Q(s_2, \text{左}) \gets 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{策略改进}：
+
+\textbf{状态 $s_5$}：
+\begin{itemize}
+    \item $Q(s_5, \text{上}) = -0.1$
+    \item $Q(s_5, \text{下}) = 0$（未访问）
+    \item $Q(s_5, \text{左}) = 0$（未访问）
+    \item $Q(s_5, \text{右}) = 0$（未访问）
+    \item $\pi(s_5) = \arg\max_{a} Q(s_5, a) = \text{下}$（或左、右，因为都是0，且 $-0.1 < 0$）
+\end{itemize}
+
+\textbf{状态 $s_2$}：
+\begin{itemize}
+    \item $Q(s_2, \text{左}) = -0.1$
+    \item $Q(s_2, \text{上}) = 0$（未访问）
+    \item $Q(s_2, \text{下}) = 0$（未访问）
+    \item $Q(s_2, \text{右}) = 0$（未访问）
+    \item $\pi(s_2) = \arg\max_{a} Q(s_2, a) = \text{上}$（或下、右）
+\end{itemize}
+
+\subsection{第2个回合}
+
+\textbf{生成回合}：遵循更新后的策略 $\pi$
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_4, A_0 = \text{右}, R_1 = -1, S_1 = s_5, A_1 = \text{下}, R_2 = -1, S_2 = s_8, A_2 = \text{右}, R_3 = -1, S_3 = \text{终止}
+\end{equation}
+
+\textbf{SARSA更新过程}：
+
+\textbf{时间步 $t=0$}（状态-动作对 $(s_4, \text{右})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_4, \text{右}) = 0$
+    \item 执行动作：$A_0 = \text{右}$
+    \item 观察：$R_1 = -1$，$S_1 = s_5$
+    \item 选择下一动作：$A_1 = \text{下}$（根据策略 $\pi$）
+    \item SARSA目标：$R_1 + \gamma Q(S_1, A_1) = -1 + 0.9 \times Q(s_5, \text{下}) = -1 + 0.9 \times 0 = -1$
+    \item 更新：$Q(s_4, \text{右}) \gets 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{时间步 $t=1$}（状态-动作对 $(s_5, \text{下})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_5, \text{下}) = 0$
+    \item 执行动作：$A_1 = \text{下}$
+    \item 观察：$R_2 = -1$，$S_2 = s_8$
+    \item 选择下一动作：$A_2 = \text{右}$（根据策略 $\pi$）
+    \item SARSA目标：$R_2 + \gamma Q(S_2, A_2) = -1 + 0.9 \times Q(s_8, \text{右}) = -1 + 0.9 \times 0 = -1$
+    \item 更新：$Q(s_5, \text{下}) \gets 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{时间步 $t=2$}（状态-动作对 $(s_8, \text{右})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_8, \text{右}) = 0$
+    \item 执行动作：$A_2 = \text{右}$
+    \item 观察：$R_3 = -1$，$S_3 = \text{终止}$
+    \item SARSA目标：$R_3 + \gamma Q(\text{终止}, -) = -1 + 0.9 \times 0 = -1$
+    \item 更新：$Q(s_8, \text{右}) \gets 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{策略改进}：
+
+\textbf{状态 $s_5$}：
+\begin{itemize}
+    \item $Q(s_5, \text{上}) = -0.1$
+    \item $Q(s_5, \text{下}) = -0.1$
+    \item $Q(s_5, \text{左}) = 0$（未访问）
+    \item $Q(s_5, \text{右}) = 0$（未访问）
+    \item $\pi(s_5) = \text{左}$ 或 $\text{右}$（因为都是0，且 $-0.1 < 0$）
+\end{itemize}
+
+\subsection{继续迭代}
+
+\textbf{经过更多回合后}：
+
+随着更多回合的进行，所有状态-动作对都会被访问，动作价值函数会逐渐收敛，策略也会逐渐改进。
+
+\textbf{最终结果}：
+
+经过足够多的回合后，算法会收敛到：
+\begin{itemize}
+    \item 最优动作价值函数 $q_*$
+    \item 最优策略 $\pi_*$（$\varepsilon$-贪婪策略，基于 $q_*$）
+\end{itemize}
+
+\section{Q-learning：Off-policy TD控制}
+
+\subsection{问题设置}
+
+\textbf{目标}：找到最优策略 $\pi_*$ 和最优动作价值函数 $q_*$。
+
+\textbf{方法}：使用Q-learning算法（Off-policy TD控制）。
+
+\subsection{初始化}
+
+\textbf{初始动作价值函数}：
+\begin{equation}
+Q(s, a) = 0 \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\textbf{行为策略}：$\varepsilon$-贪婪策略（$\varepsilon = 0.1$），用于收集数据
+
+\textbf{算法参数}：
+\begin{itemize}
+    \item 步长：$\alpha = 0.1$
+    \item 折扣因子：$\gamma = 0.9$
+    \item $\varepsilon = 0.1$
+\end{itemize}
+
+\subsection{第1个回合}
+
+\textbf{生成回合}：遵循行为策略（$\varepsilon$-贪婪）
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_5, A_0 = \text{上}, R_1 = -1, S_1 = s_2, A_1 = \text{左}, R_2 = -1, S_2 = \text{终止}
+\end{equation}
+
+\textbf{Q-learning更新过程}：
+
+\textbf{时间步 $t=0$}（状态-动作对 $(s_5, \text{上})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_5, \text{上}) = 0$
+    \item 执行动作：$A_0 = \text{上}$（行为策略选择）
+    \item 观察：$R_1 = -1$，$S_1 = s_2$
+    \item Q-learning目标：$R_1 + \gamma \max_{a} Q(S_1, a) = -1 + 0.9 \times \max_{a} Q(s_2, a) = -1 + 0.9 \times 0 = -1$
+    \item TD误差：$\delta_0 = -1 - 0 = -1$
+    \item 更新：$Q(s_5, \text{上}) \gets 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item Q-learning使用 $\max_{a} Q(S_1, a)$，而不是实际选择的动作 $A_1$
+    \item 这允许学习最优动作价值函数，即使行为策略不是最优的
+\end{itemize}
+
+\textbf{时间步 $t=1$}（状态-动作对 $(s_2, \text{左})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_2, \text{左}) = 0$
+    \item 执行动作：$A_1 = \text{左}$（行为策略选择）
+    \item 观察：$R_2 = -1$，$S_2 = \text{终止}$
+    \item Q-learning目标：$R_2 + \gamma \max_{a} Q(\text{终止}, a) = -1 + 0.9 \times 0 = -1$
+    \item 更新：$Q(s_2, \text{左}) \gets 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\subsection{第2个回合}
+
+\textbf{生成回合}：遵循行为策略
+
+假设生成的回合为：
+\begin{equation}
+S_0 = s_4, A_0 = \text{右}, R_1 = -1, S_1 = s_5, A_1 = \text{上}, R_2 = -1, S_2 = s_2, A_2 = \text{右}, R_3 = -1, S_3 = s_3, A_3 = \text{下}, R_4 = -1, S_4 = s_6, A_4 = \text{右}, R_5 = -1, S_5 = \text{终止}
+\end{equation}
+
+\textbf{Q-learning更新过程}：
+
+\textbf{时间步 $t=0$}（状态-动作对 $(s_4, \text{右})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_4, \text{右}) = 0$
+    \item 执行动作：$A_0 = \text{右}$
+    \item 观察：$R_1 = -1$，$S_1 = s_5$
+    \item Q-learning目标：$R_1 + \gamma \max_{a} Q(S_1, a) = -1 + 0.9 \times \max_{a} Q(s_5, a)$
+    \item 由于 $Q(s_5, \text{上}) = -0.1$，其他为 $0$，所以 $\max_{a} Q(s_5, a) = 0$
+    \item 目标：$-1 + 0.9 \times 0 = -1$
+    \item 更新：$Q(s_4, \text{右}) \gets 0 + 0.1 \times (-1) = -0.1$
+\end{itemize}
+
+\textbf{时间步 $t=1$}（状态-动作对 $(s_5, \text{上})$）：
+\begin{itemize}
+    \item 当前动作价值：$Q(s_5, \text{上}) = -0.1$
+    \item 执行动作：$A_1 = \text{上}$（行为策略选择，可能与最优动作不同）
+    \item 观察：$R_2 = -1$，$S_2 = s_2$
+    \item Q-learning目标：$R_2 + \gamma \max_{a} Q(S_2, a) = -1 + 0.9 \times \max_{a} Q(s_2, a)$
+    \item 由于 $Q(s_2, \text{左}) = -0.1$，其他为 $0$，所以 $\max_{a} Q(s_2, a) = 0$
+    \item 目标：$-1 + 0.9 \times 0 = -1$
+    \item 更新：$Q(s_5, \text{上}) \gets -0.1 + 0.1 \times (-1 - (-0.1)) = -0.1 + 0.1 \times (-0.9) = -0.19$
+\end{itemize}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item Q-learning使用 $\max_{a} Q(S_2, a)$，即使实际选择的动作 $A_2 = \text{右}$ 不是最优的
+    \item 这允许Q-learning学习最优策略，即使行为策略是探索性的
+\end{itemize}
+
+\subsection{Q-learning vs SARSA的对比}
+
+\textbf{更新公式对比}：
+
+\textbf{SARSA}（On-policy）：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{Q-learning}（Off-policy）：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{关键区别}：
+
+\textbf{例子}：在状态 $s_5$，执行动作"上"，转移到 $s_2$。
+
+\textbf{SARSA}：
+\begin{itemize}
+    \item 使用实际选择的下一动作：$A_{t+1} = \text{左}$（根据当前策略）
+    \item 目标：$R_{t+1} + \gamma Q(s_2, \text{左})$
+    \item 学习的是当前策略的动作价值函数
+\end{itemize}
+
+\textbf{Q-learning}：
+\begin{itemize}
+    \item 使用最优动作：$\max_{a} Q(s_2, a)$（不依赖实际选择的动作）
+    \item 目标：$R_{t+1} + \gamma \max_{a} Q(s_2, a)$
+    \item 学习的是最优动作价值函数
+\end{itemize}
+
+\section{TD(0) vs 蒙特卡洛：详细对比}
+
+\subsection{同一个回合的对比}
+
+\textbf{回合}：
+\begin{equation}
+S_0 = s_5, A_0 = \text{上}, R_1 = -1, S_1 = s_2, A_1 = \text{左}, R_2 = -1, S_2 = \text{终止}
+\end{equation}
+
+\textbf{蒙特卡洛方法}（等待回合结束）：
+\begin{itemize}
+    \item 回合结束后，计算完整回报：$G_0 = R_1 + \gamma R_2 = -1 + 0.9 \times (-1) = -1.9$
+    \item 更新：$V(s_5) \gets V(s_5) + \alpha [G_0 - V(s_5)] = 0 + 0.1 \times (-1.9) = -0.19$
+    \item 需要等待回合结束
+\end{itemize}
+
+\textbf{TD(0)方法}（立即更新）：
+\begin{itemize}
+    \item 时间步 $t=0$：立即更新 $V(s_5) \gets 0 + 0.1 \times (-1) = -0.1$
+    \item 时间步 $t=1$：立即更新 $V(s_2) \gets 0 + 0.1 \times (-1) = -0.1$
+    \item 不需要等待回合结束
+    \item 信息传播更快
+\end{itemize}
+
+\subsection{信息传播速度}
+
+\textbf{例子}：考虑状态链 $s_4 \to s_5 \to s_2 \to \text{终止}$
+
+\textbf{蒙特卡洛方法}：
+\begin{itemize}
+    \item 必须等待整个回合结束
+    \item 然后才能更新 $s_4$、$s_5$、$s_2$ 的价值
+    \item 信息传播需要等待一个完整回合
+\end{itemize}
+
+\textbf{TD(0)方法}：
+\begin{itemize}
+    \item 时间步 $t=0$：更新 $V(s_4)$，使用 $V(s_5)$
+    \item 时间步 $t=1$：更新 $V(s_5)$，使用 $V(s_2)$（已经更新过！）
+    \item 时间步 $t=2$：更新 $V(s_2)$，使用 $V(\text{终止})$
+    \item 信息传播更快：更新的价值立即被后续更新使用
+\end{itemize}
+
+\section{TD误差的累积}
+
+\subsection{TD误差与蒙特卡洛误差的关系}
+
+\textbf{如果价值函数在回合中不改变}，蒙特卡洛误差可以写成TD误差的折扣和：
+
+\begin{align}
+G_t - V(S_t) &= R_{t+1} + \gamma G_{t+1} - V(S_t) \\
+             &= [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)] + \gamma [G_{t+1} - V(S_{t+1})] \\
+             &= \delta_t + \gamma [G_{t+1} - V(S_{t+1})] \\
+             &= \delta_t + \gamma \delta_{t+1} + \gamma^2 [G_{t+2} - V(S_{t+2})] \\
+             &= \delta_t + \gamma \delta_{t+1} + \gamma^2 \delta_{t+2} + \cdots
+\end{align}
+
+\textbf{具体例子}：
+
+\textbf{回合}：$S_0 = s_5, R_1 = -1, S_1 = s_2, R_2 = -1, S_2 = \text{终止}$
+
+假设价值函数在回合中不改变：$V(s_5) = 0$，$V(s_2) = 0$，$V(\text{终止}) = 0$
+
+\textbf{TD误差}：
+\begin{align}
+\delta_0 &= R_1 + \gamma V(S_1) - V(S_0) = -1 + 0.9 \times 0 - 0 = -1 \\
+\delta_1 &= R_2 + \gamma V(S_2) - V(S_1) = -1 + 0.9 \times 0 - 0 = -1
+\end{align}
+
+\textbf{蒙特卡洛误差}：
+\begin{equation}
+G_0 - V(S_0) = -1.9 - 0 = -1.9
+\end{equation}
+
+\textbf{验证}：
+\begin{equation}
+\delta_0 + \gamma \delta_1 = -1 + 0.9 \times (-1) = -1.9
+\end{equation}
+
+\textbf{关键洞察}：
+\begin{quote}
+蒙特卡洛误差等于从当前时间步到回合结束的所有TD误差的折扣和。
+\end{quote}
+
+\section{总结}
+
+\subsection{TD(0)预测的关键步骤}
+
+\begin{enumerate}
+    \item \textbf{初始化}：$V(s) = 0$ 对所有 $s$
+    \item \textbf{生成回合}：遵循策略 $\pi$ 生成回合
+    \item \textbf{每个时间步更新}：
+    \begin{itemize}
+        \item 观察：$R_{t+1}$，$S_{t+1}$
+        \item 计算TD目标：$R_{t+1} + \gamma V(S_{t+1})$
+        \item 计算TD误差：$\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$
+        \item 更新：$V(S_t) \gets V(S_t) + \alpha \delta_t$
+    \end{itemize}
+    \item \textbf{重复}：生成更多回合，继续更新
+\end{enumerate}
+
+\subsection{SARSA的关键步骤}
+
+\begin{enumerate}
+    \item \textbf{初始化}：$Q(s, a) = 0$，$\pi$ 为 $\varepsilon$-贪婪策略
+    \item \textbf{生成回合}：遵循策略 $\pi$ 生成回合
+    \item \textbf{每个时间步更新}：
+    \begin{itemize}
+        \item 观察：$R_{t+1}$，$S_{t+1}$
+        \item 选择下一动作：$A_{t+1}$（根据策略 $\pi$）
+        \item 计算SARSA目标：$R_{t+1} + \gamma Q(S_{t+1}, A_{t+1})$
+        \item 更新：$Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]$
+        \item 策略改进：$\pi(S_t) \gets \varepsilon$-贪婪策略，基于 $Q(S_t, \cdot)$
+    \end{itemize}
+    \item \textbf{重复}：继续生成回合，交替进行评估和改进
+\end{enumerate}
+
+\subsection{Q-learning的关键步骤}
+
+\begin{enumerate}
+    \item \textbf{初始化}：$Q(s, a) = 0$
+    \item \textbf{生成回合}：遵循行为策略（$\varepsilon$-贪婪）生成回合
+    \item \textbf{每个时间步更新}：
+    \begin{itemize}
+        \item 观察：$R_{t+1}$，$S_{t+1}$
+        \item 计算Q-learning目标：$R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a)$
+        \item 更新：$Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]$
+    \end{itemize}
+    \item \textbf{重复}：继续生成回合，学习最优动作价值函数
+    \item \textbf{提取策略}：$\pi_*(s) = \arg\max_{a} Q(s, a)$
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{时序差分学习通过结合蒙特卡洛的采样能力和动态规划的自举法，实现了无模型的在线学习。TD(0)可以立即更新，SARSA学习当前策略的动作价值，Q-learning直接学习最优动作价值函数。这些方法为现代强化学习算法奠定了基础。}
+\end{quote}
+
+\vspace{1cm}
+
+\textbf{参考文献}：
+\begin{itemize}
+    \item Sutton, R. S., \& Barto, A. G. (2018). \textit{Reinforcement Learning: An Introduction} (2nd Edition). MIT Press, Chapter 6.
+\end{itemize}
+
+\end{document}
+

@@ -1,0 +1,571 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{行为策略与目标策略详解}
+\subtitle{On-policy 和 Off-policy 的核心概念}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+理解\textbf{行为策略}（Behavior Policy）和\textbf{目标策略}（Target Policy）的区别，以及它们与"使用实际选择的下一动作"的关系，是掌握 On-policy 和 Off-policy 方法的关键。
+
+\section{基本定义}
+
+\subsection{行为策略（Behavior Policy）}
+
+\begin{definition}[行为策略 $b$]
+\textbf{行为策略} $b$ 是用于\textbf{生成数据}（选择动作与环境交互）的策略。
+\begin{equation}
+b(a|s) = \Pr\{A_t = a | S_t = s\}
+\end{equation}
+\end{definition}
+
+\textbf{作用}：
+\begin{itemize}
+    \item 决定智能体如何与环境交互
+    \item 用于收集经验数据
+    \item 通常是探索性的（如 $\varepsilon$-贪婪策略）
+\end{itemize}
+
+\subsection{目标策略（Target Policy）}
+
+\begin{definition}[目标策略 $\pi$]
+\textbf{目标策略} $\pi$ 是\textbf{正在学习}或\textbf{正在评估}的策略。
+\begin{equation}
+\pi(a|s) = \Pr\{A_t = a | S_t = s\}
+\end{equation}
+\end{definition}
+
+\textbf{作用}：
+\begin{itemize}
+    \item 决定我们想要学习或评估的策略
+    \item 在控制问题中，通常是贪婪策略或最优策略
+    \item 是我们最终想要得到的策略
+\end{itemize}
+
+\section{On-policy vs Off-policy}
+
+\subsection{On-policy：行为策略 = 目标策略}
+
+\begin{definition}[On-policy]
+当\textbf{行为策略等于目标策略}时，我们称方法为 \textbf{On-policy}：
+\begin{equation}
+b = \pi
+\end{equation}
+\end{definition}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 用于生成数据的策略 = 正在学习的策略
+    \item 智能体使用当前策略与环境交互
+    \item 学习的是当前策略的价值函数
+\end{itemize}
+
+\subsection{Off-policy：行为策略 $\neq$ 目标策略}
+
+\begin{definition}[Off-policy]
+当\textbf{行为策略不等于目标策略}时，我们称方法为 \textbf{Off-policy}：
+\begin{equation}
+b \neq \pi
+\end{equation}
+\end{definition}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 用于生成数据的策略 $\neq$ 正在学习的策略
+    \item 可以使用任何策略收集数据
+    \item 学习的是目标策略的价值函数
+\end{itemize}
+
+\section{"使用实际选择的下一动作"的含义}
+
+\subsection{在SARSA中的体现}
+
+\textbf{SARSA更新公式}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\label{eq:sarsa}
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item $A_{t+1}$ 是\textbf{实际选择的下一动作}
+    \item $A_{t+1}$ 必须由\textbf{当前策略}选择
+    \item 在SARSA中，当前策略 = 目标策略 = 行为策略
+\end{itemize}
+
+\textbf{算法流程}：
+\begin{enumerate}
+    \item 在状态 $S_t$，使用策略 $\pi$ 选择动作 $A_t$
+    \item 执行动作 $A_t$，观察 $R_{t+1}, S_{t+1}$
+    \item 在状态 $S_{t+1}$，使用策略 $\pi$ 选择动作 $A_{t+1}$（\textbf{实际选择的动作}）
+    \item 使用 $Q(S_{t+1}, A_{t+1})$ 更新 $Q(S_t, A_t)$
+\end{enumerate}
+
+\subsection{为什么必须由当前策略选择？}
+
+\textbf{原因1：On-policy的要求}
+
+在On-policy方法中：
+\begin{itemize}
+    \item 行为策略 = 目标策略 = $\pi$
+    \item 所有动作都必须由策略 $\pi$ 选择
+    \item $A_{t+1}$ 必须由策略 $\pi$ 选择，才能保证学习的是策略 $\pi$ 的价值函数
+\end{itemize}
+
+\textbf{原因2：学习当前策略的价值函数}
+
+SARSA学习的是\textbf{当前策略} $\pi$ 的动作价值函数 $q_\pi(s, a)$：
+\begin{equation}
+q_\pi(s, a) = \mathbb{E}_\pi[G_t | S_t = s, A_t = a]
+\end{equation}
+
+要学习 $q_\pi$，必须使用策略 $\pi$ 选择的动作，因为：
+\begin{itemize}
+    \item $q_\pi(s, a)$ 的定义依赖于策略 $\pi$
+    \item 如果使用其他策略选择的动作，学习的就是其他策略的价值函数
+\end{itemize}
+
+\section{行为策略 = 目标策略 的含义}
+
+\subsection{数学表达}
+
+\textbf{On-policy条件}：
+\begin{equation}
+b(a|s) = \pi(a|s) \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\textbf{等价表述}：
+\begin{equation}
+b = \pi
+\end{equation}
+
+\subsection{实际含义}
+
+\textbf{1. 选择动作时}：
+\begin{itemize}
+    \item 在状态 $S_t$，使用策略 $\pi$ 选择动作 $A_t$
+    \item 在状态 $S_{t+1}$，使用策略 $\pi$ 选择动作 $A_{t+1}$
+    \item 所有动作都由同一个策略 $\pi$ 选择
+\end{itemize}
+
+\textbf{2. 学习目标时}：
+\begin{itemize}
+    \item 学习的是策略 $\pi$ 的价值函数 $q_\pi(s, a)$
+    \item 评估的是策略 $\pi$ 的性能
+    \item 改进的是策略 $\pi$
+\end{itemize}
+
+\textbf{3. 数据使用}：
+\begin{itemize}
+    \item 只能使用策略 $\pi$ 生成的数据
+    \item 不能使用其他策略生成的数据
+    \item 数据收集和学习使用同一个策略
+\end{itemize}
+
+\section{关系链：从策略到动作选择}
+
+\subsection{On-policy方法的完整链条}
+
+\textbf{步骤1：策略定义}
+\begin{equation}
+\pi(a|s) = \text{当前策略在状态 } s \text{ 选择动作 } a \text{ 的概率}
+\end{equation}
+
+\textbf{步骤2：动作选择}
+\begin{equation}
+A_t \sim \pi(\cdot|S_t) \quad \text{（根据策略 } \pi \text{ 选择动作）}
+\end{equation}
+
+\textbf{步骤3：下一动作选择}
+\begin{equation}
+A_{t+1} \sim \pi(\cdot|S_{t+1}) \quad \text{（根据策略 } \pi \text{ 选择下一动作）}
+\end{equation}
+
+\textbf{步骤4：更新使用}
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+其中 $A_{t+1}$ 是\textbf{实际选择的动作}，由\textbf{当前策略} $\pi$ 选择。
+
+\subsection{关键关系}
+
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{概念} & \textbf{关系} \\
+\hline
+行为策略 = 目标策略 & $b = \pi$ \\
+\hline
+当前策略 & $\pi$ \\
+\hline
+实际选择的动作 & $A_{t+1} \sim \pi(\cdot|S_{t+1})$ \\
+\hline
+更新中使用 & $Q(S_{t+1}, A_{t+1})$ \\
+\hline
+学习目标 & $q_\pi(s, a)$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{具体例子：SARSA}
+
+\subsection{SARSA算法流程}
+
+\textbf{初始化}：
+\begin{itemize}
+    \item 策略 $\pi$：$\varepsilon$-贪婪策略，基于 $Q$
+    \item 行为策略 $b = \pi$（On-policy）
+    \item 目标策略 $\pi = \pi$（同一个策略）
+\end{itemize}
+
+\textbf{每个时间步}：
+
+\textbf{时间步 $t$}：
+\begin{enumerate}
+    \item 在状态 $S_t$，使用策略 $\pi$ 选择动作 $A_t$
+    \begin{equation}
+    A_t \sim \pi(\cdot|S_t)
+    \end{equation}
+    
+    \item 执行动作 $A_t$，观察 $R_{t+1}, S_{t+1}$
+    
+    \item 在状态 $S_{t+1}$，使用策略 $\pi$ 选择动作 $A_{t+1}$
+    \begin{equation}
+    A_{t+1} \sim \pi(\cdot|S_{t+1})
+    \end{equation}
+    
+    \item 更新动作价值函数：
+    \begin{equation}
+    Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+    \end{equation}
+    
+    \item 更新策略 $\pi$（基于新的 $Q$）
+\end{enumerate}
+
+\subsection{关键观察}
+
+\textbf{1. 行为策略 = 目标策略}：
+\begin{itemize}
+    \item 用于选择动作的策略 = 正在学习的策略
+    \item $b = \pi$
+\end{itemize}
+
+\textbf{2. 使用实际选择的动作}：
+\begin{itemize}
+    \item $A_{t+1}$ 是实际选择的动作
+    \item $A_{t+1}$ 由当前策略 $\pi$ 选择
+    \item 更新时使用 $Q(S_{t+1}, A_{t+1})$
+\end{itemize}
+
+\textbf{3. 为什么必须由当前策略选择？}：
+\begin{itemize}
+    \item 因为 $b = \pi$，所以所有动作都必须由 $\pi$ 选择
+    \item 这样才能学习策略 $\pi$ 的价值函数
+    \item 如果使用其他策略选择的动作，学习的就是其他策略的价值函数
+\end{itemize}
+
+\section{对比：Q-learning（Off-policy）}
+
+\subsection{Q-learning中的情况}
+
+\textbf{Q-learning更新公式}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\label{eq:qlearning}
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 行为策略 $b$：$\varepsilon$-贪婪策略（用于选择动作）
+    \item 目标策略 $\pi_*$：贪婪策略（正在学习的策略）
+    \item $b \neq \pi_*$（Off-policy）
+\end{itemize}
+
+\textbf{算法流程}：
+\begin{enumerate}
+    \item 在状态 $S_t$，使用行为策略 $b$ 选择动作 $A_t$
+    \begin{equation}
+    A_t \sim b(\cdot|S_t) \quad \text{（行为策略选择）}
+    \end{equation}
+    
+    \item 执行动作 $A_t$，观察 $R_{t+1}, S_{t+1}$
+    
+    \item 在状态 $S_{t+1}$，使用行为策略 $b$ 选择动作 $A_{t+1}$
+    \begin{equation}
+    A_{t+1} \sim b(\cdot|S_{t+1}) \quad \text{（行为策略选择，可能与最优动作不同）}
+    \end{equation}
+    
+    \item 更新动作价值函数：
+    \begin{equation}
+    Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+    \end{equation}
+    
+    \item \textbf{关键}：更新时使用 $\max_{a} Q(S_{t+1}, a)$，而不是 $Q(S_{t+1}, A_{t+1})$
+\end{enumerate}
+
+\subsection{关键区别}
+
+\textbf{SARSA（On-policy）}：
+\begin{itemize}
+    \item 行为策略 = 目标策略：$b = \pi$
+    \item 使用实际选择的动作：$Q(S_{t+1}, A_{t+1})$
+    \item $A_{t+1}$ 必须由当前策略 $\pi$ 选择
+    \item 学习当前策略的价值函数
+\end{itemize}
+
+\textbf{Q-learning（Off-policy）}：
+\begin{itemize}
+    \item 行为策略 $\neq$ 目标策略：$b \neq \pi_*$
+    \item 不使用实际选择的动作：使用 $\max_{a} Q(S_{t+1}, a)$
+    \item $A_{t+1}$ 由行为策略 $b$ 选择，但更新时不使用
+    \item 学习最优策略的价值函数
+\end{itemize}
+
+\section{为什么On-policy必须使用实际选择的动作？}
+
+\subsection{理论原因}
+
+\textbf{策略梯度定理}（对于On-policy）：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+其中 $\mu(s)$ 是在策略 $\pi$ 下的状态分布。
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 要学习 $q_\pi(s, a)$，必须使用策略 $\pi$ 生成的数据
+    \item 如果使用其他策略的数据，学习的就是其他策略的价值函数
+    \item 因此，$A_{t+1}$ 必须由策略 $\pi$ 选择
+\end{itemize}
+
+\subsection{实际原因}
+
+\textbf{数据分布匹配}：
+\begin{itemize}
+    \item On-policy方法要求数据分布与学习目标匹配
+    \item 如果 $A_{t+1}$ 由策略 $\pi$ 选择，数据分布就是在策略 $\pi$ 下的分布
+    \item 这样才能准确估计 $q_\pi(s, a)$
+\end{itemize}
+
+\textbf{一致性要求}：
+\begin{itemize}
+    \item 学习的是策略 $\pi$ 的价值函数
+    \item 使用的数据必须来自策略 $\pi$
+    \item 因此，所有动作（包括 $A_{t+1}$）都必须由策略 $\pi$ 选择
+\end{itemize}
+
+\section{具体例子对比}
+
+\subsection{例子：Gridworld中的状态 $s_5$}
+
+\textbf{场景}：在状态 $s_5$，执行动作"上"，转移到状态 $s_2$。
+
+\textbf{假设}：
+\begin{itemize}
+    \item $Q(s_2, \text{上}) = 0$
+    \item $Q(s_2, \text{下}) = 0$
+    \item $Q(s_2, \text{左}) = -0.1$
+    \item $Q(s_2, \text{右}) = 0$
+    \item 当前策略 $\pi$ 在 $s_2$ 选择"左"的概率最高
+\end{itemize}
+
+\textbf{SARSA（On-policy）}：
+
+\textbf{行为策略 = 目标策略}：
+\begin{equation}
+b = \pi
+\end{equation}
+
+\textbf{动作选择}：
+\begin{itemize}
+    \item 在 $s_2$，策略 $\pi$ 选择动作 $A_{t+1} = \text{左}$（实际选择的动作）
+    \item 这个动作\textbf{必须}由当前策略 $\pi$ 选择
+\end{itemize}
+
+\textbf{更新}：
+\begin{equation}
+Q(s_5, \text{上}) \gets Q(s_5, \text{上}) + \alpha [R_{t+1} + \gamma Q(s_2, \text{左}) - Q(s_5, \text{上})]
+\end{equation}
+
+\textbf{关键}：使用实际选择的动作"左"的价值 $Q(s_2, \text{左}) = -0.1$。
+
+\textbf{Q-learning（Off-policy）}：
+
+\textbf{行为策略 $\neq$ 目标策略}：
+\begin{equation}
+b \neq \pi_*
+\end{equation}
+
+\textbf{动作选择}：
+\begin{itemize}
+    \item 在 $s_2$，行为策略 $b$ 选择动作 $A_{t+1} = \text{右}$（实际选择的动作，用于探索）
+    \item 但目标策略 $\pi_*$ 会选择 $\arg\max_{a} Q(s_2, a) = \text{上}$（或下、右，因为都是0）
+\end{itemize}
+
+\textbf{更新}：
+\begin{equation}
+Q(s_5, \text{上}) \gets Q(s_5, \text{上}) + \alpha [R_{t+1} + \gamma \max_{a} Q(s_2, a) - Q(s_5, \text{上})]
+\end{equation}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 不使用实际选择的动作"右"的价值
+    \item 使用所有动作中的最大值：$\max_{a} Q(s_2, a) = 0$
+    \item 即使实际选择了"右"，更新时使用的是最优动作的价值
+\end{itemize}
+
+\section{关系总结}
+
+\subsection{On-policy方法的完整关系链}
+
+\begin{center}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{概念} & \textbf{关系} \\
+\hline
+行为策略 & $b$ \\
+\hline
+目标策略 & $\pi$ \\
+\hline
+On-policy条件 & $b = \pi$ \\
+\hline
+当前策略 & $\pi$（与行为策略和目标策略相同） \\
+\hline
+动作 $A_t$ 的选择 & $A_t \sim \pi(\cdot|S_t)$ \\
+\hline
+动作 $A_{t+1}$ 的选择 & $A_{t+1} \sim \pi(\cdot|S_{t+1})$（\textbf{必须}由当前策略选择） \\
+\hline
+更新中使用 & $Q(S_{t+1}, A_{t+1})$（使用实际选择的动作） \\
+\hline
+学习目标 & $q_\pi(s, a)$（当前策略的价值函数） \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{关键逻辑链}
+
+\textbf{逻辑1：行为策略 = 目标策略 $\implies$ 使用当前策略选择动作}
+\begin{itemize}
+    \item 因为 $b = \pi$，所以所有动作都由策略 $\pi$ 选择
+    \item $A_{t+1}$ 必须由当前策略 $\pi$ 选择
+\end{itemize}
+
+\textbf{逻辑2：使用当前策略选择动作 $\implies$ 使用实际选择的动作}
+\begin{itemize}
+    \item $A_{t+1}$ 是实际选择的动作
+    \item 因为 $A_{t+1}$ 由当前策略选择，所以更新时使用 $Q(S_{t+1}, A_{t+1})$
+\end{itemize}
+
+\textbf{逻辑3：使用实际选择的动作 $\implies$ 学习当前策略的价值函数}
+\begin{itemize}
+    \item 使用策略 $\pi$ 选择的动作更新
+    \item 学习的是策略 $\pi$ 的价值函数 $q_\pi(s, a)$
+\end{itemize}
+
+\section{常见误解}
+
+\subsection{误解1：On-policy就是使用实际选择的动作}
+
+\textbf{误解}：On-policy 就是使用实际选择的动作 $A_{t+1}$。
+
+\textbf{正确理解}：
+\begin{itemize}
+    \item On-policy 的核心是：行为策略 = 目标策略
+    \item 使用实际选择的动作是 On-policy 的\textbf{结果}，不是定义
+    \item 因为 $b = \pi$，所以 $A_{t+1}$ 由策略 $\pi$ 选择，更新时使用 $Q(S_{t+1}, A_{t+1})$
+\end{itemize}
+
+\subsection{误解2：必须使用实际选择的动作就是On-policy}
+
+\textbf{误解}：只要使用实际选择的动作就是 On-policy。
+
+\textbf{正确理解}：
+\begin{itemize}
+    \item On-policy 的定义是：$b = \pi$
+    \item 在 On-policy 方法中，$A_{t+1}$ 必须由当前策略选择
+    \item 但使用实际选择的动作不一定是 On-policy（可能是巧合）
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{行为策略 = 目标策略}（$b = \pi$）是 On-policy 的定义
+    
+    \item \textbf{在On-policy方法中}：
+    \begin{itemize}
+        \item 所有动作（包括 $A_{t+1}$）都必须由当前策略 $\pi$ 选择
+        \item 更新时使用实际选择的动作 $A_{t+1}$
+        \item 学习的是当前策略 $\pi$ 的价值函数
+    \end{itemize}
+    
+    \item \textbf{关系链}：
+    \begin{equation}
+    b = \pi \implies A_{t+1} \sim \pi(\cdot|S_{t+1}) \implies \text{使用 } Q(S_{t+1}, A_{t+1}) \implies \text{学习 } q_\pi(s, a)
+    \end{equation}
+    
+    \item \textbf{为什么必须由当前策略选择？}
+    \begin{itemize}
+        \item 因为 $b = \pi$，所以所有动作都由 $\pi$ 选择
+        \item 这样才能学习策略 $\pi$ 的价值函数
+        \item 数据分布必须与学习目标匹配
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键公式}
+
+\textbf{On-policy条件}：
+\begin{equation}
+b = \pi
+\end{equation}
+
+\textbf{动作选择}：
+\begin{equation}
+A_{t+1} \sim \pi(\cdot|S_{t+1}) \quad \text{（必须由当前策略选择）}
+\end{equation}
+
+\textbf{SARSA更新}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+其中 $A_{t+1}$ 是实际选择的动作，由当前策略 $\pi$ 选择。
+
+\subsection{直观理解}
+
+\begin{quote}
+\textbf{"行为策略 = 目标策略"}意味着：用于选择动作的策略和正在学习的策略是同一个策略。
+
+\textbf{"使用实际选择的下一动作"}意味着：更新时使用实际选择的动作 $A_{t+1}$ 的价值。
+
+\textbf{关系}：因为行为策略 = 目标策略，所以 $A_{t+1}$ 必须由当前策略选择，更新时使用 $Q(S_{t+1}, A_{t+1})$，学习的是当前策略的价值函数。
+\end{quote}
+
+\end{document}
+

@@ -1,0 +1,818 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{SARSA与Q-learning在Gridworld上的详细计算}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题设置}
+
+\subsection{Gridworld环境}
+
+考虑一个简单的3×3 Gridworld：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{终止} & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & \textbf{终止} \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{环境设置}：
+\begin{itemize}
+    \item \textbf{非终止状态}：$\mathcal{S} = \{s_2, s_3, s_4, s_5, s_6, s_7, s_8\}$（共7个状态）
+    \item \textbf{终止状态}：左上角和右下角
+    \item \textbf{动作空间}：每个状态有4个动作：上、下、左、右
+    \item \textbf{奖励}：所有转移的奖励都是 $-1$，直到到达终止状态
+    \item \textbf{折扣因子}：$\gamma = 0.9$
+    \item \textbf{转移规则}：动作确定性地使智能体移动到相邻格子，撞墙则状态不变
+\end{itemize}
+
+\subsection{状态转移示例}
+
+\textbf{状态 $s_5$（中心）}：
+\begin{itemize}
+    \item 上 $\to$ $s_2$，奖励 $-1$
+    \item 下 $\to$ $s_8$，奖励 $-1$
+    \item 左 $\to$ $s_4$，奖励 $-1$
+    \item 右 $\to$ $s_6$，奖励 $-1$
+\end{itemize}
+
+\textbf{状态 $s_2$（第1行第2列）}：
+\begin{itemize}
+    \item 上 $\to$ 终止，奖励 $-1$
+    \item 下 $\to$ $s_5$，奖励 $-1$
+    \item 左 $\to$ $s_2$（撞墙），奖励 $-1$
+    \item 右 $\to$ $s_3$，奖励 $-1$
+\end{itemize}
+
+\section{SARSA算法详细计算}
+
+\subsection{初始化}
+
+\textbf{初始动作价值函数}：
+\begin{equation}
+Q(s, a) = 0 \quad \text{对所有 } s \in \mathcal{S}, a \in \{\text{上}, \text{下}, \text{左}, \text{右}\}
+\end{equation}
+
+\textbf{初始策略}：$\varepsilon$-贪婪策略（$\varepsilon = 0.1$）
+
+由于初始 $Q(s, a) = 0$ 对所有 $(s, a)$，所有动作价值相等，所以初始策略是等概率随机策略：
+\begin{equation}
+\pi(a | s) = \frac{1}{4} \quad \text{对所有 } s, a
+\end{equation}
+
+\textbf{算法参数}：
+\begin{itemize}
+    \item 步长：$\alpha = 0.1$
+    \item 折扣因子：$\gamma = 0.9$
+    \item $\varepsilon = 0.1$
+\end{itemize}
+
+\subsection{第1个回合：详细计算}
+
+\textbf{回合序列}：
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+$t$ & $S_t$ & $A_t$ & $R_{t+1}$ & $S_{t+1}$ \\
+\hline
+0 & $s_5$ & 上 & $-1$ & $s_2$ \\
+\hline
+1 & $s_2$ & 左 & $-1$ & 终止 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{时间步 $t=0$：更新 $(s_5, \text{上})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_0, A_0) = (s_5, \text{上})$
+    \item \textbf{当前动作价值}：$Q(s_5, \text{上}) = 0$
+    \item \textbf{执行动作}：$A_0 = \text{上}$
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_1 = -1$
+        \item 下一状态：$S_1 = s_2$
+    \end{itemize}
+    \item \textbf{选择下一动作}：$A_1 = \text{左}$（根据策略 $\pi$，由于所有 $Q$ 值相等，随机选择）
+    \item \textbf{计算SARSA目标}：
+    \begin{align}
+    \text{目标} &= R_1 + \gamma Q(S_1, A_1) \\
+                &= -1 + 0.9 \times Q(s_2, \text{左}) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{计算TD误差}：
+    \begin{equation}
+    \delta_0 = \text{目标} - Q(S_0, A_0) = -1 - 0 = -1
+    \end{equation}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_5, \text{上}) &\gets Q(s_5, \text{上}) + \alpha \delta_0 \\
+                     &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+    \item \textbf{策略改进}（基于更新后的 $Q$）：
+    \begin{itemize}
+        \item $Q(s_5, \text{上}) = -0.1$
+        \item $Q(s_5, \text{下}) = 0$
+        \item $Q(s_5, \text{左}) = 0$
+        \item $Q(s_5, \text{右}) = 0$
+        \item $\pi(s_5) = \arg\max_{a} Q(s_5, a) = \text{下}$（或左、右，因为都是0，且 $-0.1 < 0$）
+    \end{itemize}
+\end{enumerate}
+
+\textbf{时间步 $t=1$：更新 $(s_2, \text{左})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_1, A_1) = (s_2, \text{左})$
+    \item \textbf{当前动作价值}：$Q(s_2, \text{左}) = 0$
+    \item \textbf{执行动作}：$A_1 = \text{左}$
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_2 = -1$
+        \item 下一状态：$S_2 = \text{终止}$
+    \end{itemize}
+    \item \textbf{下一动作}：$A_2 = -$（终止状态，无动作）
+    \item \textbf{计算SARSA目标}：
+    \begin{align}
+    \text{目标} &= R_2 + \gamma Q(\text{终止}, -) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{计算TD误差}：
+    \begin{equation}
+    \delta_1 = -1 - 0 = -1
+    \end{equation}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_2, \text{左}) &\gets Q(s_2, \text{左}) + \alpha \delta_1 \\
+                     &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+    \item \textbf{策略改进}：
+    \begin{itemize}
+        \item $Q(s_2, \text{左}) = -0.1$
+        \item $Q(s_2, \text{上}) = 0$（未访问）
+        \item $Q(s_2, \text{下}) = 0$（未访问）
+        \item $Q(s_2, \text{右}) = 0$（未访问）
+        \item $\pi(s_2) = \arg\max_{a} Q(s_2, a) = \text{上}$（或下、右）
+    \end{itemize}
+\end{enumerate}
+
+\textbf{第1个回合后的 $Q$ 函数}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+状态 & 动作 & $Q(s, a)$ \\
+\hline
+\multirow{4}{*}{$s_5$} & 上 & $-0.1$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $0$ \\
+\hline
+\multirow{4}{*}{$s_2$} & 上 & $0$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $-0.1$ \\
+\cline{2-3}
+ & 右 & $0$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{第2个回合：详细计算}
+
+\textbf{回合序列}：
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+$t$ & $S_t$ & $A_t$ & $R_{t+1}$ & $S_{t+1}$ \\
+\hline
+0 & $s_4$ & 右 & $-1$ & $s_5$ \\
+\hline
+1 & $s_5$ & 下 & $-1$ & $s_8$ \\
+\hline
+2 & $s_8$ & 右 & $-1$ & 终止 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{时间步 $t=0$：更新 $(s_4, \text{右})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_0, A_0) = (s_4, \text{右})$
+    \item \textbf{当前动作价值}：$Q(s_4, \text{右}) = 0$
+    \item \textbf{执行动作}：$A_0 = \text{右}$
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_1 = -1$
+        \item 下一状态：$S_1 = s_5$
+    \end{itemize}
+    \item \textbf{选择下一动作}：$A_1 = \text{下}$（根据策略 $\pi(s_5)$，由于 $Q(s_5, \text{上}) = -0.1 < 0$，选择下、左或右）
+    \item \textbf{计算SARSA目标}：
+    \begin{align}
+    \text{目标} &= R_1 + \gamma Q(S_1, A_1) \\
+                &= -1 + 0.9 \times Q(s_5, \text{下}) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_4, \text{右}) &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+\end{enumerate}
+
+\textbf{时间步 $t=1$：更新 $(s_5, \text{下})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_1, A_1) = (s_5, \text{下})$
+    \item \textbf{当前动作价值}：$Q(s_5, \text{下}) = 0$
+    \item \textbf{执行动作}：$A_1 = \text{下}$
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_2 = -1$
+        \item 下一状态：$S_2 = s_8$
+    \end{itemize}
+    \item \textbf{选择下一动作}：$A_2 = \text{右}$（根据策略 $\pi(s_8)$，由于所有 $Q$ 值相等，随机选择）
+    \item \textbf{计算SARSA目标}：
+    \begin{align}
+    \text{目标} &= R_2 + \gamma Q(S_2, A_2) \\
+                &= -1 + 0.9 \times Q(s_8, \text{右}) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_5, \text{下}) &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+    \item \textbf{策略改进}：
+    \begin{itemize}
+        \item $Q(s_5, \text{上}) = -0.1$
+        \item $Q(s_5, \text{下}) = -0.1$
+        \item $Q(s_5, \text{左}) = 0$
+        \item $Q(s_5, \text{右}) = 0$
+        \item $\pi(s_5) = \text{左}$ 或 $\text{右}$（因为都是0，且 $-0.1 < 0$）
+    \end{itemize}
+\end{enumerate}
+
+\textbf{时间步 $t=2$：更新 $(s_8, \text{右})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_2, A_2) = (s_8, \text{右})$
+    \item \textbf{当前动作价值}：$Q(s_8, \text{右}) = 0$
+    \item \textbf{执行动作}：$A_2 = \text{右}$
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_3 = -1$
+        \item 下一状态：$S_3 = \text{终止}$
+    \end{itemize}
+    \item \textbf{计算SARSA目标}：
+    \begin{align}
+    \text{目标} &= R_3 + \gamma Q(\text{终止}, -) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_8, \text{右}) &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+\end{enumerate}
+
+\textbf{第2个回合后的 $Q$ 函数}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+状态 & 动作 & $Q(s, a)$ \\
+\hline
+\multirow{4}{*}{$s_4$} & 上 & $0$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $-0.1$ \\
+\hline
+\multirow{4}{*}{$s_5$} & 上 & $-0.1$ \\
+\cline{2-3}
+ & 下 & $-0.1$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $0$ \\
+\hline
+\multirow{4}{*}{$s_8$} & 上 & $0$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $-0.1$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{SARSA的关键特点}
+
+\textbf{On-policy特征}：
+\begin{itemize}
+    \item 使用实际选择的下一动作 $A_{t+1}$ 来更新 $Q(S_t, A_t)$
+    \item 学习的是当前策略的动作价值函数
+    \item 策略改进基于当前策略的价值估计
+    \item 考虑探索带来的风险
+\end{itemize}
+
+\section{Q-learning算法详细计算}
+
+\subsection{初始化}
+
+\textbf{初始动作价值函数}：
+\begin{equation}
+Q(s, a) = 0 \quad \text{对所有 } s \in \mathcal{S}, a \in \{\text{上}, \text{下}, \text{左}, \text{右}\}
+\end{equation}
+
+\textbf{行为策略}：$\varepsilon$-贪婪策略（$\varepsilon = 0.1$），用于收集数据
+
+\textbf{算法参数}：
+\begin{itemize}
+    \item 步长：$\alpha = 0.1$
+    \item 折扣因子：$\gamma = 0.9$
+    \item $\varepsilon = 0.1$
+\end{itemize}
+
+\subsection{第1个回合：详细计算}
+
+\textbf{回合序列}：
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+$t$ & $S_t$ & $A_t$ & $R_{t+1}$ & $S_{t+1}$ \\
+\hline
+0 & $s_5$ & 上 & $-1$ & $s_2$ \\
+\hline
+1 & $s_2$ & 左 & $-1$ & 终止 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{时间步 $t=0$：更新 $(s_5, \text{上})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_0, A_0) = (s_5, \text{上})$
+    \item \textbf{当前动作价值}：$Q(s_5, \text{上}) = 0$
+    \item \textbf{执行动作}：$A_0 = \text{上}$（行为策略选择）
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_1 = -1$
+        \item 下一状态：$S_1 = s_2$
+    \end{itemize}
+    \item \textbf{计算Q-learning目标}（关键区别）：
+    \begin{align}
+    \text{目标} &= R_1 + \gamma \max_{a} Q(S_1, a) \\
+                &= -1 + 0.9 \times \max_{a} Q(s_2, a) \\
+                &= -1 + 0.9 \times \max\{Q(s_2, \text{上}), Q(s_2, \text{下}), Q(s_2, \text{左}), Q(s_2, \text{右})\} \\
+                &= -1 + 0.9 \times \max\{0, 0, 0, 0\} \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{关键观察}：
+    \begin{itemize}
+        \item Q-learning使用 $\max_{a} Q(S_1, a)$，而不是实际选择的动作 $A_1$
+        \item 即使行为策略选择了动作"左"，更新时使用的是所有动作中的最大值
+        \item 这允许学习最优动作价值函数，即使行为策略不是最优的
+    \end{itemize}
+    \item \textbf{计算TD误差}：
+    \begin{equation}
+    \delta_0 = \text{目标} - Q(S_0, A_0) = -1 - 0 = -1
+    \end{equation}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_5, \text{上}) &\gets Q(s_5, \text{上}) + \alpha \delta_0 \\
+                     &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+\end{enumerate}
+
+\textbf{时间步 $t=1$：更新 $(s_2, \text{左})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_1, A_1) = (s_2, \text{左})$
+    \item \textbf{当前动作价值}：$Q(s_2, \text{左}) = 0$
+    \item \textbf{执行动作}：$A_1 = \text{左}$（行为策略选择）
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_2 = -1$
+        \item 下一状态：$S_2 = \text{终止}$
+    \end{itemize}
+    \item \textbf{计算Q-learning目标}：
+    \begin{align}
+    \text{目标} &= R_2 + \gamma \max_{a} Q(\text{终止}, a) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_2, \text{左}) &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+\end{enumerate}
+
+\textbf{第1个回合后的 $Q$ 函数}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+状态 & 动作 & $Q(s, a)$ \\
+\hline
+\multirow{4}{*}{$s_5$} & 上 & $-0.1$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $0$ \\
+\hline
+\multirow{4}{*}{$s_2$} & 上 & $0$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $-0.1$ \\
+\cline{2-3}
+ & 右 & $0$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{第2个回合：详细计算}
+
+\textbf{回合序列}：
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+$t$ & $S_t$ & $A_t$ & $R_{t+1}$ & $S_{t+1}$ \\
+\hline
+0 & $s_4$ & 右 & $-1$ & $s_5$ \\
+\hline
+1 & $s_5$ & 上 & $-1$ & $s_2$ \\
+\hline
+2 & $s_2$ & 右 & $-1$ & $s_3$ \\
+\hline
+3 & $s_3$ & 下 & $-1$ & $s_6$ \\
+\hline
+4 & $s_6$ & 右 & $-1$ & 终止 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{时间步 $t=0$：更新 $(s_4, \text{右})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_0, A_0) = (s_4, \text{右})$
+    \item \textbf{当前动作价值}：$Q(s_4, \text{右}) = 0$
+    \item \textbf{执行动作}：$A_0 = \text{右}$（行为策略选择）
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_1 = -1$
+        \item 下一状态：$S_1 = s_5$
+    \end{itemize}
+    \item \textbf{计算Q-learning目标}：
+    \begin{align}
+    \text{目标} &= R_1 + \gamma \max_{a} Q(S_1, a) \\
+                &= -1 + 0.9 \times \max_{a} Q(s_5, a) \\
+                &= -1 + 0.9 \times \max\{Q(s_5, \text{上}), Q(s_5, \text{下}), Q(s_5, \text{左}), Q(s_5, \text{右})\} \\
+                &= -1 + 0.9 \times \max\{-0.1, 0, 0, 0\} \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{关键观察}：
+    \begin{itemize}
+        \item 虽然 $Q(s_5, \text{上}) = -0.1$，但 $\max_{a} Q(s_5, a) = 0$（因为其他动作都是0）
+        \item 实际行为策略可能选择"上"，但更新时使用的是最大值0
+        \item 这体现了Q-learning学习最优价值函数的特点
+    \end{itemize}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_4, \text{右}) &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+\end{enumerate}
+
+\textbf{时间步 $t=1$：更新 $(s_5, \text{上})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_1, A_1) = (s_5, \text{上})$
+    \item \textbf{当前动作价值}：$Q(s_5, \text{上}) = -0.1$
+    \item \textbf{执行动作}：$A_1 = \text{上}$（行为策略选择，可能与最优动作不同）
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_2 = -1$
+        \item 下一状态：$S_2 = s_2$
+    \end{itemize}
+    \item \textbf{计算Q-learning目标}：
+    \begin{align}
+    \text{目标} &= R_2 + \gamma \max_{a} Q(S_2, a) \\
+                &= -1 + 0.9 \times \max_{a} Q(s_2, a) \\
+                &= -1 + 0.9 \times \max\{Q(s_2, \text{上}), Q(s_2, \text{下}), Q(s_2, \text{左}), Q(s_2, \text{右})\} \\
+                &= -1 + 0.9 \times \max\{0, 0, -0.1, 0\} \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{关键观察}：
+    \begin{itemize}
+        \item 虽然实际选择的动作 $A_2 = \text{右}$（行为策略选择），但更新时使用的是 $\max_{a} Q(s_2, a) = 0$
+        \item 这允许Q-learning学习最优策略，即使行为策略是探索性的
+    \end{itemize}
+    \item \textbf{计算TD误差}：
+    \begin{equation}
+    \delta_1 = -1 - (-0.1) = -0.9
+    \end{equation}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_5, \text{上}) &\gets Q(s_5, \text{上}) + \alpha \delta_1 \\
+                     &\gets -0.1 + 0.1 \times (-0.9) \\
+                     &\gets -0.1 - 0.09 \\
+                     &\gets -0.19
+    \end{align}
+\end{enumerate}
+
+\textbf{时间步 $t=2$：更新 $(s_2, \text{右})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_2, A_2) = (s_2, \text{右})$
+    \item \textbf{当前动作价值}：$Q(s_2, \text{右}) = 0$
+    \item \textbf{执行动作}：$A_2 = \text{右}$（行为策略选择）
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_3 = -1$
+        \item 下一状态：$S_3 = s_3$
+    \end{itemize}
+    \item \textbf{计算Q-learning目标}：
+    \begin{align}
+    \text{目标} &= R_3 + \gamma \max_{a} Q(S_3, a) \\
+                &= -1 + 0.9 \times \max_{a} Q(s_3, a) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_2, \text{右}) &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+\end{enumerate}
+
+\textbf{时间步 $t=3$：更新 $(s_3, \text{下})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_3, A_3) = (s_3, \text{下})$
+    \item \textbf{当前动作价值}：$Q(s_3, \text{下}) = 0$
+    \item \textbf{执行动作}：$A_3 = \text{下}$（行为策略选择）
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_4 = -1$
+        \item 下一状态：$S_4 = s_6$
+    \end{itemize}
+    \item \textbf{计算Q-learning目标}：
+    \begin{align}
+    \text{目标} &= R_4 + \gamma \max_{a} Q(S_4, a) \\
+                &= -1 + 0.9 \times \max_{a} Q(s_6, a) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_3, \text{下}) &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+\end{enumerate}
+
+\textbf{时间步 $t=4$：更新 $(s_6, \text{右})$}
+
+\begin{enumerate}
+    \item \textbf{当前状态-动作对}：$(S_4, A_4) = (s_6, \text{右})$
+    \item \textbf{当前动作价值}：$Q(s_6, \text{右}) = 0$
+    \item \textbf{执行动作}：$A_4 = \text{右}$（行为策略选择）
+    \item \textbf{观察结果}：
+    \begin{itemize}
+        \item 奖励：$R_5 = -1$
+        \item 下一状态：$S_5 = \text{终止}$
+    \end{itemize}
+    \item \textbf{计算Q-learning目标}：
+    \begin{align}
+    \text{目标} &= R_5 + \gamma \max_{a} Q(\text{终止}, a) \\
+                &= -1 + 0.9 \times 0 \\
+                &= -1
+    \end{align}
+    \item \textbf{更新动作价值}：
+    \begin{align}
+    Q(s_6, \text{右}) &\gets 0 + 0.1 \times (-1) \\
+                     &\gets -0.1
+    \end{align}
+\end{enumerate}
+
+\textbf{第2个回合后的 $Q$ 函数}：
+
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+状态 & 动作 & $Q(s, a)$ \\
+\hline
+\multirow{4}{*}{$s_4$} & 上 & $0$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $-0.1$ \\
+\hline
+\multirow{4}{*}{$s_5$} & 上 & $-0.19$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $0$ \\
+\hline
+\multirow{4}{*}{$s_2$} & 上 & $0$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $-0.1$ \\
+\cline{2-3}
+ & 右 & $-0.1$ \\
+\hline
+\multirow{4}{*}{$s_3$} & 上 & $0$ \\
+\cline{2-3}
+ & 下 & $-0.1$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $0$ \\
+\hline
+\multirow{4}{*}{$s_6$} & 上 & $0$ \\
+\cline{2-3}
+ & 下 & $0$ \\
+\cline{2-3}
+ & 左 & $0$ \\
+\cline{2-3}
+ & 右 & $-0.1$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Q-learning的关键特点}
+
+\textbf{Off-policy特征}：
+\begin{itemize}
+    \item 使用 $\max_{a} Q(S_{t+1}, a)$ 而不是实际选择的动作 $A_{t+1}$
+    \item 学习的是最优动作价值函数 $q_*$
+    \item 不依赖行为策略选择的动作
+    \item 可以使用任何策略收集数据
+\end{itemize}
+
+\section{SARSA vs Q-learning：关键区别对比}
+
+\subsection{更新公式对比}
+
+\textbf{SARSA（On-policy）}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{Q-learning（Off-policy）}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\end{equation}
+
+\subsection{具体例子对比}
+
+\textbf{场景}：在状态 $s_5$，执行动作"上"，转移到状态 $s_2$。
+
+\textbf{假设}：
+\begin{itemize}
+    \item 当前 $Q(s_5, \text{上}) = -0.1$
+    \item $Q(s_2, \text{上}) = 0$，$Q(s_2, \text{下}) = 0$，$Q(s_2, \text{左}) = -0.1$，$Q(s_2, \text{右}) = 0$
+    \item 行为策略在 $s_2$ 选择动作"左"
+    \item 奖励 $R_{t+1} = -1$
+\end{itemize}
+
+\textbf{SARSA更新}：
+\begin{align}
+Q(s_5, \text{上}) &\gets Q(s_5, \text{上}) + \alpha [R_{t+1} + \gamma Q(s_2, \text{左}) - Q(s_5, \text{上})] \\
+                &\gets -0.1 + 0.1 \times [-1 + 0.9 \times (-0.1) - (-0.1)] \\
+                &\gets -0.1 + 0.1 \times [-1 - 0.09 + 0.1] \\
+                &\gets -0.1 + 0.1 \times (-0.99) \\
+                &\gets -0.1 - 0.099 \\
+                &\gets -0.199
+\end{align}
+
+\textbf{关键点}：使用实际选择的动作"左"的价值 $-0.1$。
+
+\textbf{Q-learning更新}：
+\begin{align}
+Q(s_5, \text{上}) &\gets Q(s_5, \text{上}) + \alpha [R_{t+1} + \gamma \max_{a} Q(s_2, a) - Q(s_5, \text{上})] \\
+                &\gets -0.1 + 0.1 \times [-1 + 0.9 \times \max\{0, 0, -0.1, 0\} - (-0.1)] \\
+                &\gets -0.1 + 0.1 \times [-1 + 0.9 \times 0 + 0.1] \\
+                &\gets -0.1 + 0.1 \times (-0.9) \\
+                &\gets -0.1 - 0.09 \\
+                &\gets -0.19
+\end{align}
+
+\textbf{关键点}：使用所有动作中的最大值 $0$，而不是实际选择的动作"左"的价值 $-0.1$。
+
+\subsection{区别总结}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{特征} & \textbf{SARSA} & \textbf{Q-learning} \\
+\hline
+更新目标 & $Q(S_{t+1}, A_{t+1})$ & $\max_{a} Q(S_{t+1}, a)$ \\
+\hline
+依赖实际动作 & 是 & 否 \\
+\hline
+学习目标 & 当前策略的价值函数 & 最优策略的价值函数 \\
+\hline
+策略类型 & On-policy & Off-policy \\
+\hline
+探索考虑 & 考虑探索风险 & 不考虑探索风险 \\
+\hline
+适用场景 & 需要安全的场景 & 追求最优性能的场景 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{总结}
+
+\subsection{SARSA的关键步骤}
+
+\begin{enumerate}
+    \item 初始化 $Q(s, a) = 0$，策略 $\pi$ 为 $\varepsilon$-贪婪
+    \item 对每个时间步：
+    \begin{itemize}
+        \item 执行动作 $A_t$，观察 $R_{t+1}, S_{t+1}$
+        \item 选择下一动作 $A_{t+1}$（根据策略 $\pi$）
+        \item 更新：$Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]$
+        \item 策略改进：$\pi(S_t) \gets \varepsilon$-贪婪策略，基于 $Q(S_t, \cdot)$
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Q-learning的关键步骤}
+
+\begin{enumerate}
+    \item 初始化 $Q(s, a) = 0$
+    \item 对每个时间步：
+    \begin{itemize}
+        \item 执行动作 $A_t$（行为策略选择），观察 $R_{t+1}, S_{t+1}$
+        \item 更新：$Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]$
+    \end{itemize}
+    \item 提取最优策略：$\pi_*(s) = \arg\max_{a} Q(s, a)$
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{SARSA} 学习当前策略的动作价值函数，考虑探索带来的风险，适合需要安全的场景。\textbf{Q-learning} 直接学习最优动作价值函数，不依赖实际选择的动作，适合追求最优性能的场景。两者都遵循GPI框架，区别在于策略评估和改进的方式。
+\end{quote}
+
+\end{document}
+

@@ -1,0 +1,504 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{全期望公式推导详解}
+\subtitle{Law of Total Expectation的详细推导}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{proof}{证明}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题}
+
+\textbf{问题}：全期望公式（Law of Total Expectation）：
+\begin{equation}
+\mathbb{E}_\pi[X] = \mathbb{E}_\pi[\mathbb{E}[X | S_t]]
+\label{eq:total_expectation}
+\end{equation}
+
+是怎么来的？
+
+\section{全期望公式的一般形式}
+
+\subsection{离散随机变量}
+
+\textbf{全期望公式（一般形式）}：
+\begin{equation}
+\mathbb{E}[X] = \mathbb{E}[\mathbb{E}[X | Y]]
+\label{eq:general_form}
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item $X$ 和 $Y$ 是随机变量
+    \item $\mathbb{E}[X | Y]$ 是给定 $Y$ 时 $X$ 的条件期望
+    \item 对条件期望再取期望，得到 $X$ 的期望
+\end{itemize}
+
+\subsection{展开形式}
+
+\textbf{离散情况}：
+\begin{equation}
+\mathbb{E}[X] = \sum_{y} \Pr(Y = y) \mathbb{E}[X | Y = y]
+\label{eq:discrete_form}
+\end{equation}
+
+\textbf{连续情况}：
+\begin{equation}
+\mathbb{E}[X] = \int_{-\infty}^{\infty} f_Y(y) \mathbb{E}[X | Y = y] \, dy
+\label{eq:continuous_form}
+\end{equation}
+
+其中 $f_Y(y)$ 是 $Y$ 的概率密度函数。
+
+\section{从条件期望的定义推导}
+
+\subsection{条件期望的定义}
+
+\textbf{离散随机变量}：
+\begin{equation}
+\mathbb{E}[X | Y = y] = \sum_{x} x \Pr(X = x | Y = y)
+\label{eq:conditional_expectation}
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 给定 $Y = y$，$X$ 的期望值
+    \item 这是关于 $X$ 的加权平均，权重是条件概率 $\Pr(X = x | Y = y)$
+\end{itemize}
+
+\subsection{推导过程}
+
+\textbf{步骤1：期望的定义}
+
+\textbf{离散随机变量}：
+\begin{equation}
+\mathbb{E}[X] = \sum_{x} x \Pr(X = x)
+\label{eq:expectation_definition}
+\end{equation}
+
+\textbf{步骤2：使用全概率公式}
+
+\textbf{全概率公式}：
+\begin{equation}
+\Pr(X = x) = \sum_{y} \Pr(X = x, Y = y) = \sum_{y} \Pr(Y = y) \Pr(X = x | Y = y)
+\label{eq:total_probability}
+\end{equation}
+
+\textbf{步骤3：代入期望定义}
+
+\begin{align}
+\mathbb{E}[X] &= \sum_{x} x \Pr(X = x) \\
+               &= \sum_{x} x \sum_{y} \Pr(Y = y) \Pr(X = x | Y = y) \\
+               &= \sum_{x} \sum_{y} x \Pr(Y = y) \Pr(X = x | Y = y) \\
+               &= \sum_{y} \Pr(Y = y) \sum_{x} x \Pr(X = x | Y = y) \\
+               &= \sum_{y} \Pr(Y = y) \mathbb{E}[X | Y = y] \\
+               &= \mathbb{E}[\mathbb{E}[X | Y]]
+\end{align}
+
+\textbf{关键步骤}：
+\begin{itemize}
+    \item 交换求和顺序：$\sum_{x} \sum_{y} = \sum_{y} \sum_{x}$
+    \item 识别条件期望：$\sum_{x} x \Pr(X = x | Y = y) = \mathbb{E}[X | Y = y]$
+    \item 得到全期望公式：$\sum_{y} \Pr(Y = y) \mathbb{E}[X | Y = y] = \mathbb{E}[\mathbb{E}[X | Y]]$
+\end{itemize}
+
+\section{应用到强化学习}
+
+\subsection{公式}
+
+\textbf{全期望公式（强化学习）}：
+\begin{equation}
+\mathbb{E}_\pi[X] = \mathbb{E}_\pi[\mathbb{E}[X | S_t]]
+\label{eq:rl_form}
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item $X$ 是随机变量（例如：回报 $G_t$、动作价值 $q_\pi(S_t, A_t)$ 等）
+    \item $S_t$ 是状态（随机变量）
+    \item $\mathbb{E}[X | S_t]$ 是给定状态 $S_t$ 时 $X$ 的条件期望
+    \item 对条件期望再取期望（关于状态分布），得到 $X$ 的期望
+\end{itemize}
+
+\subsection{展开形式}
+
+\textbf{离散状态空间}：
+\begin{equation}
+\mathbb{E}_\pi[X] = \sum_{s} \mu(s) \mathbb{E}[X | S_t = s]
+\label{eq:rl_discrete_form}
+\end{equation}
+
+其中 $\mu(s)$ 是在策略 $\pi$ 下的状态分布。
+
+\subsection{推导过程}
+
+\textbf{步骤1：期望的定义}
+
+\begin{equation}
+\mathbb{E}_\pi[X] = \sum_{x} x \Pr(X = x)
+\end{equation}
+
+\textbf{步骤2：使用全概率公式}
+
+\begin{equation}
+\Pr(X = x) = \sum_{s} \Pr(S_t = s) \Pr(X = x | S_t = s) = \sum_{s} \mu(s) \Pr(X = x | S_t = s)
+\end{equation}
+
+\textbf{步骤3：代入期望定义}
+
+\begin{align}
+\mathbb{E}_\pi[X] &= \sum_{x} x \Pr(X = x) \\
+                   &= \sum_{x} x \sum_{s} \mu(s) \Pr(X = x | S_t = s) \\
+                   &= \sum_{x} \sum_{s} x \mu(s) \Pr(X = x | S_t = s) \\
+                   &= \sum_{s} \mu(s) \sum_{x} x \Pr(X = x | S_t = s) \\
+                   &= \sum_{s} \mu(s) \mathbb{E}[X | S_t = s] \\
+                   &= \mathbb{E}_\pi[\mathbb{E}[X | S_t]]
+\end{align}
+
+\textbf{关键步骤}：
+\begin{itemize}
+    \item 交换求和顺序：$\sum_{x} \sum_{s} = \sum_{s} \sum_{x}$
+    \item 识别条件期望：$\sum_{x} x \Pr(X = x | S_t = s) = \mathbb{E}[X | S_t = s]$
+    \item 得到全期望公式：$\sum_{s} \mu(s) \mathbb{E}[X | S_t = s] = \mathbb{E}_\pi[\mathbb{E}[X | S_t]]$
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{例子1：简单的3状态问题}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 3个状态：$s_1, s_2, s_3$
+    \item 状态分布：$\mu(s_1) = 0.5, \mu(s_2) = 0.3, \mu(s_3) = 0.2$
+    \item 随机变量 $X$ 的分布（给定状态）：
+    \begin{align}
+    \Pr(X = 1 | S_t = s_1) &= 0.6, \quad \Pr(X = 2 | S_t = s_1) = 0.4 \\
+    \Pr(X = 1 | S_t = s_2) &= 0.3, \quad \Pr(X = 2 | S_t = s_2) = 0.7 \\
+    \Pr(X = 1 | S_t = s_3) &= 0.8, \quad \Pr(X = 2 | S_t = s_3) = 0.2
+    \end{align}
+\end{itemize}
+
+\textbf{方法1：直接计算期望}
+
+\textbf{步骤1：计算边际分布}
+
+\begin{align}
+\Pr(X = 1) &= \sum_{s} \mu(s) \Pr(X = 1 | S_t = s) \\
+           &= 0.5 \times 0.6 + 0.3 \times 0.3 + 0.2 \times 0.8 \\
+           &= 0.3 + 0.09 + 0.16 \\
+           &= 0.55
+\end{align}
+
+\begin{align}
+\Pr(X = 2) &= \sum_{s} \mu(s) \Pr(X = 2 | S_t = s) \\
+           &= 0.5 \times 0.4 + 0.3 \times 0.7 + 0.2 \times 0.2 \\
+           &= 0.2 + 0.21 + 0.04 \\
+           &= 0.45
+\end{align}
+
+\textbf{步骤2：计算期望}
+
+\begin{align}
+\mathbb{E}_\pi[X] &= \sum_{x} x \Pr(X = x) \\
+                  &= 1 \times 0.55 + 2 \times 0.45 \\
+                  &= 0.55 + 0.90 \\
+                  &= 1.45
+\end{align}
+
+\textbf{方法2：使用全期望公式}
+
+\textbf{步骤1：计算条件期望}
+
+\begin{align}
+\mathbb{E}[X | S_t = s_1] &= 1 \times 0.6 + 2 \times 0.4 = 0.6 + 0.8 = 1.4 \\
+\mathbb{E}[X | S_t = s_2] &= 1 \times 0.3 + 2 \times 0.7 = 0.3 + 1.4 = 1.7 \\
+\mathbb{E}[X | S_t = s_3] &= 1 \times 0.8 + 2 \times 0.2 = 0.8 + 0.4 = 1.2
+\end{align}
+
+\textbf{步骤2：对条件期望取期望}
+
+\begin{align}
+\mathbb{E}_\pi[\mathbb{E}[X | S_t]] &= \sum_{s} \mu(s) \mathbb{E}[X | S_t = s] \\
+                                    &= 0.5 \times 1.4 + 0.3 \times 1.7 + 0.2 \times 1.2 \\
+                                    &= 0.7 + 0.51 + 0.24 \\
+                                    &= 1.45
+\end{align}
+
+\textbf{验证}：两种方法得到相同的结果 $1.45$！
+
+\subsection{例子2：强化学习中的应用}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 状态 $S_t$，动作 $A_t$，回报 $G_t$
+    \item 我们想计算：$\mathbb{E}_\pi[G_t]$
+\end{itemize}
+
+\textbf{方法1：直接计算（困难）}
+
+需要知道 $G_t$ 的完整分布，这通常很困难。
+
+\textbf{方法2：使用全期望公式}
+
+\begin{align}
+\mathbb{E}_\pi[G_t] &= \mathbb{E}_\pi[\mathbb{E}[G_t | S_t]] \\
+                     &= \sum_{s} \mu(s) \mathbb{E}[G_t | S_t = s] \\
+                     &= \sum_{s} \mu(s) v_\pi(s)
+\end{align}
+
+其中 $v_\pi(s) = \mathbb{E}[G_t | S_t = s]$ 是状态价值函数。
+
+\textbf{优势}：
+\begin{itemize}
+    \item 不需要知道 $G_t$ 的完整分布
+    \item 只需要知道状态价值函数 $v_\pi(s)$ 和状态分布 $\mu(s)$
+    \item 这通常更容易计算或估计
+\end{itemize}
+
+\section{全期望公式的直观理解}
+
+\subsection{两层平均}
+
+\textbf{全期望公式}：
+\begin{equation}
+\mathbb{E}_\pi[X] = \mathbb{E}_\pi[\mathbb{E}[X | S_t]]
+\end{equation}
+
+\textbf{直观理解}：
+\begin{itemize}
+    \item \textbf{内层平均}：$\mathbb{E}[X | S_t = s]$ 是给定状态 $s$ 时 $X$ 的平均值
+    \item \textbf{外层平均}：$\mathbb{E}_\pi[\cdots]$ 是对所有状态的平均（按照状态分布 $\mu(s)$）
+    \item \textbf{全期望}：先对每个状态计算条件期望，再对所有状态求平均
+\end{itemize}
+
+\subsection{类比：班级平均分}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 有3个班级：$s_1, s_2, s_3$
+    \item 每个班级的学生人数：$\mu(s_1) = 50, \mu(s_2) = 30, \mu(s_3) = 20$（总人数 $100$）
+    \item 每个班级的平均分：$\mathbb{E}[X | S_t = s_1] = 80, \mathbb{E}[X | S_t = s_2] = 90, \mathbb{E}[X | S_t = s_3] = 70$
+\end{itemize}
+
+\textbf{方法1：直接计算全校平均分}
+
+需要知道每个学生的分数，然后求平均（困难）。
+
+\textbf{方法2：使用全期望公式}
+
+\begin{align}
+\text{全校平均分} &= \mathbb{E}_\pi[X] \\
+                  &= \mathbb{E}_\pi[\mathbb{E}[X | S_t]] \\
+                  &= \frac{50}{100} \times 80 + \frac{30}{100} \times 90 + \frac{20}{100} \times 70 \\
+                  &= 0.5 \times 80 + 0.3 \times 90 + 0.2 \times 70 \\
+                  &= 40 + 27 + 14 \\
+                  &= 81
+\end{align}
+
+\textbf{优势}：
+\begin{itemize}
+    \item 不需要知道每个学生的分数
+    \item 只需要知道每个班级的平均分和人数
+    \item 这通常更容易计算
+\end{itemize}
+
+\section{在策略梯度中的应用}
+
+\subsection{从求和到期望}
+
+\textbf{策略梯度定理（求和形式）}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{使用全期望公式}：
+\begin{align}
+\nabla_\theta J(\theta) &\propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta) \\
+                         &= \sum_{s} \mu(s) \mathbb{E}\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta) \middle| S_t = s\right] \\
+                         &= \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{align}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 内层：$\sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)$ 是给定状态 $s$ 时的值
+    \item 外层：$\sum_{s} \mu(s) \cdots$ 是对所有状态的平均
+    \item 这就是全期望公式的应用
+\end{itemize}
+
+\subsection{从动作求和到动作期望}
+
+\textbf{策略梯度定理（期望形式）}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{equation}
+
+\textbf{引入动作概率}：
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right] \\
+                         &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \nabla_\theta \ln \pi(a|S_t, \theta)\right]
+\end{align}
+
+\textbf{使用全期望公式（关于动作）}：
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \nabla_\theta \ln \pi(a|S_t, \theta)\right] \\
+                         &= \mathbb{E}_\pi\left[\mathbb{E}\left[q_\pi(S_t, A_t) \nabla_\theta \ln \pi(A_t|S_t, \theta) \middle| S_t\right]\right] \\
+                         &= \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \nabla_\theta \ln \pi(A_t|S_t, \theta)\right]
+\end{align}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 内层：$\sum_{a} \pi(a|S_t, \theta) \cdots$ 是给定状态 $S_t$ 时关于动作的期望
+    \item 外层：$\mathbb{E}_\pi[\cdots]$ 是对所有状态的平均
+    \item 全期望公式使我们能够简化表达式
+\end{itemize}
+
+\section{全期望公式的证明}
+
+\subsection{离散情况}
+
+\textbf{定理}（全期望公式）：
+\begin{equation}
+\mathbb{E}[X] = \mathbb{E}[\mathbb{E}[X | Y]]
+\end{equation}
+
+\textbf{证明}：
+
+\textbf{步骤1：条件期望的定义}
+
+\begin{equation}
+\mathbb{E}[X | Y = y] = \sum_{x} x \Pr(X = x | Y = y)
+\end{equation}
+
+\textbf{步骤2：期望的定义}
+
+\begin{equation}
+\mathbb{E}[X] = \sum_{x} x \Pr(X = x)
+\end{equation}
+
+\textbf{步骤3：使用全概率公式}
+
+\begin{equation}
+\Pr(X = x) = \sum_{y} \Pr(X = x, Y = y) = \sum_{y} \Pr(Y = y) \Pr(X = x | Y = y)
+\end{equation}
+
+\textbf{步骤4：代入期望定义}
+
+\begin{align}
+\mathbb{E}[X] &= \sum_{x} x \Pr(X = x) \\
+               &= \sum_{x} x \sum_{y} \Pr(Y = y) \Pr(X = x | Y = y) \\
+               &= \sum_{x} \sum_{y} x \Pr(Y = y) \Pr(X = x | Y = y) \\
+               &= \sum_{y} \Pr(Y = y) \sum_{x} x \Pr(X = x | Y = y) \\
+               &= \sum_{y} \Pr(Y = y) \mathbb{E}[X | Y = y] \\
+               &= \mathbb{E}[\mathbb{E}[X | Y]]
+\end{align}
+
+\textbf{证毕}！
+
+\subsection{连续情况}
+
+\textbf{定理}（全期望公式，连续情况）：
+\begin{equation}
+\mathbb{E}[X] = \mathbb{E}[\mathbb{E}[X | Y]]
+\end{equation}
+
+\textbf{证明}：
+
+\textbf{步骤1：条件期望的定义}
+
+\begin{equation}
+\mathbb{E}[X | Y = y] = \int_{-\infty}^{\infty} x f_{X|Y}(x | y) \, dx
+\end{equation}
+
+其中 $f_{X|Y}(x | y)$ 是条件概率密度函数。
+
+\textbf{步骤2：期望的定义}
+
+\begin{equation}
+\mathbb{E}[X] = \int_{-\infty}^{\infty} x f_X(x) \, dx
+\end{equation}
+
+\textbf{步骤3：使用全概率公式}
+
+\begin{equation}
+f_X(x) = \int_{-\infty}^{\infty} f_{X,Y}(x, y) \, dy = \int_{-\infty}^{\infty} f_Y(y) f_{X|Y}(x | y) \, dy
+\end{equation}
+
+\textbf{步骤4：代入期望定义}
+
+\begin{align}
+\mathbb{E}[X] &= \int_{-\infty}^{\infty} x f_X(x) \, dx \\
+               &= \int_{-\infty}^{\infty} x \int_{-\infty}^{\infty} f_Y(y) f_{X|Y}(x | y) \, dy \, dx \\
+               &= \int_{-\infty}^{\infty} \int_{-\infty}^{\infty} x f_Y(y) f_{X|Y}(x | y) \, dy \, dx \\
+               &= \int_{-\infty}^{\infty} f_Y(y) \int_{-\infty}^{\infty} x f_{X|Y}(x | y) \, dx \, dy \\
+               &= \int_{-\infty}^{\infty} f_Y(y) \mathbb{E}[X | Y = y] \, dy \\
+               &= \mathbb{E}[\mathbb{E}[X | Y]]
+\end{align}
+
+\textbf{证毕}！
+
+\section{总结}
+
+\subsection{全期望公式}
+
+\textbf{一般形式}：
+\begin{equation}
+\mathbb{E}[X] = \mathbb{E}[\mathbb{E}[X | Y]]
+\end{equation}
+
+\textbf{展开形式（离散）}：
+\begin{equation}
+\mathbb{E}[X] = \sum_{y} \Pr(Y = y) \mathbb{E}[X | Y = y]
+\end{equation}
+
+\textbf{展开形式（连续）}：
+\begin{equation}
+\mathbb{E}[X] = \int_{-\infty}^{\infty} f_Y(y) \mathbb{E}[X | Y = y] \, dy
+\end{equation}
+
+\subsection{推导过程}
+
+\begin{enumerate}
+    \item \textbf{期望的定义}：$\mathbb{E}[X] = \sum_{x} x \Pr(X = x)$
+    \item \textbf{全概率公式}：$\Pr(X = x) = \sum_{y} \Pr(Y = y) \Pr(X = x | Y = y)$
+    \item \textbf{代入并交换求和顺序}：$\sum_{x} \sum_{y} = \sum_{y} \sum_{x}$
+    \item \textbf{识别条件期望}：$\sum_{x} x \Pr(X = x | Y = y) = \mathbb{E}[X | Y = y]$
+    \item \textbf{得到全期望公式}：$\sum_{y} \Pr(Y = y) \mathbb{E}[X | Y = y] = \mathbb{E}[\mathbb{E}[X | Y]]$
+\end{enumerate}
+
+\subsection{直观理解}
+
+\begin{quote}
+\textbf{全期望公式}：先对每个条件（$Y = y$）计算条件期望，再对所有条件求平均（按照 $Y$ 的分布），得到 $X$ 的期望。这是"两层平均"的思想。
+\end{quote}
+
+\subsection{在强化学习中的应用}
+
+\begin{itemize}
+    \item \textbf{从求和到期望}：$\sum_{s} \mu(s) \cdots = \mathbb{E}_\pi[\cdots]$
+    \item \textbf{从动作求和到动作期望}：$\sum_{a} \pi(a|S_t, \theta) \cdots = \mathbb{E}[\cdots | S_t]$
+    \item \textbf{简化表达式}：使策略梯度定理从求和形式转换为期望形式
+\end{itemize}
+
+\end{document}
+

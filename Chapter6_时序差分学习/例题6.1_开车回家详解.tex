@@ -1,0 +1,459 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+
+\geometry{margin=2.5cm}
+
+\title{例题6.1：开车回家详解}
+\subtitle{蒙特卡洛方法与TD方法的对比}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题描述}
+
+\subsection{场景设置}
+
+每天下班开车回家时，你试图预测到家需要多长时间。当你离开办公室时，你会注意时间、星期几、天气等相关因素。
+
+\textbf{具体场景}：
+\begin{itemize}
+    \item 星期五下午6点离开办公室
+    \item 初始估计：30分钟到家
+    \item 实际到家时间：43分钟
+\end{itemize}
+
+\subsection{状态序列}
+
+整个旅程的状态序列如下：
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{状态} & \textbf{已用时间（分钟）} & \textbf{预测剩余时间} & \textbf{预测总时间} \\
+\hline
+离开办公室，星期五6点 & 0 & 30 & 30 \\
+\hline
+到达汽车，开始下雨 & 5 & 35 & 40 \\
+\hline
+离开高速公路 & 20 & 15 & 35 \\
+\hline
+二级公路，跟在卡车后面 & 30 & 10 & 40 \\
+\hline
+进入家附近的街道 & 40 & 3 & 43 \\
+\hline
+到家 & 43 & 0 & 43 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{关键参数}
+
+\begin{itemize}
+    \item \textbf{奖励}：每段路程的耗时（已用时间）
+    \item \textbf{折扣因子}：$\gamma = 1$（无折扣）
+    \item \textbf{回报}：从每个状态到家的实际剩余时间
+    \item \textbf{价值函数}：每个状态的期望剩余时间
+\end{itemize}
+
+\section{问题建模}
+
+\subsection{状态定义}
+
+\begin{itemize}
+    \item $S_0$：离开办公室，星期五6点
+    \item $S_1$：到达汽车，开始下雨
+    \item $S_2$：离开高速公路
+    \item $S_3$：二级公路，跟在卡车后面
+    \item $S_4$：进入家附近的街道
+    \item $S_5$：到家（终止状态）
+\end{itemize}
+
+\subsection{奖励序列}
+
+\begin{itemize}
+    \item $R_1 = 5$：从办公室到汽车（5分钟）
+    \item $R_2 = 15$：从汽车到离开高速公路（15分钟）
+    \item $R_3 = 10$：从高速公路到二级公路（10分钟）
+    \item $R_4 = 10$：从二级公路到进入家附近街道（10分钟）
+    \item $R_5 = 3$：从家附近街道到家（3分钟）
+\end{itemize}
+
+\subsection{初始价值估计}
+
+\begin{itemize}
+    \item $V(S_0) = 30$：初始估计30分钟
+    \item $V(S_1) = 35$：到达汽车后估计35分钟
+    \item $V(S_2) = 15$：离开高速公路后估计15分钟
+    \item $V(S_3) = 10$：二级公路上估计10分钟
+    \item $V(S_4) = 3$：进入家附近街道后估计3分钟
+\end{itemize}
+
+\subsection{实际回报}
+
+由于 $\gamma = 1$，从每个状态开始的回报就是实际剩余时间：
+
+\begin{itemize}
+    \item $G_0 = R_1 + R_2 + R_3 + R_4 + R_5 = 5 + 15 + 10 + 10 + 3 = 43$
+    \item $G_1 = R_2 + R_3 + R_4 + R_5 = 15 + 10 + 10 + 3 = 38$
+    \item $G_2 = R_3 + R_4 + R_5 = 10 + 10 + 3 = 23$
+    \item $G_3 = R_4 + R_5 = 10 + 3 = 13$
+    \item $G_4 = R_5 = 3$
+\end{itemize}
+
+\section{蒙特卡洛方法}
+
+\subsection{蒙特卡洛更新规则}
+
+\textbf{更新公式}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\label{eq:mc_update}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $G_t$ 是从状态 $S_t$ 开始的完整回报
+    \item $\alpha$ 是步长参数
+    \item 更新只能在回合结束后进行
+\end{itemize}
+
+\subsection{蒙特卡洛更新过程}
+
+\textbf{假设 $\alpha = 1$}（完全更新）：
+
+\textbf{状态 $S_0$（离开办公室）}：
+\begin{align}
+V(S_0) &\gets V(S_0) + \alpha [G_0 - V(S_0)] \\
+       &= 30 + 1 \times [43 - 30] = 43
+\end{align}
+
+\textbf{状态 $S_1$（到达汽车）}：
+\begin{align}
+V(S_1) &\gets V(S_1) + \alpha [G_1 - V(S_1)] \\
+       &= 35 + 1 \times [38 - 35] = 38
+\end{align}
+
+\textbf{状态 $S_2$（离开高速公路）}：
+\begin{align}
+V(S_2) &\gets V(S_2) + \alpha [G_2 - V(S_2)] \\
+       &= 15 + 1 \times [23 - 15] = 23
+\end{align}
+
+\textbf{状态 $S_3$（二级公路）}：
+\begin{align}
+V(S_3) &\gets V(S_3) + \alpha [G_3 - V(S_3)] \\
+       &= 10 + 1 \times [13 - 10] = 13
+\end{align}
+
+\textbf{状态 $S_4$（进入家附近街道）}：
+\begin{align}
+V(S_4) &\gets V(S_4) + \alpha [G_4 - V(S_4)] \\
+       &= 3 + 1 \times [3 - 3] = 3
+\end{align}
+
+\subsection{蒙特卡洛方法的特点}
+
+\begin{itemize}
+    \item \textbf{更新时机}：必须等待到家后才能更新所有状态
+    \item \textbf{更新目标}：使用完整回报 $G_t$
+    \item \textbf{误差}：$G_t - V(S_t)$ 是实际剩余时间与预测剩余时间的差异
+    \item \textbf{缺点}：无法在途中学习，必须等待最终结果
+\end{itemize}
+
+\subsection{蒙特卡洛更新表格}
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{状态} & \textbf{初始估计} & \textbf{实际回报} & \textbf{误差} & \textbf{更新后估计} \\
+\hline
+$S_0$（离开办公室） & 30 & 43 & +13 & 43 \\
+\hline
+$S_1$（到达汽车） & 35 & 38 & +3 & 38 \\
+\hline
+$S_2$（离开高速公路） & 15 & 23 & +8 & 23 \\
+\hline
+$S_3$（二级公路） & 10 & 13 & +3 & 13 \\
+\hline
+$S_4$（进入家附近街道） & 3 & 3 & 0 & 3 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 离开高速公路时，你预测15分钟，但实际需要23分钟（误差+8分钟）
+    \item 如果 $\alpha = 1/2$，更新后估计为：$15 + 0.5 \times 8 = 19$ 分钟
+    \item 但所有这些更新都必须在到家后才能进行
+\end{itemize}
+
+\section{时序差分（TD）方法}
+
+\subsection{TD更新规则}
+
+\textbf{更新公式}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+\label{eq:td_update}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $R_{t+1}$ 是即时奖励
+    \item $V(S_{t+1})$ 是下一状态的当前估计
+    \item $\gamma = 1$（无折扣）
+    \item 更新可以在每个时间步立即进行
+\end{itemize}
+
+\subsection{TD更新过程}
+
+\textbf{假设 $\alpha = 1$}（完全更新）：
+
+\textbf{时间 $t=0$（离开办公室 $\to$ 到达汽车）}：
+\begin{align}
+\delta_0 &= R_1 + \gamma V(S_1) - V(S_0) \\
+         &= 5 + 1 \times 35 - 30 = 10 \\
+V(S_0) &\gets V(S_0) + \alpha \delta_0 = 30 + 1 \times 10 = 40
+\end{align}
+
+\textbf{时间 $t=1$（到达汽车 $\to$ 离开高速公路）}：
+\begin{align}
+\delta_1 &= R_2 + \gamma V(S_2) - V(S_1) \\
+         &= 15 + 1 \times 15 - 35 = -5 \\
+V(S_1) &\gets V(S_1) + \alpha \delta_1 = 35 + 1 \times (-5) = 30
+\end{align}
+
+\textbf{时间 $t=2$（离开高速公路 $\to$ 二级公路）}：
+\begin{align}
+\delta_2 &= R_3 + \gamma V(S_3) - V(S_2) \\
+         &= 10 + 1 \times 10 - 15 = 5 \\
+V(S_2) &\gets V(S_2) + \alpha \delta_2 = 15 + 1 \times 5 = 20
+\end{align}
+
+\textbf{时间 $t=3$（二级公路 $\to$ 进入家附近街道）}：
+\begin{align}
+\delta_3 &= R_4 + \gamma V(S_4) - V(S_3) \\
+         &= 10 + 1 \times 3 - 10 = 3 \\
+V(S_3) &\gets V(S_3) + \alpha \delta_3 = 10 + 1 \times 3 = 13
+\end{align}
+
+\textbf{时间 $t=4$（进入家附近街道 $\to$ 到家）}：
+\begin{align}
+\delta_4 &= R_5 + \gamma V(S_5) - V(S_4) \\
+         &= 3 + 1 \times 0 - 3 = 0 \\
+V(S_4) &\gets V(S_4) + \alpha \delta_4 = 3 + 1 \times 0 = 3
+\end{align}
+
+\subsection{TD方法的特点}
+
+\begin{itemize}
+    \item \textbf{更新时机}：每个时间步都可以立即更新
+    \item \textbf{更新目标}：使用 $R_{t+1} + \gamma V(S_{t+1})$（一步前瞻）
+    \item \textbf{TD误差}：$\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$
+    \item \textbf{优点}：可以在途中学习，不需要等待最终结果
+\end{itemize}
+
+\subsection{TD更新表格}
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{时间} & \textbf{状态转移} & \textbf{奖励} & \textbf{TD误差} & \textbf{更新前估计} & \textbf{更新后估计} \\
+\hline
+$t=0$ & $S_0 \to S_1$ & $R_1=5$ & $\delta_0=10$ & $V(S_0)=30$ & $V(S_0)=40$ \\
+\hline
+$t=1$ & $S_1 \to S_2$ & $R_2=15$ & $\delta_1=-5$ & $V(S_1)=35$ & $V(S_1)=30$ \\
+\hline
+$t=2$ & $S_2 \to S_3$ & $R_3=10$ & $\delta_2=5$ & $V(S_2)=15$ & $V(S_2)=20$ \\
+\hline
+$t=3$ & $S_3 \to S_4$ & $R_4=10$ & $\delta_3=3$ & $V(S_3)=10$ & $V(S_3)=13$ \\
+\hline
+$t=4$ & $S_4 \to S_5$ & $R_5=3$ & $\delta_4=0$ & $V(S_4)=3$ & $V(S_4)=3$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{两种方法的对比}
+
+\subsection{更新时机对比}
+
+\textbf{蒙特卡洛方法}：
+\begin{itemize}
+    \item 必须等待到家后才能更新
+    \item 所有更新都在回合结束后进行
+    \item 无法在途中学习
+\end{itemize}
+
+\textbf{TD方法}：
+\begin{itemize}
+    \item 每个时间步都可以立即更新
+    \item 可以在途中学习
+    \item 信息传播更快
+\end{itemize}
+
+\subsection{更新目标对比}
+
+\textbf{蒙特卡洛方法}：
+\begin{equation}
+\text{目标} = G_t = R_{t+1} + R_{t+2} + \cdots + R_T
+\end{equation}
+\begin{itemize}
+    \item 使用完整回报
+    \item 无偏估计
+    \item 高方差
+\end{itemize}
+
+\textbf{TD方法}：
+\begin{equation}
+\text{目标} = R_{t+1} + \gamma V(S_{t+1})
+\end{equation}
+\begin{itemize}
+    \item 使用一步前瞻
+    \item 可能有偏（如果 $V$ 不准确）
+    \item 低方差
+\end{itemize}
+
+\subsection{具体例子：交通堵塞场景}
+
+\textbf{场景}：另一天，你再次估计30分钟到家，但在高速公路上遇到严重交通堵塞。离开办公室25分钟后，你仍然在高速公路上堵车。你现在估计还需要25分钟到家，总时间50分钟。
+
+\textbf{蒙特卡洛方法}：
+\begin{itemize}
+    \item 必须等待到家后才能更新初始状态 $S_0$ 的估计
+    \item 即使你已经知道初始估计30分钟太乐观，也无法立即更新
+\end{itemize}
+
+\textbf{TD方法}：
+\begin{itemize}
+    \item 可以立即更新初始状态 $S_0$ 的估计
+    \item 在时间 $t=0$（离开办公室 $\to$ 到达汽车）：
+    \begin{align}
+    \delta_0 &= R_1 + \gamma V(S_1) - V(S_0) \\
+             &= 5 + 1 \times 45 - 30 = 20 \\
+    V(S_0) &\gets 30 + \alpha \times 20
+    \end{align}
+    \item 初始估计会立即向50分钟调整
+    \item 每个估计都会向紧随其后的估计调整
+\end{itemize}
+
+\section{TD误差的直观理解}
+
+\subsection{TD误差的含义}
+
+\textbf{TD误差}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $\delta_t > 0$：当前估计 $V(S_t)$ 过低，应该增加
+    \item $\delta_t < 0$：当前估计 $V(S_t)$ 过高，应该减少
+    \item $\delta_t = 0$：当前估计正好
+\end{itemize}
+
+\subsection{时序差异}
+
+\textbf{关键洞察}：
+\begin{quote}
+TD误差衡量的是\textbf{预测的时间差异}（temporal differences in predictions）。每个误差与预测随时间的变化成正比。
+\end{quote}
+
+\textbf{例子}：
+\begin{itemize}
+    \item 在时间 $t=0$，你预测总时间30分钟
+    \item 在时间 $t=1$，你预测总时间40分钟
+    \item 这个10分钟的变化就是TD误差的基础
+    \item TD方法利用这个变化来更新估计
+\end{itemize}
+
+\section{数值验证}
+
+\subsection{验证TD误差之和}
+
+根据方程(6.6)，当 $V$ 不变时：
+\begin{equation}
+G_t - V(S_t) = \sum_{k=t}^{T-1} \gamma^{k-t} \delta_k
+\end{equation}
+
+\textbf{验证 $G_0 - V(S_0)$}：
+
+\begin{align}
+G_0 - V(S_0) &= 43 - 30 = 13 \\
+\sum_{k=0}^{4} \gamma^{k} \delta_k &= \delta_0 + \delta_1 + \delta_2 + \delta_3 + \delta_4 \\
+                                   &= 10 + (-5) + 5 + 3 + 0 = 13 \quad \checkmark
+\end{align}
+
+\textbf{验证 $G_2 - V(S_2)$}：
+
+\begin{align}
+G_2 - V(S_2) &= 23 - 15 = 8 \\
+\sum_{k=2}^{4} \gamma^{k-2} \delta_k &= \delta_2 + \delta_3 + \delta_4 \\
+                                     &= 5 + 3 + 0 = 8 \quad \checkmark
+\end{align}
+
+\section{总结}
+
+\subsection{关键要点}
+
+\begin{enumerate}
+    \item \textbf{蒙特卡洛方法}：
+    \begin{itemize}
+        \item 使用完整回报 $G_t$
+        \item 必须等待回合结束
+        \item 无偏估计，但高方差
+    \end{itemize}
+    
+    \item \textbf{TD方法}：
+    \begin{itemize}
+        \item 使用一步前瞻 $R_{t+1} + \gamma V(S_{t+1})$
+        \item 可以立即更新
+        \item 可能有偏，但低方差
+    \end{itemize}
+    
+    \item \textbf{TD方法的优势}：
+    \begin{itemize}
+        \item 在线学习：不需要等待最终结果
+        \item 信息传播更快
+        \item 特别适合长回合或连续任务
+    \end{itemize}
+    
+    \item \textbf{实际应用}：
+    \begin{itemize}
+        \item 在交通堵塞时，TD方法可以立即更新估计
+        \item 蒙特卡洛方法必须等待到家后才能更新
+        \item TD方法提供了"在等待时有事可做"的学习机会
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{TD方法的核心优势在于它能够基于当前预测进行学习，而不需要等待最终结果。这使得TD方法特别适合在线学习和实时应用。}
+\end{quote}
+
+\end{document}
+

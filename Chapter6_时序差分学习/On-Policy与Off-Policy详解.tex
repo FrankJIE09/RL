@@ -1,0 +1,462 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{On-Policy 与 Off-Policy 方法详解}
+\author{强化学习笔记}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+在强化学习中，\textbf{On-policy} 和 \textbf{Off-policy} 是两种重要的学习方法分类。理解这两种方法的区别对于选择合适的算法至关重要。本章将详细讨论这两种方法的核心概念、区别、优缺点以及具体应用。
+
+\section{基本定义}
+
+\subsection{On-Policy 方法}
+
+\textbf{定义}：On-policy 方法是指\textbf{评估和改进的是同一个策略}。也就是说，用于选择动作的策略（行为策略）和正在学习的策略（目标策略）是同一个策略。
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item 行为策略 = 目标策略 = $\pi$
+    \item 学习的是当前策略的价值函数 $v_\pi(s)$ 或 $q_\pi(s, a)$
+    \item 策略改进基于当前策略的价值估计
+    \item 必须使用当前策略生成的数据
+\end{itemize}
+
+\subsection{Off-Policy 方法}
+
+\textbf{定义}：Off-policy 方法是指\textbf{评估一个策略（目标策略 $\pi$），但使用另一个策略（行为策略 $b$）生成的数据}。
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item 行为策略 $b$ $\neq$ 目标策略 $\pi$
+    \item 学习的是目标策略的价值函数 $v_\pi(s)$ 或 $q_\pi(s, a)$
+    \item 可以使用任何策略（行为策略 $b$）收集数据
+    \item 需要重要性采样等技术来修正数据分布差异
+\end{itemize}
+
+\section{核心区别}
+
+\subsection{策略关系}
+
+\textbf{On-Policy}：
+\begin{equation}
+\text{行为策略} = \text{目标策略} = \pi
+\end{equation}
+
+\textbf{Off-Policy}：
+\begin{equation}
+\text{行为策略} = b \neq \text{目标策略} = \pi
+\end{equation}
+
+\subsection{数据使用}
+
+\textbf{On-Policy}：
+\begin{itemize}
+    \item 必须使用当前策略 $\pi$ 生成的数据
+    \item 数据收集和学习使用同一个策略
+    \item 数据用完即弃，不能重用历史数据
+\end{itemize}
+
+\textbf{Off-Policy}：
+\begin{itemize}
+    \item 可以使用任何策略 $b$ 生成数据
+    \item 数据收集和学习使用不同策略
+    \item 可以重用历史数据（经验回放）
+    \item 可以从其他智能体或人类专家的经验中学习
+\end{itemize}
+
+\section{Off-Policy 的详细讲解}
+
+\subsection{"学习最优动作价值函数，但可以使用任何策略收集数据"的含义}
+
+这是 Q-learning 等 Off-policy 方法的核心特征。让我们详细分解这句话：
+
+\subsubsection{第一部分：学习最优动作价值函数}
+
+\textbf{最优动作价值函数 $q_*(s, a)$}：
+\begin{equation}
+q_*(s, a) = \max_\pi q_\pi(s, a) = \mathbb{E}[R_{t+1} + \gamma \max_{a'} q_*(S_{t+1}, a') | S_t = s, A_t = a]
+\end{equation}
+
+\textbf{Q-learning 的更新公式}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\label{eq:qlearning}
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 使用 $\max_{a} Q(S_{t+1}, a)$ 而不是 $Q(S_{t+1}, A_{t+1})$
+    \item 这意味着无论实际选择的动作 $A_{t+1}$ 是什么，都使用最优动作的价值
+    \item 直接学习最优策略 $\pi_*$ 的动作价值函数
+    \item 不需要显式的策略改进步骤
+\end{itemize}
+
+\subsubsection{第二部分：可以使用任何策略收集数据}
+
+\textbf{行为策略 $b$ 的作用}：
+
+在 Q-learning 中，虽然我们学习的是最优动作价值函数 $q_*$，但收集数据时可以使用任何策略 $b$（行为策略）。
+
+\textbf{Q-learning 算法流程}：
+\begin{algorithm}[H]
+\caption{Q-learning（Off-policy TD控制）}
+\begin{algorithmic}[1]
+\REQUIRE 所有状态-动作对都有非零概率被访问（通过行为策略 $b$）
+\ENSURE 最优动作价值函数 $q_*$ 和最优策略 $\pi_*$
+\STATE \textbf{初始化}：$Q(s, a) \in \mathbb{R}$ 任意初始化
+\STATE
+\REPEAT
+    \STATE 初始化 $S$（回合的起始状态）
+    \REPEAT
+        \STATE $A \gets$ \textbf{行为策略 $b$} 给出的动作（如 $\varepsilon$-贪婪，基于 $Q$）
+        \STATE 执行动作 $A$，观察奖励 $R$ 和下一状态 $S'$
+        \STATE $Q(S, A) \gets Q(S, A) + \alpha [R + \gamma \max_{a} Q(S', a) - Q(S, A)]$
+        \STATE $S \gets S'$
+    \UNTIL{$S$ 是终止状态}
+\UNTIL{收敛}
+\STATE \textbf{提取最优策略}：
+\FOR{每个状态 $s \in \mathcal{S}$}
+    \STATE $\pi_*(s) \gets \arg\max_{a} Q(s, a)$
+\ENDFOR
+\RETURN $q_* = Q$，$\pi_*$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item \textbf{第 5 行}：使用行为策略 $b$ 选择动作（用于探索）
+    \item \textbf{第 7 行}：使用 $\max_{a} Q(S', a)$ 更新（学习最优价值）
+    \item 行为策略 $b$ 可以是 $\varepsilon$-贪婪、随机策略，甚至人类专家的策略
+    \item 目标策略 $\pi_*$ 是贪婪策略：$\pi_*(s) = \arg\max_{a} Q(s, a)$
+\end{itemize}
+
+\subsection{为什么 Off-Policy 可以做到这一点？}
+
+\textbf{核心原因}：Q-learning 的更新公式不依赖于实际选择的动作 $A_{t+1}$。
+
+\textbf{对比 SARSA（On-policy）}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\label{eq:sarsa}
+\end{equation}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item \textbf{SARSA}：使用实际选择的下一动作 $A_{t+1}$（必须由当前策略选择）
+    \item \textbf{Q-learning}：使用最优动作 $\max_{a} Q(S_{t+1}, a)$（不依赖实际选择的动作）
+\end{itemize}
+
+\textbf{例子说明}：
+
+假设在状态 $s_5$ 执行动作"上"，转移到状态 $s_2$：
+
+\textbf{SARSA（On-policy）}：
+\begin{itemize}
+    \item 当前策略在 $s_2$ 选择动作：$A_{t+1} = \text{左}$（可能是探索性动作）
+    \item 更新目标：$R_{t+1} + \gamma Q(s_2, \text{左})$
+    \item 学习的是当前策略（包含探索）的价值函数
+\end{itemize}
+
+\textbf{Q-learning（Off-policy）}：
+\begin{itemize}
+    \item 行为策略在 $s_2$ 选择动作：$A_{t+1} = \text{右}$（可能是探索性动作）
+    \item 更新目标：$R_{t+1} + \gamma \max_{a} Q(s_2, a)$（使用最优动作，不是实际选择的动作）
+    \item 学习的是最优策略的价值函数，不受行为策略影响
+\end{itemize}
+
+\subsection{Off-Policy 的优势}
+
+\textbf{1. 样本效率高}：
+\begin{itemize}
+    \item 可以使用经验回放（Experience Replay）
+    \item 可以重用历史数据
+    \item 不需要每次都用最新策略生成新数据
+\end{itemize}
+
+\textbf{2. 灵活性}：
+\begin{itemize}
+    \item 可以从其他智能体的经验中学习
+    \item 可以从人类专家的演示中学习
+    \item 可以使用任何探索策略收集数据
+\end{itemize}
+
+\textbf{3. 学习最优策略}：
+\begin{itemize}
+    \item 直接学习最优动作价值函数 $q_*$
+    \item 不需要在探索和利用之间妥协
+    \item 可以使用贪婪的目标策略，同时保持探索性的行为策略
+\end{itemize}
+
+\section{具体算法对比}
+
+\subsection{SARSA vs Q-learning}
+
+\subsubsection{SARSA（On-policy）}
+
+\textbf{更新公式}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 使用当前策略选择动作 $A_{t+1}$
+    \item 学习当前策略的动作价值函数 $q_\pi(s, a)$
+    \item 策略改进基于当前策略的价值估计
+    \item 更保守，考虑探索带来的风险
+\end{itemize}
+
+\textbf{算法流程}：
+\begin{algorithm}[H]
+\caption{SARSA（On-policy TD控制）}
+\begin{algorithmic}[1]
+\STATE \textbf{初始化}：$Q(s, a)$ 任意初始化
+\STATE $\pi$ 为 $\varepsilon$-贪婪策略，基于 $Q$
+\REPEAT
+    \STATE 初始化 $S$
+    \STATE $A \gets$ 策略 $\pi$ 给出的动作（基于 $Q$）
+    \REPEAT
+        \STATE 执行动作 $A$，观察奖励 $R$ 和下一状态 $S'$
+        \STATE $A' \gets$ 策略 $\pi$ 给出的动作（基于 $Q$）
+        \STATE $Q(S, A) \gets Q(S, A) + \alpha [R + \gamma Q(S', A') - Q(S, A)]$
+        \STATE $\pi(S) \gets \varepsilon$-贪婪策略，基于 $Q(S, \cdot)$
+        \STATE $S \gets S'$，$A \gets A'$
+    \UNTIL{$S$ 是终止状态}
+\UNTIL{策略稳定}
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Q-learning（Off-policy）}
+
+\textbf{更新公式}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 使用行为策略选择动作，但更新时不依赖实际选择的动作
+    \item 直接学习最优动作价值函数 $q_*(s, a)$
+    \item 不需要显式策略改进步骤
+    \item 更激进，直接学习最优策略
+\end{itemize}
+
+\subsection{关键区别总结}
+
+\begin{table}[H]
+\centering
+\caption{SARSA vs Q-learning 对比}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{特征} & \textbf{SARSA（On-policy）} & \textbf{Q-learning（Off-policy）} \\
+\hline
+更新公式 & $Q(S', A')$ & $\max_{a} Q(S', a)$ \\
+\hline
+策略关系 & 行为策略 = 目标策略 & 行为策略 $\neq$ 目标策略 \\
+\hline
+学习目标 & 当前策略的价值函数 & 最优策略的价值函数 \\
+\hline
+数据使用 & 必须用当前策略生成 & 可以用任何策略生成 \\
+\hline
+探索考虑 & 考虑探索风险 & 不考虑探索风险 \\
+\hline
+适用场景 & 需要安全的场景 & 追求最优性能的场景 \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{行为策略与目标策略}
+
+\subsection{概念定义}
+
+\textbf{行为策略（Behavior Policy）$b$}：
+\begin{itemize}
+    \item 用于生成数据的策略
+    \item 决定智能体如何与环境交互
+    \item 通常是探索性的（如 $\varepsilon$-贪婪策略）
+    \item 在 Off-policy 方法中，$b \neq \pi$
+\end{itemize}
+
+\textbf{目标策略（Target Policy）$\pi$}：
+\begin{itemize}
+    \item 正在学习的策略
+    \item 决定我们想要评估或改进的策略
+    \item 在控制问题中，通常是贪婪策略
+    \item 在 On-policy 方法中，$\pi = b$
+\end{itemize}
+
+\subsection{覆盖假设（Coverage Assumption）}
+
+\textbf{定义}：为了使用行为策略 $b$ 的数据来学习目标策略 $\pi$，必须满足：
+
+\begin{equation}
+\pi(a|s) > 0 \implies b(a|s) > 0
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 目标策略 $\pi$ 可能选择的所有动作，行为策略 $b$ 也必须有可能选择
+    \item 这确保了我们可以从行为策略的数据中学习目标策略
+    \item 如果某个动作在目标策略中可能出现，但在行为策略中从不出现，就无法学习该动作的价值
+\end{itemize}
+
+\subsection{在 Q-learning 中的应用}
+
+在 Q-learning 中：
+\begin{itemize}
+    \item \textbf{行为策略 $b$}：$\varepsilon$-贪婪策略（用于探索）
+    \item \textbf{目标策略 $\pi_*$}：贪婪策略 $\pi_*(s) = \arg\max_{a} Q(s, a)$（最优策略）
+    \item 覆盖假设：由于 $\varepsilon$-贪婪策略对所有动作都有非零概率，满足覆盖假设
+\end{itemize}
+
+\section{优缺点对比}
+
+\subsection{On-Policy 方法}
+
+\textbf{优点}：
+\begin{itemize}
+    \item \textbf{简单}：不需要重要性采样等复杂技术
+    \item \textbf{稳定}：学习的是实际使用的策略，更符合实际行为
+    \item \textbf{方差小}：数据分布与学习目标一致，方差较小
+    \item \textbf{收敛快}：在简单问题上通常收敛更快
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item \textbf{样本效率低}：必须使用当前策略生成新数据，不能重用历史数据
+    \item \textbf{探索受限}：必须在学习策略中保持探索，可能影响性能
+    \item \textbf{灵活性差}：无法从其他来源的数据中学习
+\end{itemize}
+
+\subsection{Off-Policy 方法}
+
+\textbf{优点}：
+\begin{itemize}
+    \item \textbf{样本效率高}：可以重用历史数据（经验回放）
+    \item \textbf{灵活性高}：可以从任何策略的数据中学习
+    \item \textbf{学习最优策略}：可以直接学习最优策略，不受探索影响
+    \item \textbf{应用广泛}：可以从人类演示、其他智能体等学习
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item \textbf{复杂}：需要重要性采样等技术（某些方法如 Q-learning 不需要）
+    \item \textbf{方差大}：数据分布与学习目标不一致，可能导致高方差
+    \item \textbf{收敛慢}：在某些情况下可能收敛较慢
+    \item \textbf{不稳定}：在函数逼近情况下可能不稳定
+\end{itemize}
+
+\section{应用场景}
+
+\subsection{On-Policy 适用场景}
+
+\begin{itemize}
+    \item \textbf{需要安全的场景}：如悬崖行走问题，需要考虑探索风险
+    \item \textbf{简单问题}：状态空间较小，样本生成成本低
+    \item \textbf{在线学习}：需要实时学习和决策
+    \item \textbf{策略梯度方法}：如 REINFORCE、PPO 等
+\end{itemize}
+
+\subsection{Off-Policy 适用场景}
+
+\begin{itemize}
+    \item \textbf{样本成本高}：如机器人控制，每次交互成本高
+    \item \textbf{需要重用数据}：如深度强化学习中的经验回放
+    \item \textbf{从演示学习}：从人类专家或其他智能体的经验中学习
+    \item \textbf{多任务学习}：从一个任务的数据中学习另一个任务
+    \item \textbf{Q-learning 系列}：DQN、DDPG、SAC 等
+\end{itemize}
+
+\section{深度强化学习中的应用}
+
+\subsection{On-Policy 深度强化学习}
+
+\textbf{代表性算法}：
+\begin{itemize}
+    \item \textbf{PPO（Proximal Policy Optimization）}：使用当前策略收集数据，然后更新策略
+    \item \textbf{A3C（Asynchronous Advantage Actor-Critic）}：多个智能体并行收集数据
+    \item \textbf{TRPO（Trust Region Policy Optimization）}：限制策略更新幅度
+\end{itemize}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 数据收集后立即使用，用完即弃
+    \item 策略更新后需要重新收集数据
+    \item 样本效率相对较低，但更稳定
+\end{itemize}
+
+\subsection{Off-Policy 深度强化学习}
+
+\textbf{代表性算法}：
+\begin{itemize}
+    \item \textbf{DQN（Deep Q-Network）}：使用经验回放，从历史数据中学习
+    \item \textbf{DDPG（Deep Deterministic Policy Gradient）}：Actor-Critic 架构，使用经验回放
+    \item \textbf{SAC（Soft Actor-Critic）}：最大熵强化学习，使用经验回放
+\end{itemize}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 使用经验回放缓冲区存储历史数据
+    \item 可以从旧策略的数据中学习新策略
+    \item 样本效率高，但需要处理分布不匹配问题
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{On-policy}：行为策略 = 目标策略，学习当前策略的价值函数
+    \item \textbf{Off-policy}：行为策略 $\neq$ 目标策略，可以使用任何策略收集数据
+    \item \textbf{Q-learning} 的特殊性：不需要重要性采样，直接学习最优价值函数
+    \item \textbf{选择原则}：根据问题特点、样本成本、稳定性要求选择合适的方法
+\end{enumerate}
+
+\subsection{关键公式}
+
+\textbf{SARSA（On-policy）}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{Q-learning（Off-policy）}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{覆盖假设}：
+\begin{equation}
+\pi(a|s) > 0 \implies b(a|s) > 0
+\end{equation}
+
+\subsection{理解 Off-Policy 的关键}
+
+\textbf{"学习最优动作价值函数，但可以使用任何策略收集数据"} 这句话的含义：
+
+\begin{enumerate}
+    \item \textbf{学习最优动作价值函数}：通过使用 $\max_{a} Q(S_{t+1}, a)$，直接学习 $q_*$，不依赖实际选择的动作
+    \item \textbf{可以使用任何策略收集数据}：行为策略 $b$ 可以是任何策略（$\varepsilon$-贪婪、随机、人类专家等），只要满足覆盖假设
+    \item \textbf{核心机制}：更新公式不依赖实际选择的动作 $A_{t+1}$，只依赖状态 $S_{t+1}$ 和所有可能动作的价值
+    \item \textbf{优势}：可以在保持探索性的同时，直接学习最优策略，提高样本效率
+\end{enumerate}
+
+\end{document}
+

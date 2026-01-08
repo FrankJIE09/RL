@@ -1,0 +1,487 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{REINFORCE推导详解}
+\subtitle{从期望形式到REINFORCE更新规则的详细推导}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题}
+
+\textbf{问题}：如何从策略梯度定理的期望形式推导出REINFORCE更新规则？
+
+\textbf{推导链条}：
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right] \label{eq:11} \\
+                         &= \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] \label{eq:12} \\
+                         &= \mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] \label{eq:13}
+\end{align}
+
+\section{公式(11)：引入动作概率}
+
+\subsection{公式(11)}
+
+\begin{equation}
+\nabla_\theta J(\theta) = \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right]
+\label{eq:formula11}
+\end{equation}
+
+\subsection{从期望形式到公式(11)}
+
+\textbf{策略梯度定理（期望形式）}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{equation}
+
+\textbf{关键技巧}：乘以并除以 $\pi(a|S_t, \theta)$
+\begin{align}
+\nabla_\theta J(\theta) &\propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right] \\
+                         &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right]
+\end{align}
+
+\textbf{为什么这样做？}
+\begin{itemize}
+    \item 为了引入动作概率 $\pi(a|S_t, \theta)$
+    \item 这样可以将求和转换为期望（关于动作的期望）
+    \item 为下一步引入实际选择的动作做准备
+\end{itemize}
+
+\textbf{验证}：
+\begin{align}
+\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)} &= \sum_{a} \pi(a|S_t, \theta) \times q_\pi(S_t, a) \times \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)} \\
+                                                                                                    &= \sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)
+\end{align}
+
+确实相等！
+
+\section{公式(11)到公式(12)：引入实际选择的动作}
+
+\subsection{公式(12)}
+
+\begin{equation}
+\nabla_\theta J(\theta) = \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\label{eq:formula12}
+\end{equation}
+
+\subsection{推导过程}
+
+\textbf{步骤1：识别期望形式}
+
+公式(11)中的表达式：
+\begin{equation}
+\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}
+\end{equation}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 这是一个关于动作 $a$ 的加权求和
+    \item 权重是 $\pi(a|S_t, \theta)$
+    \item 这可以写成关于动作的期望
+\end{itemize}
+
+\textbf{步骤2：转换为期望}
+
+\textbf{定义}：
+\begin{itemize}
+    \item 设 $A_t$ 是随机变量，取值于动作空间 $\mathcal{A}(S_t)$
+    \item $A_t$ 的分布是 $\pi(\cdot|S_t, \theta)$：$\Pr(A_t = a | S_t) = \pi(a|S_t, \theta)$
+\end{itemize}
+
+\textbf{期望的定义}：
+\begin{equation}
+\mathbb{E}[f(A_t) | S_t] = \sum_{a} \Pr(A_t = a | S_t) f(a) = \sum_{a} \pi(a|S_t, \theta) f(a)
+\end{equation}
+
+\textbf{应用}：
+\begin{align}
+\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)} &= \sum_{a} \pi(a|S_t, \theta) f(a) \\
+                                                                                                        &= \mathbb{E}[f(A_t) | S_t]
+\end{align}
+
+其中 $f(a) = q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}$。
+
+\textbf{展开}：
+\begin{align}
+\mathbb{E}[f(A_t) | S_t] &= \mathbb{E}\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \middle| S_t\right] \\
+                          &= \sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}
+\end{align}
+
+\textbf{步骤3：全期望}
+
+\textbf{全期望公式}：
+\begin{equation}
+\mathbb{E}_\pi[X] = \mathbb{E}_\pi[\mathbb{E}[X | S_t]]
+\end{equation}
+
+\textbf{应用}：
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right] \\
+                         &= \mathbb{E}_\pi\left[\mathbb{E}\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \middle| S_t\right]\right] \\
+                         &= \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\end{align}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 从对所有动作的求和，转换为对实际选择的动作 $A_t$ 的期望
+    \item $A_t \sim \pi(\cdot|S_t, \theta)$（按照策略选择）
+    \item 这使我们能够使用样本（实际选择的动作）来估计梯度
+\end{itemize}
+
+\subsection{具体例子}
+
+\textbf{场景}：在状态 $S_t$，有3个动作 $a_1, a_2, a_3$
+
+\textbf{策略}：
+\begin{align}
+\pi(a_1|S_t, \theta) &= 0.5 \\
+\pi(a_2|S_t, \theta) &= 0.3 \\
+\pi(a_3|S_t, \theta) &= 0.2
+\end{align}
+
+\textbf{公式(11)的计算}：
+\begin{align}
+&\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)} \\
+&= 0.5 \times q_\pi(S_t, a_1) \times \frac{\nabla_\theta \pi(a_1|S_t, \theta)}{0.5} \\
+&\quad + 0.3 \times q_\pi(S_t, a_2) \times \frac{\nabla_\theta \pi(a_2|S_t, \theta)}{0.3} \\
+&\quad + 0.2 \times q_\pi(S_t, a_3) \times \frac{\nabla_\theta \pi(a_3|S_t, \theta)}{0.2} \\
+&= q_\pi(S_t, a_1) \nabla_\theta \pi(a_1|S_t, \theta) \\
+&\quad + q_\pi(S_t, a_2) \nabla_\theta \pi(a_2|S_t, \theta) \\
+&\quad + q_\pi(S_t, a_3) \nabla_\theta \pi(a_3|S_t, \theta)
+\end{align}
+
+\textbf{公式(12)的计算}：
+\begin{itemize}
+    \item 按照策略选择动作：$A_t \sim \pi(\cdot|S_t, \theta)$
+    \item 如果 $A_t = a_1$（概率 $0.5$）：
+    \begin{equation}
+    q_\pi(S_t, a_1) \frac{\nabla_\theta \pi(a_1|S_t, \theta)}{\pi(a_1|S_t, \theta)} = q_\pi(S_t, a_1) \frac{\nabla_\theta \pi(a_1|S_t, \theta)}{0.5}
+    \end{equation}
+    \item 如果 $A_t = a_2$（概率 $0.3$）：
+    \begin{equation}
+    q_\pi(S_t, a_2) \frac{\nabla_\theta \pi(a_2|S_t, \theta)}{\pi(a_2|S_t, \theta)} = q_\pi(S_t, a_2) \frac{\nabla_\theta \pi(a_2|S_t, \theta)}{0.3}
+    \end{equation}
+    \item 如果 $A_t = a_3$（概率 $0.2$）：
+    \begin{equation}
+    q_\pi(S_t, a_3) \frac{\nabla_\theta \pi(a_3|S_t, \theta)}{\pi(a_3|S_t, \theta)} = q_\pi(S_t, a_3) \frac{\nabla_\theta \pi(a_3|S_t, \theta)}{0.2}
+    \end{equation}
+    \item 期望值：
+    \begin{align}
+    &\mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] \\
+    &= 0.5 \times q_\pi(S_t, a_1) \frac{\nabla_\theta \pi(a_1|S_t, \theta)}{0.5} \\
+    &\quad + 0.3 \times q_\pi(S_t, a_2) \frac{\nabla_\theta \pi(a_2|S_t, \theta)}{0.3} \\
+    &\quad + 0.2 \times q_\pi(S_t, a_3) \frac{\nabla_\theta \pi(a_3|S_t, \theta)}{0.2} \\
+    &= q_\pi(S_t, a_1) \nabla_\theta \pi(a_1|S_t, \theta) \\
+    &\quad + q_\pi(S_t, a_2) \nabla_\theta \pi(a_2|S_t, \theta) \\
+    &\quad + q_\pi(S_t, a_3) \nabla_\theta \pi(a_3|S_t, \theta)
+    \end{align}
+\end{itemize}
+
+\textbf{验证}：公式(11)和公式(12)得到相同的结果！
+
+\section{公式(12)到公式(13)：使用回报}
+
+\subsection{公式(13)}
+
+\begin{equation}
+\nabla_\theta J(\theta) = \mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\label{eq:formula13}
+\end{equation}
+
+\subsection{推导过程}
+
+\textbf{关键关系}：
+\begin{equation}
+\mathbb{E}_\pi[G_t | S_t, A_t] = q_\pi(S_t, A_t)
+\label{eq:key_relation}
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 给定状态 $S_t$ 和动作 $A_t$，回报 $G_t$ 的期望等于动作价值 $q_\pi(S_t, A_t)$
+    \item 这是动作价值函数的定义
+\end{itemize}
+
+\textbf{推导}：
+
+\textbf{步骤1：条件期望}
+\begin{align}
+\mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] &= \mathbb{E}_\pi\left[\mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \middle| S_t, A_t\right]\right] \\
+                                                                                                            &= \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\end{align}
+
+\textbf{步骤2：使用关键关系}
+
+因为 $\mathbb{E}_\pi[G_t | S_t, A_t] = q_\pi(S_t, A_t)$，我们可以替换：
+\begin{align}
+\mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] &= \mathbb{E}_\pi\left[\mathbb{E}_\pi[G_t | S_t, A_t] \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] \\
+                                                                                                            &= \mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\end{align}
+
+\textbf{关键步骤}：
+\begin{itemize}
+    \item 因为 $\frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}$ 只依赖于 $S_t$ 和 $A_t$（给定 $S_t, A_t$ 后是确定的）
+    \item 所以可以提到条件期望外面：
+    \begin{equation}
+    \mathbb{E}_\pi[G_t | S_t, A_t] \times \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} = \mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \middle| S_t, A_t\right]
+    \end{equation}
+    \item 然后使用全期望公式
+\end{itemize}
+
+\textbf{严格推导}：
+
+\textbf{全期望公式}：
+\begin{equation}
+\mathbb{E}_\pi[X] = \mathbb{E}_\pi[\mathbb{E}_\pi[X | S_t, A_t]]
+\end{equation}
+
+\textbf{应用}：
+\begin{align}
+\mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] &= \mathbb{E}_\pi\left[\mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \middle| S_t, A_t\right]\right]
+\end{align}
+
+\textbf{关键}：给定 $S_t, A_t$，$q_\pi(S_t, A_t)$ 和 $\frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}$ 都是确定的，所以：
+\begin{align}
+\mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \middle| S_t, A_t\right] &= q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \\
+                                                                                                                              &= \mathbb{E}_\pi[G_t | S_t, A_t] \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \\
+                                                                                                                              &= \mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \middle| S_t, A_t\right]
+\end{align}
+
+\textbf{最后一步}：
+\begin{align}
+\mathbb{E}_\pi\left[\mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} \middle| S_t, A_t\right]\right] &= \mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\end{align}
+
+\subsection{为什么可以这样替换？}
+
+\textbf{关键关系}：
+\begin{equation}
+\mathbb{E}_\pi[G_t | S_t, A_t] = q_\pi(S_t, A_t)
+\end{equation}
+
+\textbf{证明}（动作价值函数的定义）：
+\begin{align}
+q_\pi(S_t, A_t) &= \mathbb{E}_\pi[G_t | S_t, A_t] \\
+                 &= \mathbb{E}_\pi\left[\sum_{k=0}^{\infty} \gamma^k R_{t+k+1} \middle| S_t, A_t\right]
+\end{align}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 动作价值函数 $q_\pi(S_t, A_t)$ 的定义就是从状态 $S_t$ 采取动作 $A_t$ 的期望回报
+    \item 因此，$q_\pi(S_t, A_t) = \mathbb{E}_\pi[G_t | S_t, A_t]$
+    \item 我们可以用 $G_t$ 的期望来替换 $q_\pi(S_t, A_t)$
+\end{itemize}
+
+\textbf{替换的合理性}：
+\begin{itemize}
+    \item 在期望中，我们可以用条件期望来替换
+    \item $\mathbb{E}_\pi[q_\pi(S_t, A_t) \cdots | S_t, A_t] = \mathbb{E}_\pi[\mathbb{E}_\pi[G_t | S_t, A_t] \cdots | S_t, A_t]$
+    \item 然后可以简化
+\end{itemize}
+
+\section{完整推导链条}
+
+\subsection{从策略梯度定理到REINFORCE}
+
+\textbf{步骤1：策略梯度定理（期望形式）}
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{equation}
+
+\textbf{步骤2：引入动作概率（公式11）}
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right] \\
+                         &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \nabla_\theta \ln \pi(a|S_t, \theta)\right]
+\end{align}
+
+\textbf{步骤3：引入实际选择的动作（公式12）}
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \nabla_\theta \ln \pi(a|S_t, \theta)\right] \\
+                         &= \mathbb{E}_\pi\left[\mathbb{E}\left[q_\pi(S_t, A_t) \nabla_\theta \ln \pi(A_t|S_t, \theta) \middle| S_t\right]\right] \\
+                         &= \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \nabla_\theta \ln \pi(A_t|S_t, \theta)\right]
+\end{align}
+
+\textbf{步骤4：使用回报（公式13）}
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \nabla_\theta \ln \pi(A_t|S_t, \theta)\right] \\
+                         &= \mathbb{E}_\pi\left[\mathbb{E}_\pi[G_t | S_t, A_t] \nabla_\theta \ln \pi(A_t|S_t, \theta)\right] \\
+                         &= \mathbb{E}_\pi\left[G_t \nabla_\theta \ln \pi(A_t|S_t, \theta)\right]
+\end{align}
+
+\textbf{步骤5：REINFORCE更新}
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\section{具体计算例子}
+
+\subsection{例子：完整的计算过程}
+
+\textbf{场景}：在状态 $S_t$，有2个动作 $a_1, a_2$
+
+\textbf{策略}：
+\begin{align}
+\pi(a_1|S_t, \theta) &= 0.6 \\
+\pi(a_2|S_t, \theta) &= 0.4
+\end{align}
+
+\textbf{动作价值}：
+\begin{align}
+q_\pi(S_t, a_1) &= 5 \\
+q_\pi(S_t, a_2) &= 3
+\end{align}
+
+\textbf{策略梯度}（假设）：
+\begin{align}
+\nabla_\theta \pi(a_1|S_t, \theta) &= [0.3, -0.3]^T \\
+\nabla_\theta \pi(a_2|S_t, \theta) &= [-0.3, 0.3]^T
+\end{align}
+
+\textbf{公式(11)的计算}：
+\begin{align}
+&\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)} \\
+&= 0.6 \times 5 \times \frac{[0.3, -0.3]^T}{0.6} + 0.4 \times 3 \times \frac{[-0.3, 0.3]^T}{0.4} \\
+&= 5 \times [0.3, -0.3]^T + 3 \times [-0.3, 0.3]^T \\
+&= [1.5, -1.5]^T + [-0.9, 0.9]^T \\
+&= [0.6, -0.6]^T
+\end{align}
+
+\textbf{公式(12)的计算}：
+\begin{itemize}
+    \item 按照策略选择动作：$A_t \sim \pi(\cdot|S_t, \theta)$
+    \item 如果 $A_t = a_1$（概率 $0.6$）：
+    \begin{align}
+    q_\pi(S_t, a_1) \frac{\nabla_\theta \pi(a_1|S_t, \theta)}{\pi(a_1|S_t, \theta)} &= 5 \times \frac{[0.3, -0.3]^T}{0.6} \\
+                                                                                    &= 5 \times [0.5, -0.5]^T \\
+                                                                                    &= [2.5, -2.5]^T
+    \end{align}
+    \item 如果 $A_t = a_2$（概率 $0.4$）：
+    \begin{align}
+    q_\pi(S_t, a_2) \frac{\nabla_\theta \pi(a_2|S_t, \theta)}{\pi(a_2|S_t, \theta)} &= 3 \times \frac{[-0.3, 0.3]^T}{0.4} \\
+                                                                                    &= 3 \times [-0.75, 0.75]^T \\
+                                                                                    &= [-2.25, 2.25]^T
+    \end{align}
+    \item 期望值：
+    \begin{align}
+    &\mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] \\
+    &= 0.6 \times [2.5, -2.5]^T + 0.4 \times [-2.25, 2.25]^T \\
+    &= [1.5, -1.5]^T + [-0.9, 0.9]^T \\
+    &= [0.6, -0.6]^T
+    \end{align}
+\end{itemize}
+
+\textbf{验证}：公式(11)和公式(12)得到相同的结果 $[0.6, -0.6]^T$！
+
+\textbf{公式(13)的计算}：
+\begin{itemize}
+    \item 假设实际选择的动作是 $A_t = a_1$，获得的回报是 $G_t = 5$
+    \item 计算：
+    \begin{align}
+    G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)} &= 5 \times \frac{[0.3, -0.3]^T}{0.6} \\
+                                                                          &= 5 \times [0.5, -0.5]^T \\
+                                                                          &= [2.5, -2.5]^T
+    \end{align}
+    \item 这是单个样本的值
+    \item 期望值（多次采样平均）：
+    \begin{align}
+    &\mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] \\
+    &= 0.6 \times \mathbb{E}[G_t | S_t, A_t = a_1] \times \frac{[0.3, -0.3]^T}{0.6} \\
+    &\quad + 0.4 \times \mathbb{E}[G_t | S_t, A_t = a_2] \times \frac{[-0.3, 0.3]^T}{0.4} \\
+    &= 0.6 \times 5 \times [0.5, -0.5]^T + 0.4 \times 3 \times [-0.75, 0.75]^T \\
+    &= [1.5, -1.5]^T + [-0.9, 0.9]^T \\
+    &= [0.6, -0.6]^T
+    \end{align}
+\end{itemize}
+
+\textbf{验证}：三种形式都得到相同的结果！
+
+\section{关键技巧总结}
+
+\subsection{技巧1：乘以并除以 $\pi(a|S_t, \theta)$}
+
+\textbf{目的}：引入动作概率，为转换为期望做准备
+
+\textbf{方法}：
+\begin{equation}
+\nabla_\theta \pi(a|S_t, \theta) = \pi(a|S_t, \theta) \times \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}
+\end{equation}
+
+\subsection{技巧2：从求和到期望}
+
+\textbf{目的}：引入实际选择的动作
+
+\textbf{方法}：
+\begin{equation}
+\sum_{a} \pi(a|S_t, \theta) f(a) = \mathbb{E}[f(A_t) | S_t]
+\end{equation}
+
+其中 $A_t \sim \pi(\cdot|S_t, \theta)$。
+
+\subsection{技巧3：使用条件期望}
+
+\textbf{目的}：用回报 $G_t$ 替换动作价值 $q_\pi(S_t, A_t)$
+
+\textbf{方法}：
+\begin{equation}
+q_\pi(S_t, A_t) = \mathbb{E}_\pi[G_t | S_t, A_t]
+\end{equation}
+
+\section{总结}
+
+\subsection{推导链条}
+
+\begin{enumerate}
+    \item \textbf{策略梯度定理（期望形式）}：
+    \begin{equation}
+    \nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+    \end{equation}
+    
+    \item \textbf{引入动作概率（公式11）}：
+    \begin{equation}
+    \nabla_\theta J(\theta) = \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right]
+    \end{equation}
+    
+    \item \textbf{引入实际选择的动作（公式12）}：
+    \begin{equation}
+    \nabla_\theta J(\theta) = \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+    \end{equation}
+    
+    \item \textbf{使用回报（公式13）}：
+    \begin{equation}
+    \nabla_\theta J(\theta) = \mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+    \end{equation}
+    
+    \item \textbf{REINFORCE更新}：
+    \begin{equation}
+    \theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+    \end{equation}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{从对所有动作的求和，到对实际选择的动作的期望，再到使用实际回报}。这个推导过程使我们能够使用样本（实际选择的动作和实际获得的回报）来估计梯度，而不需要知道所有动作的价值。
+\end{quote}
+
+\end{document}
+

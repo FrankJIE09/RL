@@ -1,0 +1,418 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+
+\geometry{margin=2.5cm}
+
+\title{回报与价值函数关系详解}
+\subtitle{$G_t$、$G_{t+1}$ 和 $v_\pi(S_{t+1})$ 的关系}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+在强化学习中，回报（Return）$G_t$ 和价值函数 $v_\pi(s)$ 是两个核心概念。理解它们之间的关系对于理解时序差分学习、蒙特卡洛方法等算法至关重要。
+
+\textbf{核心问题}：
+\begin{itemize}
+    \item $G_t$ 和 $v_\pi(S_{t+1})$ 是什么关系？
+    \item 为什么可以用 $v_\pi(S_{t+1})$ 来估计 $G_{t+1}$？
+    \item 这种关系如何体现在TD学习中？
+\end{itemize}
+
+\section{基本定义}
+
+\subsection{回报（Return）$G_t$}
+
+\begin{definition}[回报]
+从时刻 $t$ 开始的\textbf{折扣回报}定义为：
+\begin{equation}
+G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}
+\label{eq:return}
+\end{equation}
+其中 $\gamma \in [0, 1]$ 是折扣因子。
+\end{definition}
+
+\textbf{关键特性}：
+\begin{itemize}
+    \item $G_t$ 是一个\textbf{随机变量}，依赖于从时刻 $t$ 开始的完整轨迹
+    \item $G_t$ 的值只有在回合结束后才能确定
+    \item $G_t$ 是未来所有奖励的加权和
+\end{itemize}
+
+\subsection{下一时刻的回报 $G_{t+1}$}
+
+\begin{definition}[下一时刻的回报]
+从时刻 $t+1$ 开始的\textbf{折扣回报}定义为：
+\begin{equation}
+G_{t+1} = R_{t+2} + \gamma R_{t+3} + \gamma^2 R_{t+4} + \cdots = \sum_{k=0}^{\infty} \gamma^k R_{t+1+k+1} = \sum_{k=0}^{\infty} \gamma^k R_{t+k+2}
+\label{eq:return_next}
+\end{equation}
+\end{definition}
+
+\textbf{关键特性}：
+\begin{itemize}
+    \item $G_{t+1}$ 是从时刻 $t+1$ 开始的回报
+    \item $G_{t+1}$ 也是一个随机变量，依赖于从时刻 $t+1$ 开始的轨迹
+    \item $G_{t+1}$ 的值只有在回合结束后才能确定
+\end{itemize}
+
+\subsection{回报的递归关系}
+
+\textbf{重要关系}：
+\begin{equation}
+G_t = R_{t+1} + \gamma G_{t+1}
+\label{eq:return_recursive}
+\end{equation}
+
+\textbf{推导}：
+\begin{align}
+G_t &= R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \gamma^3 R_{t+4} + \cdots \\
+    &= R_{t+1} + \gamma (R_{t+2} + \gamma R_{t+3} + \gamma^2 R_{t+4} + \cdots) \\
+    &= R_{t+1} + \gamma G_{t+1}
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 时刻 $t$ 的回报 = 即时奖励 $R_{t+1}$ + 折扣后的未来回报 $\gamma G_{t+1}$
+    \item 这是回报的\textbf{递归定义}
+    \item 这个关系是贝尔曼方程的基础
+\end{itemize}
+
+\subsection{状态价值函数 $v_\pi(s)$}
+
+\begin{definition}[状态价值函数]
+在策略 $\pi$ 下，状态 $s$ 的\textbf{价值函数}定义为回报的期望：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
+\label{eq:value_function}
+\end{equation}
+\end{definition}
+
+\textbf{关键特性}：
+\begin{itemize}
+    \item $v_\pi(s)$ 是一个\textbf{确定的值}（期望值），不是随机变量
+    \item $v_\pi(s)$ 表示在策略 $\pi$ 下，从状态 $s$ 开始的\textbf{期望回报}
+    \item $v_\pi(s)$ 是 $G_t$ 在给定 $S_t = s$ 条件下的期望值
+\end{itemize}
+
+\section{$G_t$ 和 $v_\pi(S_{t+1})$ 的关系}
+
+\subsection{核心关系}
+
+\textbf{关键洞察}：
+\begin{quote}
+$v_\pi(S_{t+1})$ 是 $G_{t+1}$ 的\textbf{期望值}（在给定 $S_{t+1}$ 的条件下）。
+\end{quote}
+
+\textbf{数学表达}：
+\begin{equation}
+v_\pi(S_{t+1}) = \mathbb{E}_\pi[G_{t+1} | S_{t+1}]
+\label{eq:core_relation}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $G_{t+1}$ 是从时刻 $t+1$ 开始的回报（随机变量）
+    \item $v_\pi(S_{t+1})$ 是在策略 $\pi$ 下，从状态 $S_{t+1}$ 开始的期望回报
+    \item 因此，$v_\pi(S_{t+1})$ 是 $G_{t+1}$ 的条件期望
+\end{itemize}
+
+\subsection{为什么这个关系重要？}
+
+\textbf{原因1：贝尔曼方程的基础}：
+
+从回报的递归关系 $G_t = R_{t+1} + \gamma G_{t+1}$ 出发，对两边取期望：
+
+\begin{align}
+v_\pi(S_t) &= \mathbb{E}_\pi[G_t | S_t] \\
+           &= \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t] \\
+           &= \mathbb{E}_\pi[R_{t+1} | S_t] + \gamma \mathbb{E}_\pi[G_{t+1} | S_t]
+\end{align}
+
+\textbf{关键步骤}：使用全期望公式展开 $\mathbb{E}_\pi[G_{t+1} | S_t]$：
+
+\begin{align}
+\mathbb{E}_\pi[G_{t+1} | S_t] &= \mathbb{E}_\pi[\mathbb{E}_\pi[G_{t+1} | S_t, S_{t+1}] | S_t] \\
+                              &= \mathbb{E}_\pi[v_\pi(S_{t+1}) | S_t] \\
+                              &= \sum_{s'} \Pr\{S_{t+1} = s' | S_t\} \cdot v_\pi(s')
+\end{align}
+
+因此：
+\begin{equation}
+v_\pi(S_t) = \mathbb{E}_\pi[R_{t+1} | S_t] + \gamma \mathbb{E}_\pi[v_\pi(S_{t+1}) | S_t]
+\end{equation}
+
+这就是\textbf{贝尔曼方程}的雏形。
+
+\textbf{原因2：TD学习的基础}：
+
+在TD学习中，我们使用：
+\begin{equation}
+R_{t+1} + \gamma V(S_{t+1}) \approx R_{t+1} + \gamma v_\pi(S_{t+1}) \approx R_{t+1} + \gamma G_{t+1} = G_t
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $G_t = R_{t+1} + \gamma G_{t+1}$（回报的递归关系）
+    \item $v_\pi(S_{t+1}) = \mathbb{E}_\pi[G_{t+1} | S_{t+1}]$（价值函数的定义）
+    \item 因此，$R_{t+1} + \gamma v_\pi(S_{t+1})$ 是 $G_t$ 的一个估计
+\end{itemize}
+
+\section{详细推导}
+
+\subsection{从定义出发}
+
+\textbf{步骤1：回报的递归关系}
+
+\begin{align}
+G_t &= R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots \\
+    &= R_{t+1} + \gamma (R_{t+2} + \gamma R_{t+3} + \cdots) \\
+    &= R_{t+1} + \gamma G_{t+1}
+\end{align}
+
+\textbf{步骤2：对两边取期望}
+
+\begin{align}
+\mathbb{E}_\pi[G_t | S_t = s] &= \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t = s] \\
+v_\pi(s) &= \mathbb{E}_\pi[R_{t+1} | S_t = s] + \gamma \mathbb{E}_\pi[G_{t+1} | S_t = s]
+\end{align}
+
+\textbf{步骤3：展开 $\mathbb{E}_\pi[G_{t+1} | S_t = s]$}
+
+使用全期望公式：
+\begin{align}
+\mathbb{E}_\pi[G_{t+1} | S_t = s] &= \mathbb{E}_\pi[\mathbb{E}_\pi[G_{t+1} | S_t = s, S_{t+1}] | S_t = s] \\
+                                  &= \sum_{s'} \Pr\{S_{t+1} = s' | S_t = s\} \cdot \mathbb{E}_\pi[G_{t+1} | S_t = s, S_{t+1} = s']
+\end{align}
+
+\textbf{步骤4：利用马尔可夫性质}
+
+由于马尔可夫性质，给定 $S_{t+1} = s'$，$G_{t+1}$ 的分布只依赖于 $s'$ 和后续的策略选择，不依赖于 $S_t$：
+
+\begin{align}
+\mathbb{E}_\pi[G_{t+1} | S_t = s, S_{t+1} = s'] &= \mathbb{E}_\pi[G_{t+1} | S_{t+1} = s'] \\
+                                                &= v_\pi(s')
+\end{align}
+
+因此：
+\begin{align}
+\mathbb{E}_\pi[G_{t+1} | S_t = s] &= \sum_{s'} \Pr\{S_{t+1} = s' | S_t = s\} \cdot v_\pi(s') \\
+                                  &= \mathbb{E}_\pi[v_\pi(S_{t+1}) | S_t = s]
+\end{align}
+
+\textbf{步骤5：最终结果}
+
+\begin{align}
+v_\pi(s) &= \mathbb{E}_\pi[R_{t+1} | S_t = s] + \gamma \mathbb{E}_\pi[v_\pi(S_{t+1}) | S_t = s] \\
+         &= \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{align}
+
+这就是\textbf{状态价值函数的贝尔曼方程}。
+
+\subsection{关键关系总结}
+
+\textbf{关系1：回报的递归关系}
+\begin{equation}
+G_t = R_{t+1} + \gamma G_{t+1}
+\end{equation}
+
+\textbf{关系2：价值函数的定义}
+\begin{equation}
+v_\pi(S_{t+1}) = \mathbb{E}_\pi[G_{t+1} | S_{t+1}]
+\end{equation}
+
+\textbf{关系3：贝尔曼方程}
+\begin{equation}
+v_\pi(S_t) = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t]
+\end{equation}
+
+\textbf{关系4：TD目标}
+\begin{equation}
+R_{t+1} + \gamma v_\pi(S_{t+1}) \approx G_t
+\end{equation}
+
+\section{在TD学习中的应用}
+
+\subsection{TD(0)更新}
+
+\textbf{蒙特卡洛更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\end{equation}
+
+\textbf{TD(0)更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+\end{equation}
+
+\textbf{为什么可以用 $R_{t+1} + \gamma V(S_{t+1})$ 代替 $G_t$？}
+
+\textbf{原因}：
+\begin{itemize}
+    \item $G_t = R_{t+1} + \gamma G_{t+1}$（回报的递归关系）
+    \item $v_\pi(S_{t+1}) = \mathbb{E}_\pi[G_{t+1} | S_{t+1}]$（价值函数的定义）
+    \item 如果 $V(S_{t+1}) \approx v_\pi(S_{t+1})$，那么：
+    \begin{align}
+    R_{t+1} + \gamma V(S_{t+1}) &\approx R_{t+1} + \gamma v_\pi(S_{t+1}) \\
+                                &\approx R_{t+1} + \gamma \mathbb{E}_\pi[G_{t+1} | S_{t+1}] \\
+                                &\approx \mathbb{E}_\pi[R_{t+1} + \gamma G_{t+1} | S_t, S_{t+1}] \\
+                                &\approx \mathbb{E}_\pi[G_t | S_t, S_{t+1}]
+    \end{align}
+    \item 因此，$R_{t+1} + \gamma V(S_{t+1})$ 是 $G_t$ 的一个估计
+\end{itemize}
+
+\subsection{TD误差}
+
+\textbf{TD误差}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $\delta_t$ 衡量当前估计 $V(S_t)$ 与更好估计 $R_{t+1} + \gamma V(S_{t+1})$ 之间的差异
+    \item 如果 $V(S_{t+1}) = v_\pi(S_{t+1})$，那么：
+    \begin{align}
+    \mathbb{E}[\delta_t | S_t = s] &= \mathbb{E}[R_{t+1} + \gamma v_\pi(S_{t+1}) - V(S_t) | S_t = s] \\
+                                   &= \mathbb{E}[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s] - V(S_t) \\
+                                   &= v_\pi(s) - V(S_t)
+    \end{align}
+    \item 因此，TD误差的期望等于真实价值与当前估计的差异
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{Gridworld例子}
+
+\textbf{设置}：
+\begin{itemize}
+    \item 状态：$s_5$（中心状态）
+    \item 执行动作"上"，观察到：$R_1 = -1$，$S_1 = s_2$
+    \item 折扣因子：$\gamma = 0.9$
+\end{itemize}
+
+\textbf{完整回报 $G_0$}：
+
+假设从 $s_5$ 开始的完整轨迹是：
+\begin{align}
+S_0 &= s_5, \quad A_0 = \text{上}, \quad R_1 = -1, \quad S_1 = s_2 \\
+S_1 &= s_2, \quad A_1 = \text{右}, \quad R_2 = -1, \quad S_2 = s_3 \\
+S_2 &= s_3, \quad A_2 = \text{下}, \quad R_3 = -1, \quad S_3 = \text{终止}
+\end{align}
+
+那么：
+\begin{align}
+G_0 &= R_1 + \gamma R_2 + \gamma^2 R_3 \\
+    &= -1 + 0.9 \times (-1) + 0.9^2 \times (-1) \\
+    &= -1 - 0.9 - 0.81 = -2.71
+\end{align}
+
+\textbf{下一时刻的回报 $G_1$}：
+
+从 $s_2$ 开始的回报：
+\begin{align}
+G_1 &= R_2 + \gamma R_3 \\
+    &= -1 + 0.9 \times (-1) = -1.9
+\end{align}
+
+\textbf{回报的递归关系验证}：
+
+\begin{align}
+G_0 &= R_1 + \gamma G_1 \\
+    &= -1 + 0.9 \times (-1.9) \\
+    &= -1 - 1.71 = -2.71 \quad \checkmark
+\end{align}
+
+\textbf{价值函数 $v_\pi(s_2)$}：
+
+假设 $v_\pi(s_2) = -1.8$（这是从 $s_2$ 开始的期望回报）。
+
+\textbf{关系验证}：
+
+\begin{itemize}
+    \item $G_1 = -1.9$（这是从 $s_2$ 开始的一个具体轨迹的回报）
+    \item $v_\pi(s_2) = -1.8 = \mathbb{E}_\pi[G_1 | S_1 = s_2]$（这是所有可能轨迹的期望回报）
+    \item 因此，$v_\pi(s_2)$ 是 $G_1$ 的期望值
+\end{itemize}
+
+\textbf{TD目标}：
+
+\begin{align}
+R_1 + \gamma v_\pi(S_1) &= -1 + 0.9 \times (-1.8) \\
+                        &= -1 - 1.62 = -2.62
+\end{align}
+
+\textbf{对比}：
+\begin{itemize}
+    \item $G_0 = -2.71$（完整回报，具体轨迹）
+    \item $R_1 + \gamma v_\pi(S_1) = -2.62$（TD目标，期望值）
+    \item 差异：$-2.62 - (-2.71) = 0.09$（由于 $v_\pi(s_2)$ 是期望值，而 $G_1$ 是具体值）
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心关系}
+
+\begin{enumerate}
+    \item \textbf{回报的递归关系}：
+    \begin{equation}
+    G_t = R_{t+1} + \gamma G_{t+1}
+    \end{equation}
+    
+    \item \textbf{价值函数的定义}：
+    \begin{equation}
+    v_\pi(S_{t+1}) = \mathbb{E}_\pi[G_{t+1} | S_{t+1}]
+    \end{equation}
+    
+    \item \textbf{贝尔曼方程}：
+    \begin{equation}
+    v_\pi(S_t) = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t]
+    \end{equation}
+    
+    \item \textbf{TD目标}：
+    \begin{equation}
+    R_{t+1} + \gamma v_\pi(S_{t+1}) \approx G_t
+    \end{equation}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{$v_\pi(S_{t+1})$ 是 $G_{t+1}$ 的期望值}。这个关系使得我们可以用价值函数来估计回报，从而在TD学习中实现一步更新，而不需要等待完整回合结束。
+\end{quote}
+
+\subsection{在算法中的应用}
+
+\begin{itemize}
+    \item \textbf{蒙特卡洛方法}：使用完整回报 $G_t$（需要等待回合结束）
+    \item \textbf{TD方法}：使用 $R_{t+1} + \gamma V(S_{t+1})$（可以立即更新）
+    \item \textbf{动态规划}：使用 $r + \gamma v_\pi(s')$（需要环境模型）
+\end{itemize}
+
+三种方法都基于同一个关系：$v_\pi(S_{t+1}) = \mathbb{E}_\pi[G_{t+1} | S_{t+1}]$，只是实现方式不同。
+
+\end{document}
+

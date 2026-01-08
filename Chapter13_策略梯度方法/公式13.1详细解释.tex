@@ -1,0 +1,469 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{公式13.1详细解释}
+\subtitle{策略梯度方法的基本更新公式}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{公式13.1}
+
+\subsection{公式}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \widehat{\nabla J}(\theta_t)
+\label{eq:13.1}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\theta_t \in \mathbb{R}^{d'}$：时刻 $t$ 的策略参数向量
+    \item $\theta_{t+1} \in \mathbb{R}^{d'}$：时刻 $t+1$ 的策略参数向量
+    \item $\alpha > 0$：步长参数（学习率）
+    \item $\widehat{\nabla J}(\theta_t) \in \mathbb{R}^{d'}$：性能指标 $J(\theta)$ 关于参数 $\theta_t$ 的梯度的随机估计
+    \item $\mathbb{E}[\widehat{\nabla J}(\theta_t)] \approx \nabla J(\theta_t)$：估计的期望近似等于真实梯度
+\end{itemize}
+
+\section{公式的组成部分}
+
+\subsection{参数向量 $\theta_t$}
+
+\textbf{定义}：
+\begin{itemize}
+    \item $\theta_t$ 是策略的参数向量
+    \item 维度为 $d'$（策略参数的个数）
+    \item 决定了策略 $\pi(a|s, \theta_t)$ 的行为
+\end{itemize}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item $\theta_t$ 就像你的"做事方式的参数"
+    \item 调整 $\theta_t$ 可以改变你的做事方式
+    \item 例如：在soft-max策略中，$\theta_t$ 决定了动作偏好 $h(s, a, \theta_t)$
+\end{itemize}
+
+\textbf{例子}：
+\begin{itemize}
+    \item 如果策略是线性soft-max：$\pi(a|s, \theta) = \frac{e^{\theta^T x(s, a)}}{\sum_b e^{\theta^T x(s, b)}}$
+    \item 那么 $\theta$ 就是线性权重向量
+    \item 调整 $\theta$ 可以改变每个动作被选择的概率
+\end{itemize}
+
+\subsection{步长参数 $\alpha$}
+
+\textbf{定义}：
+\begin{itemize}
+    \item $\alpha > 0$ 是步长参数（学习率）
+    \item 控制参数更新的幅度
+    \item 通常是一个小的正数（如 0.01, 0.1）
+\end{itemize}
+
+\textbf{作用}：
+\begin{itemize}
+    \item 如果 $\alpha$ 太大：更新幅度大，可能不稳定，甚至发散
+    \item 如果 $\alpha$ 太小：更新幅度小，学习速度慢
+    \item 需要选择合适的 $\alpha$ 来平衡学习速度和稳定性
+\end{itemize}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item $\alpha$ 就像"调整做事方式的幅度"
+    \item 如果调整幅度太大，可能改变太多，导致不稳定
+    \item 如果调整幅度太小，改变太少，学习速度慢
+\end{itemize}
+
+\subsection{梯度估计 $\widehat{\nabla J}(\theta_t)$}
+
+\textbf{定义}：
+\begin{itemize}
+    \item $\widehat{\nabla J}(\theta_t)$ 是性能指标 $J(\theta)$ 关于参数 $\theta_t$ 的梯度的随机估计
+    \item 是一个 $d'$ 维向量
+    \item 期望值近似等于真实梯度：$\mathbb{E}[\widehat{\nabla J}(\theta_t)] \approx \nabla J(\theta_t)$
+\end{itemize}
+
+\textbf{关键特性}：
+\begin{itemize}
+    \item \textbf{随机估计}：不是精确的梯度，而是基于样本的估计
+    \item \textbf{无偏或近似无偏}：期望值应该等于或近似等于真实梯度
+    \item \textbf{可以有不同的实现}：不同的策略梯度方法使用不同的估计方式
+\end{itemize}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item $\widehat{\nabla J}(\theta_t)$ 就像"告诉你如何调整做事方式才能更好"
+    \item 这是一个估计值，基于你观察到的结果
+    \item 不同的方法（如REINFORCE、Actor-Critic）使用不同的估计方式
+\end{itemize}
+
+\section{公式的含义}
+
+\subsection{梯度上升}
+
+\textbf{目标}：最大化性能指标 $J(\theta)$
+
+\textbf{方法}：梯度上升
+\begin{itemize}
+    \item 梯度 $\nabla J(\theta_t)$ 指向性能增加最快的方向
+    \item 沿着梯度方向更新参数，使性能增加
+    \item 这是优化问题的标准方法
+\end{itemize}
+
+\textbf{更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \nabla J(\theta_t)
+\end{equation}
+
+\textbf{公式13.1的区别}：
+\begin{itemize}
+    \item 使用随机估计 $\widehat{\nabla J}(\theta_t)$ 而不是精确梯度 $\nabla J(\theta_t)$
+    \item 这是随机梯度上升（Stochastic Gradient Ascent）
+    \item 适用于无法精确计算梯度的情况
+\end{itemize}
+
+\subsection{随机梯度上升}
+
+\textbf{为什么使用随机估计？}
+\begin{itemize}
+    \item 在强化学习中，通常无法精确计算梯度
+    \item 需要从样本中估计梯度
+    \item 使用随机估计是可行的替代方案
+\end{itemize}
+
+\textbf{随机梯度上升的特点}：
+\begin{itemize}
+    \item 使用随机估计而不是精确梯度
+    \item 期望更新方向与梯度方向相同
+    \item 在适当条件下可以收敛到局部最优
+\end{itemize}
+
+\textbf{收敛条件}：
+\begin{itemize}
+    \item 估计应该是无偏或近似无偏的
+    \item 步长需要满足某些条件（如 Robbins-Monro 条件）
+    \item 在适当条件下，算法会收敛
+\end{itemize}
+
+\section{公式的直观理解}
+
+\subsection{通俗类比}
+
+\textbf{类比1：爬山}
+
+想象你在爬一座山（最大化性能）：
+\begin{itemize}
+    \item $\theta_t$：你当前的位置（当前的做事方式）
+    \item $J(\theta_t)$：你当前位置的高度（当前的性能）
+    \item $\nabla J(\theta_t)$：最陡的上坡方向（性能增加最快的方向）
+    \item $\widehat{\nabla J}(\theta_t)$：对最陡方向的估计（基于你观察到的信息）
+    \item $\alpha$：你每步走的距离（调整幅度）
+    \item $\theta_{t+1}$：你下一步的位置（更新后的做事方式）
+\end{itemize}
+
+\textbf{更新过程}：
+\begin{enumerate}
+    \item 你观察当前方向（估计梯度）
+    \item 你朝着估计的最陡方向走一步（更新参数）
+    \item 你到达新位置（新参数）
+    \item 重复这个过程，逐渐接近山顶（最优策略）
+\end{enumerate}
+
+\textbf{类比2：学做菜}
+
+想象你在学习如何做菜（优化策略）：
+\begin{itemize}
+    \item $\theta_t$：你当前的做菜方式（如"放两勺盐"）
+    \item $J(\theta_t)$：你当前做菜的效果（如"8分"）
+    \item $\widehat{\nabla J}(\theta_t)$：告诉你如何调整做菜方式才能更好（如"增加放盐的量"）
+    \item $\alpha$：你调整的幅度（如"稍微增加"）
+    \item $\theta_{t+1}$：你调整后的做菜方式（如"放两勺半盐"）
+\end{itemize}
+
+\textbf{更新过程}：
+\begin{enumerate}
+    \item 你按照当前方式做菜（使用策略 $\pi(\cdot|\cdot, \theta_t)$）
+    \item 你观察结果，估计如何调整（计算 $\widehat{\nabla J}(\theta_t)$）
+    \item 你稍微调整做菜方式（更新 $\theta_t$ 到 $\theta_{t+1}$）
+    \item 你继续学习，逐渐找到最优做菜方式
+\end{enumerate}
+
+\section{不同策略梯度方法的实现}
+
+\subsection{REINFORCE}
+
+\textbf{梯度估计}：
+\begin{equation}
+\widehat{\nabla J}(\theta_t) = G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{更新公式}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 使用完整回报 $G_t$
+    \item 无偏估计
+    \item 高方差
+\end{itemize}
+
+\subsection{带基线的REINFORCE}
+
+\textbf{梯度估计}：
+\begin{equation}
+\widehat{\nabla J}(\theta_t) = [G_t - b(S_t)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{更新公式}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [G_t - b(S_t)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 使用基线 $b(S_t)$ 减少方差
+    \item 仍然是无偏估计
+    \item 方差比REINFORCE小
+\end{itemize}
+
+\subsection{Actor-Critic}
+
+\textbf{梯度估计}：
+\begin{equation}
+\widehat{\nabla J}(\theta_t) = \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+其中 $\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)$ 是TD误差。
+
+\textbf{更新公式}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 使用TD误差而不是完整回报
+    \item 有偏估计（因为使用了价值函数估计）
+    \item 低方差
+    \item 可以立即更新
+\end{itemize}
+
+\section{公式的数学性质}
+
+\subsection{期望更新方向}
+
+\textbf{关键性质}：
+\begin{equation}
+\mathbb{E}[\theta_{t+1} - \theta_t] = \mathbb{E}[\alpha \widehat{\nabla J}(\theta_t)] = \alpha \mathbb{E}[\widehat{\nabla J}(\theta_t)] \approx \alpha \nabla J(\theta_t)
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 参数更新的期望方向与梯度方向相同
+    \item 这是随机梯度上升的核心性质
+    \item 保证了算法朝着性能增加的方向更新
+\end{itemize}
+
+\subsection{收敛性}
+
+\textbf{收敛条件}（Robbins-Monro条件）：
+\begin{enumerate}
+    \item $\sum_{t=1}^{\infty} \alpha_t = \infty$（步长之和发散）
+    \item $\sum_{t=1}^{\infty} \alpha_t^2 < \infty$（步长平方和收敛）
+\end{enumerate}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 条件1：确保有足够的更新，能够到达最优解
+    \item 条件2：确保步长逐渐减小，最终收敛
+    \item 如果使用常数步长，条件2不满足，但可能仍然收敛（在适当条件下）
+\end{itemize}
+
+\textbf{收敛结果}：
+\begin{itemize}
+    \item 在适当条件下，算法会收敛到局部最优
+    \item 对于策略梯度方法，通常收敛到局部最优策略
+    \item 全局最优的保证需要额外的条件
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{例子1：简单的2动作问题}
+
+\textbf{场景}：有两个动作 $a_1$ 和 $a_2$，策略参数 $\theta = [\theta_1, \theta_2]^T$。
+
+\textbf{策略}：soft-max策略
+\begin{equation}
+\pi(a_1|s, \theta) = \frac{e^{\theta_1}}{e^{\theta_1} + e^{\theta_2}}, \quad \pi(a_2|s, \theta) = \frac{e^{\theta_2}}{e^{\theta_1} + e^{\theta_2}}
+\end{equation}
+
+\textbf{初始参数}：$\theta_0 = [0, 0]^T$（两个动作等概率）
+
+\textbf{第1次更新}（使用REINFORCE）：
+\begin{enumerate}
+    \item 在状态 $s$，选择动作 $a_1$（根据策略 $\pi(\cdot|s, \theta_0)$）
+    \item 获得回报 $G_0 = 5$
+    \item 计算梯度估计：
+    \begin{align}
+    \widehat{\nabla J}(\theta_0) &= G_0 \nabla_\theta \ln \pi(a_1|s, \theta_0) \\
+                                  &= 5 \times [1 - \pi(a_1|s, \theta_0), -\pi(a_1|s, \theta_0)]^T \\
+                                  &= 5 \times [0.5, -0.5]^T \\
+                                  &= [2.5, -2.5]^T
+    \end{align}
+    \item 更新参数（假设 $\alpha = 0.1$）：
+    \begin{align}
+    \theta_1 &= \theta_0 + \alpha \widehat{\nabla J}(\theta_0) \\
+             &= [0, 0]^T + 0.1 \times [2.5, -2.5]^T \\
+             &= [0.25, -0.25]^T
+    \end{align}
+    \item 新策略：$\pi(a_1|s, \theta_1) \approx 0.62$，$\pi(a_2|s, \theta_1) \approx 0.38$
+    \item 动作 $a_1$ 的概率增加了（因为回报好）
+\end{enumerate}
+
+\subsection{例子2：参数更新的几何解释}
+
+\textbf{参数空间}：
+\begin{itemize}
+    \item 参数空间是 $d'$ 维空间
+    \item 每个点 $\theta$ 对应一个策略
+    \item 性能指标 $J(\theta)$ 定义了一个"性能曲面"
+\end{itemize}
+
+\textbf{更新过程}：
+\begin{enumerate}
+    \item 当前位置：$\theta_t$（对应性能 $J(\theta_t)$）
+    \item 梯度方向：$\nabla J(\theta_t)$（指向性能增加最快的方向）
+    \item 估计方向：$\widehat{\nabla J}(\theta_t)$（对梯度方向的估计）
+    \item 更新：$\theta_{t+1} = \theta_t + \alpha \widehat{\nabla J}(\theta_t)$
+    \item 新位置：$\theta_{t+1}$（对应性能 $J(\theta_{t+1})$，通常 $J(\theta_{t+1}) > J(\theta_t)$）
+\end{enumerate}
+
+\textbf{可视化}：
+\begin{itemize}
+    \item 在2维参数空间中，可以画出等高线图
+    \item 梯度方向垂直于等高线，指向更高性能的方向
+    \item 更新沿着估计的梯度方向移动
+\end{itemize}
+
+\section{公式的变体}
+
+\subsection{不同的步长策略}
+
+\textbf{常数步长}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \widehat{\nabla J}(\theta_t)
+\end{equation}
+\begin{itemize}
+    \item $\alpha$ 是常数
+    \item 简单，但可能不收敛
+    \item 适合非平稳问题
+\end{itemize}
+
+\textbf{递减步长}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha_t \widehat{\nabla J}(\theta_t)
+\end{equation}
+\begin{itemize}
+    \item $\alpha_t$ 随时间递减（如 $\alpha_t = \frac{1}{t}$）
+    \item 满足 Robbins-Monro 条件
+    \item 保证收敛
+\end{itemize}
+
+\textbf{自适应步长}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha_t \widehat{\nabla J}(\theta_t)
+\end{equation}
+\begin{itemize}
+    \item $\alpha_t$ 根据梯度大小自适应调整
+    \item 如 Adam 优化器
+    \item 通常收敛更快
+\end{itemize}
+
+\subsection{不同的梯度估计}
+
+\textbf{REINFORCE}：
+\begin{equation}
+\widehat{\nabla J}(\theta_t) = G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{带基线的REINFORCE}：
+\begin{equation}
+\widehat{\nabla J}(\theta_t) = [G_t - b(S_t)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{Actor-Critic}：
+\begin{equation}
+\widehat{\nabla J}(\theta_t) = \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{自然策略梯度}：
+\begin{equation}
+\widehat{\nabla J}(\theta_t) = F^{-1}(\theta_t) \widehat{\nabla J}(\theta_t)
+\end{equation}
+其中 $F(\theta_t)$ 是 Fisher 信息矩阵。
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{公式13.1}是策略梯度方法的基本更新公式
+    
+    \item \textbf{梯度上升}：沿着性能增加最快的方向更新参数
+    
+    \item \textbf{随机估计}：使用随机估计而不是精确梯度
+    
+    \item \textbf{期望方向}：期望更新方向与梯度方向相同
+    
+    \item \textbf{不同实现}：不同的策略梯度方法使用不同的梯度估计
+\end{enumerate}
+
+\subsection{关键公式}
+
+\textbf{基本更新公式}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \widehat{\nabla J}(\theta_t)
+\end{equation}
+
+\textbf{期望更新方向}：
+\begin{equation}
+\mathbb{E}[\theta_{t+1} - \theta_t] = \alpha \mathbb{E}[\widehat{\nabla J}(\theta_t)] \approx \alpha \nabla J(\theta_t)
+\end{equation}
+
+\textbf{收敛条件}：
+\begin{align}
+\sum_{t=1}^{\infty} \alpha_t &= \infty \\
+\sum_{t=1}^{\infty} \alpha_t^2 &< \infty
+\end{align}
+
+\subsection{直观理解}
+
+\begin{quote}
+\textbf{公式13.1}就像"根据观察到的结果，稍微调整做事方式，使效果更好"。
+
+你当前的做法是 $\theta_t$，你观察结果并估计如何调整（$\widehat{\nabla J}(\theta_t)$），你按照估计的方向稍微调整（$\alpha \widehat{\nabla J}(\theta_t)$），你得到新的做法 $\theta_{t+1}$，你继续这个过程，逐渐找到最优做法。
+\end{quote}
+
+\end{document}
+

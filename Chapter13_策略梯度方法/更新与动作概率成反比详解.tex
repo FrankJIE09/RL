@@ -1,0 +1,454 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{graphicx}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{更新与动作概率成反比详解}
+\subtitle{REINFORCE算法中"与动作概率成反比"的直观理解}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题}
+
+\textbf{问题}：REINFORCE算法中，为什么说"更新与回报成正比，与动作概率成反比"？特别是"与动作概率成反比"怎么理解？
+
+\textbf{REINFORCE更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\label{eq:reinforce}
+\end{equation}
+
+\textbf{关键项}：
+\begin{equation}
+\nabla_\theta \ln \pi(A_t|S_t, \theta_t) = \frac{\nabla_\theta \pi(A_t|S_t, \theta_t)}{\pi(A_t|S_t, \theta_t)}
+\label{eq:log_gradient}
+\end{equation}
+
+\textbf{观察}：
+\begin{itemize}
+    \item 更新量 $\propto G_t$（与回报成正比）
+    \item 更新量 $\propto \frac{1}{\pi(A_t|S_t, \theta_t)}$（与动作概率成反比）
+\end{itemize}
+
+\section{为什么与动作概率成反比？}
+
+\subsection{核心原因：补偿采样偏差}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 我们使用样本（实际选择的动作）来估计梯度
+    \item 如果某个动作被选择的概率大，它会被频繁采样
+    \item 如果某个动作被选择的概率小，它会被很少采样
+    \item 这会导致采样偏差：频繁选择的动作会被多次更新，而很少选择的动作很少被更新
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 对于概率大的动作，每次更新的幅度应该小一些（除以大的概率）
+    \item 对于概率小的动作，每次更新的幅度应该大一些（除以小的概率）
+    \item 这样可以补偿采样频率的差异，确保所有动作的更新是公平的
+\end{itemize}
+
+\subsection{数学解释}
+
+\textbf{期望更新}：
+\begin{equation}
+\mathbb{E}_\pi\left[\frac{G_t}{\pi(A_t|S_t, \theta)} \nabla_\theta \pi(A_t|S_t, \theta)\right] = \sum_{a} \pi(a|S_t, \theta) \frac{G_t}{\pi(a|S_t, \theta)} \nabla_\theta \pi(a|S_t, \theta)
+\end{equation}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 如果 $A_t = a$，更新项是 $\frac{G_t}{\pi(a|S_t, \theta)} \nabla_\theta \pi(a|S_t, \theta)$
+    \item 概率 $\pi(a|S_t, \theta)$ 在期望中作为权重出现
+    \item 除以 $\pi(a|S_t, \theta)$ 后，权重被抵消，得到无偏估计
+\end{itemize}
+
+\textbf{验证}：
+\begin{align}
+\mathbb{E}_\pi\left[\frac{G_t}{\pi(A_t|S_t, \theta)} \nabla_\theta \pi(A_t|S_t, \theta)\right] &= \sum_{a} \pi(a|S_t, \theta) \frac{G_t}{\pi(a|S_t, \theta)} \nabla_\theta \pi(a|S_t, \theta) \\
+                                                                                                &= \sum_{a} G_t \nabla_\theta \pi(a|S_t, \theta)
+\end{align}
+
+\textbf{结果}：
+\begin{itemize}
+    \item 每个动作的贡献都是 $G_t \nabla_\theta \pi(a|S_t, \theta)$
+    \item 不依赖于动作被选择的概率
+    \item 这是无偏的梯度估计
+\end{itemize}
+
+\section{直观理解}
+
+\subsection{类比1：抽奖系统}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 有3个动作：$a_1, a_2, a_3$
+    \item 选择概率：$\pi(a_1) = 0.8, \pi(a_2) = 0.15, \pi(a_3) = 0.05$
+    \item 回报：$G_t = 10$（假设相同）
+\end{itemize}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 如果直接使用 $G_t \nabla_\theta \pi(A_t|S_t, \theta)$ 更新
+    \item 动作 $a_1$ 会被更新 $80\%$ 的时间
+    \item 动作 $a_2$ 会被更新 $15\%$ 的时间
+    \item 动作 $a_3$ 会被更新 $5\%$ 的时间
+    \item 这会导致不公平：$a_1$ 被过度更新，$a_2$ 和 $a_3$ 被欠更新
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 使用 $\frac{G_t}{\pi(A_t|S_t, \theta)} \nabla_\theta \pi(A_t|S_t, \theta)$ 更新
+    \item 动作 $a_1$：更新量 $\propto \frac{1}{0.8} = 1.25$（较小）
+    \item 动作 $a_2$：更新量 $\propto \frac{1}{0.15} = 6.67$（较大）
+    \item 动作 $a_3$：更新量 $\propto \frac{1}{0.05} = 20$（很大）
+\end{itemize}
+
+\textbf{效果}：
+\begin{itemize}
+    \item 虽然 $a_1$ 被更新得更频繁，但每次更新的幅度较小
+    \item 虽然 $a_2$ 和 $a_3$ 被更新得较少，但每次更新的幅度较大
+    \item 长期来看，所有动作的更新是公平的
+\end{itemize}
+
+\textbf{数学验证}：
+\begin{align}
+\text{期望更新} &= 0.8 \times \frac{10}{0.8} \times \nabla_\theta \pi(a_1) + 0.15 \times \frac{10}{0.15} \times \nabla_\theta \pi(a_2) + 0.05 \times \frac{10}{0.05} \times \nabla_\theta \pi(a_3) \\
+                &= 10 \times \nabla_\theta \pi(a_1) + 10 \times \nabla_\theta \pi(a_2) + 10 \times \nabla_\theta \pi(a_3) \\
+                &= 10 \times \sum_{a} \nabla_\theta \pi(a)
+\end{align}
+
+每个动作的贡献都是 $10 \times \nabla_\theta \pi(a)$，公平！
+
+\subsection{类比2：学习做菜}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 你在学习做3道菜：宫保鸡丁、麻婆豆腐、糖醋里脊
+    \item 你经常做宫保鸡丁（概率 $0.7$），偶尔做麻婆豆腐（概率 $0.25$），很少做糖醋里脊（概率 $0.05$）
+    \item 每次做菜后，根据味道好坏（回报）调整做法（更新参数）
+\end{itemize}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 如果直接根据回报更新
+    \item 宫保鸡丁会被更新 $70\%$ 的时间
+    \item 麻婆豆腐会被更新 $25\%$ 的时间
+    \item 糖醋里脊只会被更新 $5\%$ 的时间
+    \item 结果：宫保鸡丁学得很好，但糖醋里脊学得很差
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 使用"重要性权重"：$\frac{1}{\text{选择概率}}$
+    \item 宫保鸡丁：更新量 $\propto \frac{1}{0.7} = 1.43$（较小）
+    \item 麻婆豆腐：更新量 $\propto \frac{1}{0.25} = 4$（较大）
+    \item 糖醋里脊：更新量 $\propto \frac{1}{0.05} = 20$（很大）
+\end{itemize}
+
+\textbf{效果}：
+\begin{itemize}
+    \item 虽然你经常做宫保鸡丁，但每次调整的幅度较小
+    \item 虽然你很少做糖醋里脊，但每次调整的幅度很大
+    \item 长期来看，三道菜的学习进度是平衡的
+\end{itemize}
+
+\subsection{类比3：投票系统}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 有3个候选人：A、B、C
+    \item 投票概率：$\Pr(A) = 0.6, \Pr(B) = 0.3, \Pr(C) = 0.1$
+    \item 每次投票后，根据结果更新支持度
+\end{itemize}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 如果直接根据投票结果更新
+    \item 候选人A会被更新 $60\%$ 的时间
+    \item 候选人B会被更新 $30\%$ 的时间
+    \item 候选人C只会被更新 $10\%$ 的时间
+    \item 结果：A的支持度被过度更新，C的支持度被欠更新
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 使用"权重调整"：$\frac{1}{\text{投票概率}}$
+    \item 候选人A：更新量 $\propto \frac{1}{0.6} = 1.67$（较小）
+    \item 候选人B：更新量 $\propto \frac{1}{0.3} = 3.33$（较大）
+    \item 候选人C：更新量 $\propto \frac{1}{0.1} = 10$（很大）
+\end{itemize}
+
+\textbf{效果}：
+\begin{itemize}
+    \item 虽然A被投票的次数多，但每次更新的幅度较小
+    \item 虽然C被投票的次数少，但每次更新的幅度很大
+    \item 长期来看，所有候选人的更新是公平的
+\end{itemize}
+
+\section{数学推导}
+
+\subsection{从期望形式到重要性采样}
+
+\textbf{策略梯度定理（期望形式）}：
+\begin{equation}
+\nabla_\theta J(\theta) = \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{equation}
+
+\textbf{引入动作概率}：
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right] \\
+                         &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \nabla_\theta \ln \pi(a|S_t, \theta)\right]
+\end{align}
+
+\textbf{引入实际选择的动作}：
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \nabla_\theta \ln \pi(a|S_t, \theta)\right] \\
+                         &= \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \nabla_\theta \ln \pi(A_t|S_t, \theta)\right]
+\end{align}
+
+\textbf{使用回报}：
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \nabla_\theta \ln \pi(A_t|S_t, \theta)\right] \\
+                         &= \mathbb{E}_\pi\left[G_t \nabla_\theta \ln \pi(A_t|S_t, \theta)\right]
+\end{align}
+
+\textbf{展开对数梯度}：
+\begin{equation}
+\nabla_\theta J(\theta) = \mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\end{equation}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 更新项是 $\frac{G_t}{\pi(A_t|S_t, \theta)} \nabla_\theta \pi(A_t|S_t, \theta)$
+    \item 分母是 $\pi(A_t|S_t, \theta)$，所以与动作概率成反比
+    \item 这是重要性采样（Importance Sampling）的形式
+\end{itemize}
+
+\subsection{重要性采样解释}
+
+\textbf{重要性采样}：
+\begin{equation}
+\mathbb{E}_{p(x)}[f(x)] = \mathbb{E}_{q(x)}\left[\frac{p(x)}{q(x)} f(x)\right]
+\end{equation}
+
+\textbf{应用到策略梯度}：
+\begin{itemize}
+    \item 我们想计算：$\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)$
+    \item 这是关于均匀分布的期望
+    \item 但我们只能从分布 $\pi(\cdot|S_t, \theta)$ 采样
+    \item 所以需要使用重要性采样：
+    \begin{align}
+    \sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta) &= \sum_{a} \pi(a|S_t, \theta) \frac{1}{\pi(a|S_t, \theta)} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta) \\
+                                                              &= \mathbb{E}_\pi\left[\frac{1}{\pi(A_t|S_t, \theta)} q_\pi(S_t, A_t) \nabla_\theta \pi(A_t|S_t, \theta)\right]
+    \end{align}
+\end{itemize}
+
+\textbf{结果}：
+\begin{itemize}
+    \item 重要性权重是 $\frac{1}{\pi(A_t|S_t, \theta)}$
+    \item 这就是"与动作概率成反比"的来源
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{例子：3动作问题}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 状态 $S_t$，3个动作：$a_1, a_2, a_3$
+    \item 策略：
+    \begin{align}
+    \pi(a_1|S_t, \theta) &= 0.7 \\
+    \pi(a_2|S_t, \theta) &= 0.25 \\
+    \pi(a_3|S_t, \theta) &= 0.05
+    \end{align}
+    \item 回报：$G_t = 10$（假设相同）
+    \item 策略梯度（假设）：$\nabla_\theta \pi(a_1|S_t, \theta) = [0.1, -0.1]^T$
+\end{itemize}
+
+\textbf{情况1：不使用重要性权重（错误）}
+
+\textbf{更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{期望更新}：
+\begin{align}
+\mathbb{E}_\pi[G_t \nabla_\theta \pi(A_t|S_t, \theta)] &= 0.7 \times 10 \times [0.1, -0.1]^T + 0.25 \times 10 \times \nabla_\theta \pi(a_2) + 0.05 \times 10 \times \nabla_\theta \pi(a_3) \\
+                                                         &= 7 \times [0.1, -0.1]^T + 2.5 \times \nabla_\theta \pi(a_2) + 0.5 \times \nabla_\theta \pi(a_3)
+\end{align}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 动作 $a_1$ 的贡献是 $7 \times [0.1, -0.1]^T$（很大）
+    \item 动作 $a_3$ 的贡献是 $0.5 \times \nabla_\theta \pi(a_3)$（很小）
+    \item 这会导致不公平：$a_1$ 被过度更新，$a_3$ 被欠更新
+\end{itemize}
+
+\textbf{情况2：使用重要性权重（正确）}
+
+\textbf{更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta_t)}{\pi(A_t|S_t, \theta_t)}
+\end{equation}
+
+\textbf{期望更新}：
+\begin{align}
+\mathbb{E}_\pi\left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] &= 0.7 \times 10 \times \frac{[0.1, -0.1]^T}{0.7} + 0.25 \times 10 \times \frac{\nabla_\theta \pi(a_2)}{0.25} + 0.05 \times 10 \times \frac{\nabla_\theta \pi(a_3)}{0.05} \\
+                                                                                                  &= 10 \times [0.1, -0.1]^T + 10 \times \nabla_\theta \pi(a_2) + 10 \times \nabla_\theta \pi(a_3) \\
+                                                                                                  &= 10 \times \sum_{a} \nabla_\theta \pi(a|S_t, \theta)
+\end{align}
+
+\textbf{效果}：
+\begin{itemize}
+    \item 每个动作的贡献都是 $10 \times \nabla_\theta \pi(a)$
+    \item 不依赖于动作被选择的概率
+    \item 这是公平的、无偏的梯度估计
+\end{itemize}
+
+\textbf{单次更新示例}：
+
+假设实际选择的动作是 $a_3$（概率 $0.05$）：
+
+\textbf{不使用重要性权重}：
+\begin{align}
+\text{更新量} &= 10 \times \nabla_\theta \pi(a_3|S_t, \theta) \\
+              &= 10 \times [0.05, -0.05]^T \\
+              &= [0.5, -0.5]^T
+\end{align}
+
+\textbf{使用重要性权重}：
+\begin{align}
+\text{更新量} &= 10 \times \frac{\nabla_\theta \pi(a_3|S_t, \theta)}{0.05} \\
+              &= 10 \times \frac{[0.05, -0.05]^T}{0.05} \\
+              &= 10 \times [1, -1]^T \\
+              &= [10, -10]^T
+\end{align}
+
+\textbf{对比}：
+\begin{itemize}
+    \item 不使用重要性权重：更新量是 $[0.5, -0.5]^T$（很小）
+    \item 使用重要性权重：更新量是 $[10, -10]^T$（很大）
+    \item 因为 $a_3$ 很少被选择，所以需要更大的更新量来补偿
+\end{itemize}
+
+\section{为什么需要成反比？}
+
+\subsection{原因1：无偏性}
+
+\textbf{目标}：
+\begin{itemize}
+    \item 我们想估计：$\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)$
+    \item 这是对所有动作的求和
+    \item 但我们只能从分布 $\pi(\cdot|S_t, \theta)$ 采样
+\end{itemize}
+
+\textbf{无偏估计}：
+\begin{itemize}
+    \item 使用重要性采样：$\frac{1}{\pi(A_t|S_t, \theta)} q_\pi(S_t, A_t) \nabla_\theta \pi(A_t|S_t, \theta)$
+    \item 期望值：
+    \begin{align}
+    \mathbb{E}_\pi\left[\frac{1}{\pi(A_t|S_t, \theta)} q_\pi(S_t, A_t) \nabla_\theta \pi(A_t|S_t, \theta)\right] &= \sum_{a} \pi(a|S_t, \theta) \frac{1}{\pi(a|S_t, \theta)} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta) \\
+                                                                                                                    &= \sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)
+    \end{align}
+    \item 这是无偏的！
+\end{itemize}
+
+\subsection{原因2：公平性}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 如果某个动作被选择的概率大，它会被频繁更新
+    \item 如果某个动作被选择的概率小，它会被很少更新
+    \item 这会导致不公平：频繁选择的动作被过度更新，很少选择的动作被欠更新
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 对于概率大的动作，每次更新的幅度应该小一些（除以大的概率）
+    \item 对于概率小的动作，每次更新的幅度应该大一些（除以小的概率）
+    \item 这样可以补偿采样频率的差异，确保所有动作的更新是公平的
+\end{itemize}
+
+\subsection{原因3：方差控制}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 重要性权重 $\frac{1}{\pi(A_t|S_t, \theta)}$ 可能会很大（如果 $\pi(A_t|S_t, \theta)$ 很小）
+    \item 这会导致高方差，使学习不稳定
+\end{itemize}
+
+\textbf{解决方案}：
+\begin{itemize}
+    \item 使用基线（baseline）来减少方差
+    \item 例如：$G_t - b(S_t)$ 而不是 $G_t$
+    \item 这不会改变期望值，但可以减少方差
+\end{itemize}
+
+\section{总结}
+
+\subsection{关键理解}
+
+\begin{quote}
+\textbf{"与动作概率成反比"}的意思是：更新量 $\propto \frac{1}{\pi(A_t|S_t, \theta)}$。这是为了补偿采样偏差，确保所有动作的更新是公平的、无偏的。
+\end{quote}
+
+\subsection{核心原因}
+
+\begin{enumerate}
+    \item \textbf{无偏性}：使用重要性采样，确保梯度估计是无偏的
+    \item \textbf{公平性}：补偿采样频率的差异，确保所有动作的更新是公平的
+    \item \textbf{正确性}：这是从策略梯度定理严格推导出来的，不是随意设计的
+\end{enumerate}
+
+\subsection{直观理解}
+
+\begin{itemize}
+    \item \textbf{概率大的动作}：被频繁选择，但每次更新的幅度较小（除以大的概率）
+    \item \textbf{概率小的动作}：被很少选择，但每次更新的幅度较大（除以小的概率）
+    \item \textbf{长期效果}：所有动作的更新是平衡的、公平的
+\end{itemize}
+
+\subsection{数学形式}
+
+\textbf{REINFORCE更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta_t)}{\pi(A_t|S_t, \theta_t)}
+\end{equation}
+
+\textbf{关键项}：
+\begin{equation}
+\frac{\nabla_\theta \pi(A_t|S_t, \theta_t)}{\pi(A_t|S_t, \theta_t)} = \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{重要性权重}：
+\begin{equation}
+\frac{1}{\pi(A_t|S_t, \theta_t)}
+\end{equation}
+
+这就是"与动作概率成反比"的数学表达！
+
+\end{document}
+

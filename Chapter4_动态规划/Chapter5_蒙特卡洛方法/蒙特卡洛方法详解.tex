@@ -183,6 +183,153 @@ v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
 
 根据大数定律，如果我们观察足够多的回报，平均值会收敛到期望值。
 
+\subsection{平均的两种实现方式}
+
+\textbf{方式1：显式平均（批量方法）}
+
+收集所有回报，然后计算平均值：
+\begin{equation}
+V(s) = \frac{1}{n} \sum_{i=1}^{n} G_i
+\end{equation}
+
+其中 $n$ 是访问状态 $s$ 的次数，$G_i$ 是第 $i$ 次访问后的回报。
+
+\textbf{方式2：增量式平均（在线方法）}
+
+使用增量更新公式：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\label{eq:incremental_mc}
+\end{equation}
+
+\textbf{为什么这个公式是平均？}
+
+\textbf{情况1：使用 $\alpha = \frac{1}{n}$}（$n$ 是访问次数）
+
+这是\textbf{真正的平均}。让我们推导一下：
+
+假设已经访问了 $n-1$ 次，当前估计是：
+\begin{equation}
+V_{n-1} = \frac{1}{n-1} \sum_{i=1}^{n-1} G_i
+\end{equation}
+
+第 $n$ 次访问，观察到回报 $G_n$，使用 $\alpha = \frac{1}{n}$ 更新：
+\begin{align}
+V_n &= V_{n-1} + \frac{1}{n} [G_n - V_{n-1}] \\
+    &= V_{n-1} + \frac{1}{n} G_n - \frac{1}{n} V_{n-1} \\
+    &= \left(1 - \frac{1}{n}\right) V_{n-1} + \frac{1}{n} G_n \\
+    &= \frac{n-1}{n} \cdot \frac{1}{n-1} \sum_{i=1}^{n-1} G_i + \frac{1}{n} G_n \\
+    &= \frac{1}{n} \sum_{i=1}^{n-1} G_i + \frac{1}{n} G_n \\
+    &= \frac{1}{n} \sum_{i=1}^{n} G_i
+\end{align}
+
+\textbf{结论}：使用 $\alpha = \frac{1}{n}$ 时，$V_n$ 就是前 $n$ 个回报的\textbf{算术平均}。
+
+\textbf{情况2：使用固定 $\alpha$}
+
+这是\textbf{指数移动平均}（Exponential Moving Average）。
+
+假设 $\alpha$ 是固定常数（如 $\alpha = 0.1$），则：
+\begin{align}
+V_n &= V_{n-1} + \alpha [G_n - V_{n-1}] \\
+    &= (1-\alpha) V_{n-1} + \alpha G_n
+\end{align}
+
+展开后：
+\begin{align}
+V_n &= (1-\alpha) V_{n-1} + \alpha G_n \\
+    &= (1-\alpha)[(1-\alpha) V_{n-2} + \alpha G_{n-1}] + \alpha G_n \\
+    &= (1-\alpha)^2 V_{n-2} + (1-\alpha) \alpha G_{n-1} + \alpha G_n \\
+    &= \cdots \\
+    &= (1-\alpha)^n V_0 + \alpha \sum_{i=1}^{n} (1-\alpha)^{n-i} G_i
+\end{align}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 最近的回报权重更大（$(1-\alpha)^{n-i}$ 随 $i$ 增大而增大）
+    \item 这是\textbf{加权平均}，不是算术平均
+    \item 适用于非平稳环境（价值函数可能随时间变化）
+\end{itemize}
+
+\textbf{两种方式的对比}：
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{$\alpha = 1/n$} & \textbf{固定 $\alpha$} \\
+\hline
+\textbf{类型} & 算术平均 & 指数移动平均 \\
+\hline
+\textbf{权重} & 所有回报权重相等 & 最近回报权重更大 \\
+\hline
+\textbf{适用场景} & 平稳环境 & 非平稳环境 \\
+\hline
+\textbf{收敛性} & 收敛到真实值 & 在真实值附近波动 \\
+\hline
+\textbf{内存需求} & 需要记录访问次数 & 不需要额外内存 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{具体例子：增量式平均}
+
+\textbf{例子}：状态 $s$ 被访问了3次，回报分别是 $G_1 = -2$，$G_2 = -3$，$G_3 = -1$。
+
+\textbf{方式1：显式平均}：
+\begin{equation}
+V(s) = \frac{-2 + (-3) + (-1)}{3} = \frac{-6}{3} = -2
+\end{equation}
+
+\textbf{方式2：增量式平均（$\alpha = 1/n$）}：
+
+\textbf{第1次访问}（$n=1$，$\alpha = 1/1 = 1$）：
+\begin{align}
+V_1 &= V_0 + \frac{1}{1} [G_1 - V_0] \\
+    &= 0 + 1 \times [-2 - 0] = -2
+\end{align}
+
+\textbf{第2次访问}（$n=2$，$\alpha = 1/2$）：
+\begin{align}
+V_2 &= V_1 + \frac{1}{2} [G_2 - V_1] \\
+    &= -2 + \frac{1}{2} \times [-3 - (-2)] \\
+    &= -2 + \frac{1}{2} \times (-1) = -2.5
+\end{align}
+
+\textbf{第3次访问}（$n=3$，$\alpha = 1/3$）：
+\begin{align}
+V_3 &= V_2 + \frac{1}{3} [G_3 - V_2] \\
+    &= -2.5 + \frac{1}{3} \times [-1 - (-2.5)] \\
+    &= -2.5 + \frac{1}{3} \times 1.5 = -2.5 + 0.5 = -2
+\end{align}
+
+\textbf{验证}：$V_3 = -2$，与显式平均的结果相同！
+
+\textbf{方式3：固定 $\alpha = 0.1$（指数移动平均）}：
+
+\textbf{第1次访问}：
+\begin{align}
+V_1 &= 0 + 0.1 \times [-2 - 0] = -0.2
+\end{align}
+
+\textbf{第2次访问}：
+\begin{align}
+V_2 &= -0.2 + 0.1 \times [-3 - (-0.2)] \\
+    &= -0.2 + 0.1 \times (-2.8) = -0.48
+\end{align}
+
+\textbf{第3次访问}：
+\begin{align}
+V_3 &= -0.48 + 0.1 \times [-1 - (-0.48)] \\
+    &= -0.48 + 0.1 \times (-0.52) = -0.532
+\end{align}
+
+\textbf{观察}：
+\begin{itemize}
+    \item 固定 $\alpha$ 时，$V_3 = -0.532 \neq -2$（不是算术平均）
+    \item 这是\textbf{加权平均}，最近的回报权重更大
+    \item 如果继续更新，会逐渐接近真实值，但不会完全等于算术平均
+\end{itemize}
+
 \subsection{首次访问 vs 每次访问}
 
 \textbf{问题}：一个状态可能在同一个回合中被访问多次。
@@ -235,6 +382,25 @@ v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
     \item \textbf{首次访问检查}：只对首次访问的状态更新
     \item \textbf{平均回报}：将回报加入列表，计算平均值
 \end{enumerate}
+
+\subsection{增量式实现}
+
+\textbf{问题}：上面的算法需要存储所有回报的列表，内存需求可能很大。
+
+\textbf{解决方案}：使用增量式更新公式，不需要存储所有回报。
+
+\textbf{增量式蒙特卡洛更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\label{eq:incremental_mc_update}
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 这个公式\textbf{确实是求平均}，但以增量式的方式实现
+    \item 如果 $\alpha = \frac{1}{n}$（$n$ 是访问次数），就是\textbf{算术平均}
+    \item 如果 $\alpha$ 是固定值，就是\textbf{指数移动平均}
+\end{itemize}
 
 \subsection{回报的计算}
 

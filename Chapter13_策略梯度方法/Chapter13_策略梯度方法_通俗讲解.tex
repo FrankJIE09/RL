@@ -1,0 +1,574 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{第13章：策略梯度方法通俗讲解}
+\subtitle{用生活例子理解策略梯度}
+\author{强化学习笔记}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+策略梯度方法是强化学习中的一类重要方法。与之前学习动作价值函数的方法不同，策略梯度方法直接学习"怎么做"（策略），而不是"做这个动作值多少钱"（动作价值）。
+
+\textbf{核心区别}：
+\begin{itemize}
+    \item \textbf{之前的方法}：先学习"每个动作值多少钱"，然后选择最值钱的动作
+    \item \textbf{策略梯度方法}：直接学习"应该怎么做"，不需要知道每个动作值多少钱
+\end{itemize}
+
+\section{什么是策略梯度方法？}
+
+\subsection{通俗理解}
+
+\textbf{策略梯度方法就像}：
+
+\begin{quote}
+\textbf{"直接学习怎么做，而不是先学习值多少钱"}
+\end{quote}
+
+\textbf{生活例子：学做菜}
+
+\textbf{方法1：先学价值再选择（之前的方法）}
+\begin{enumerate}
+    \item 你学习"放一勺盐值多少钱"（动作价值）
+    \item 你学习"放两勺盐值多少钱"（动作价值）
+    \item 你学习"放三勺盐值多少钱"（动作价值）
+    \item 你选择"最值钱的动作"（如放两勺盐）
+\end{enumerate}
+
+\textbf{方法2：直接学习策略（策略梯度方法）}
+\begin{enumerate}
+    \item 你直接学习"应该放多少盐"（策略）
+    \item 你不需要知道"放一勺盐值多少钱"
+    \item 你直接学习"在什么情况下放多少盐"
+    \item 你按照学到的策略来做菜
+\end{enumerate}
+
+\subsection{核心思想}
+
+\textbf{策略梯度方法的核心}：
+\begin{itemize}
+    \item 直接学习参数化的策略 $\pi(a|s, \theta)$
+    \item 通过梯度上升优化性能指标 $J(\theta)$
+    \item 使用策略梯度定理计算梯度
+    \item 可以学习随机最优策略
+\end{itemize}
+
+\textbf{类比}：
+\begin{itemize}
+    \item \textbf{策略} $\pi(a|s, \theta)$：你的"做事方式"（参数化）
+    \item \textbf{性能指标} $J(\theta)$：你的"做事效果"（好坏程度）
+    \item \textbf{梯度上升}：朝着"效果更好"的方向调整"做事方式"
+    \item \textbf{策略梯度定理}：告诉你"如何调整做事方式"才能"效果更好"
+\end{itemize}
+
+\section{策略参数化：把你的做事方式写成公式}
+
+\subsection{通俗理解}
+
+\textbf{策略参数化就像}：
+
+\begin{quote}
+\textbf{"把你的做事方式写成数学公式，可以调整参数来改变做事方式"}
+\end{quote}
+
+\textbf{生活例子：学做菜}
+
+\textbf{策略参数化}：
+\begin{itemize}
+    \item 你的做菜策略：$\pi(\text{放盐}|s, \theta) = \text{在状态 } s \text{ 放盐的概率}$
+    \item 参数 $\theta$：控制你放盐的"偏好"
+    \item 调整 $\theta$：改变你放盐的方式
+\end{itemize}
+
+\textbf{Soft-max动作偏好}：
+\begin{equation}
+\pi(a|s, \theta) = \frac{e^{h(s, a, \theta)}}{\sum_{b} e^{h(s, b, \theta)}}
+\end{equation}
+
+\textbf{通俗解释}：
+\begin{itemize}
+    \item $h(s, a, \theta)$：你对动作 $a$ 的"偏好分数"
+    \item 偏好分数越高，选择这个动作的概率越大
+    \item Soft-max：把偏好分数转换成概率（所有动作的概率加起来等于1）
+\end{itemize}
+
+\textbf{类比}：
+\begin{itemize}
+    \item 就像你给每个动作打分，分数高的动作更容易被选择
+    \item 但所有动作的概率加起来必须等于1（你总要选择一个动作）
+\end{itemize}
+
+\subsection{策略参数化的优势}
+
+\textbf{1. 可以接近确定性策略}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item 你可以学习"几乎总是选择某个动作"的策略
+    \item 就像你学会了"几乎总是放两勺盐"
+    \item 而 $\varepsilon$-贪婪方法总是有 $\varepsilon$ 概率选择随机动作
+\end{itemize}
+
+\textbf{2. 可以学习随机最优策略}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item 在某些情况下，最优策略可能是随机的
+    \item 就像在扑克中，有时需要"虚张声势"（随机选择）
+    \item 策略梯度方法可以学习这种随机策略
+    \item 而动作价值方法无法自然地找到随机最优策略
+\end{itemize}
+
+\textbf{3. 策略可能更简单}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item 对于某些问题，策略函数比动作价值函数更简单
+    \item 就像"怎么做"比"每个动作值多少钱"更容易描述
+    \item 策略方法可能学习更快，得到更好的结果
+\end{itemize}
+
+\section{策略梯度定理：如何调整做事方式？}
+
+\subsection{问题：如何调整参数？}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 你有一个策略 $\pi(a|s, \theta)$（你的做事方式）
+    \item 你想调整参数 $\theta$，使性能 $J(\theta)$ 更好（效果更好）
+    \item 但如何调整？调整多少？
+\end{itemize}
+
+\textbf{策略梯度定理}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{通俗解释}：
+\begin{itemize}
+    \item $\nabla_\theta J(\theta)$：性能对参数的梯度（如何调整参数）
+    \item $q_\pi(s, a)$：动作价值（这个动作值多少钱）
+    \item $\nabla_\theta \pi(a|s, \theta)$：策略对参数的梯度（如何调整策略）
+    \item 定理告诉我们：朝着"值钱的动作"的方向调整策略
+\end{itemize}
+
+\textbf{类比：学做菜}
+\begin{itemize}
+    \item 你发现"放两勺盐"效果很好（值钱）
+    \item 你朝着"增加放两勺盐的概率"的方向调整参数
+    \item 你调整参数，使"放两勺盐"的概率增加
+\end{itemize}
+
+\subsection{关键洞察}
+
+\textbf{策略梯度定理的关键}：
+\begin{itemize}
+    \item 梯度不涉及状态分布的导数
+    \item 只需要知道策略参数化和动作价值函数
+    \item 这使得我们可以估计性能梯度，即使不知道策略变化对状态分布的影响
+\end{itemize}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item 你不需要知道"改变做事方式会影响哪些状态"
+    \item 你只需要知道"这个动作值多少钱"和"如何调整策略"
+    \item 定理告诉你如何调整，使"值钱的动作"更容易被选择
+\end{itemize}
+
+\section{REINFORCE：最简单的策略梯度方法}
+
+\subsection{通俗理解}
+
+\textbf{REINFORCE就像}：
+
+\begin{quote}
+\textbf{"做完一件事后，根据结果好坏来调整做事方式"}
+\end{quote}
+
+\textbf{生活例子：学做菜}
+
+\textbf{过程}：
+\begin{enumerate}
+    \item 你按照当前策略做菜（如"放两勺盐"）
+    \item 你吃完菜，评价结果（如"太咸了"或"正好"）
+    \item 如果结果好，你增加"放两勺盐"的概率
+    \item 如果结果不好，你减少"放两勺盐"的概率
+\end{enumerate}
+
+\textbf{REINFORCE更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{通俗解释}：
+\begin{itemize}
+    \item $G_t$：回报（结果好坏）
+    \item $\nabla_\theta \ln \pi(A_t|S_t, \theta_t)$：增加选择动作 $A_t$ 的概率的方向
+    \item 如果 $G_t$ 大（结果好），参数朝着"增加选择 $A_t$ 的概率"的方向调整
+    \item 如果 $G_t$ 小（结果不好），参数朝着"减少选择 $A_t$ 的概率"的方向调整
+\end{itemize}
+
+\subsection{REINFORCE的特点}
+
+\textbf{优点}：
+\begin{itemize}
+    \item \textbf{简单直观}：结果好就增加概率，结果不好就减少概率
+    \item \textbf{无偏估计}：使用完整回报，不引入偏差
+    \item \textbf{理论收敛}：期望更新方向与性能梯度方向相同
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item \textbf{高方差}：结果可能波动很大，导致学习不稳定
+    \item \textbf{学习慢}：高方差导致学习速度慢
+    \item \textbf{需要等待回合结束}：必须做完整个任务才能更新
+\end{itemize}
+
+\textbf{类比}：
+\begin{itemize}
+    \item 就像你每次做完菜才评价，然后调整
+    \item 如果每次做菜的结果波动很大，你很难判断"放两勺盐"是好是坏
+    \item 你需要做很多次菜，才能稳定地学习
+\end{itemize}
+
+\section{带基线的REINFORCE：减少波动}
+
+\subsection{问题：方差太大}
+
+\textbf{问题}：
+\begin{itemize}
+    \item REINFORCE的方差很大，导致学习不稳定
+    \item 就像你每次做菜的结果波动很大，很难判断"放两勺盐"是好是坏
+\end{itemize}
+
+\textbf{解决方案：使用基线}
+
+\textbf{带基线的REINFORCE更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [G_t - b(S_t)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{通俗解释}：
+\begin{itemize}
+    \item $G_t$：回报（结果好坏）
+    \item $b(S_t)$：基线（这个状态的"平均结果"）
+    \item $G_t - b(S_t)$：相对于平均结果的"好坏"
+    \item 如果 $G_t > b(S_t)$（比平均好），增加概率
+    \item 如果 $G_t < b(S_t)$（比平均差），减少概率
+\end{itemize}
+
+\textbf{类比：学做菜}
+\begin{itemize}
+    \item 你发现"放两勺盐"的结果是8分（$G_t = 8$）
+    \item 这个状态的"平均结果"是6分（$b(S_t) = 6$）
+    \item 你判断"放两勺盐"比平均好（$8 - 6 = 2$），增加概率
+    \item 这比直接使用8分更稳定（减少了波动）
+\end{itemize}
+
+\subsection{基线的效果}
+
+\textbf{基线的特点}：
+\begin{itemize}
+    \item \textbf{不改变期望值}：基线的期望值不影响更新的期望方向
+    \item \textbf{减少方差}：合适的基线可以显著减少方差，加速学习
+    \item \textbf{状态相关}：基线应该随状态变化
+\end{itemize}
+
+\textbf{使用状态价值函数作为基线}：
+\begin{equation}
+b(S_t) = \hat{v}(S_t, w)
+\end{equation}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item 使用"这个状态的平均价值"作为基线
+    \item 就像使用"这个状态的平均结果"作为参考
+    \item 判断动作是"比平均好"还是"比平均差"
+\end{itemize}
+
+\section{Actor-Critic：演员和评论家}
+
+\subsection{什么是Actor-Critic？}
+
+\textbf{Actor-Critic就像}：
+
+\begin{quote}
+\textbf{"演员（Actor）按照策略表演，评论家（Critic）评价好坏，演员根据评价调整表演方式"}
+\end{quote}
+
+\textbf{生活例子：学做菜}
+
+\textbf{Actor（演员）}：
+\begin{itemize}
+    \item 你的做菜策略（如何做菜）
+    \item 你按照策略做菜（如"放两勺盐"）
+\end{itemize}
+
+\textbf{Critic（评论家）}：
+\begin{itemize}
+    \item 价值函数（评价好坏）
+    \item 评价"这个状态值多少钱"（如"这个状态值6分"）
+\end{itemize}
+
+\textbf{交互过程}：
+\begin{enumerate}
+    \item Actor按照策略做菜（放两勺盐）
+    \item Critic评价结果（这个状态值6分）
+    \item Actor根据评价调整策略（如果评价好，增加放两勺盐的概率）
+\end{enumerate}
+
+\subsection{Actor-Critic vs REINFORCE with Baseline}
+
+\textbf{关键区别}：
+
+\textbf{REINFORCE with Baseline}：
+\begin{itemize}
+    \item 价值函数仅用作基线，不使用自举
+    \item 就像你使用"平均结果"作为参考，但不预测未来
+    \item 必须等待回合结束才能更新
+\end{itemize}
+
+\textbf{Actor-Critic}：
+\begin{itemize}
+    \item 价值函数用于自举，引入偏差但减少方差
+    \item 就像你使用"预测的未来结果"来评价当前动作
+    \item 可以立即更新，不需要等待回合结束
+\end{itemize}
+
+\textbf{一步Actor-Critic更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+其中：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\textbf{通俗解释}：
+\begin{itemize}
+    \item $\delta_t$：TD误差（预测误差）
+    \item $R_{t+1} + \gamma \hat{v}(S_{t+1}, w)$：预测的回报（立即奖励 + 未来价值）
+    \item $\hat{v}(S_t, w)$：当前状态的价值
+    \item 如果预测比当前价值高，说明动作好，增加概率
+    \item 如果预测比当前价值低，说明动作差，减少概率
+\end{itemize}
+
+\subsection{优势函数：动作相对于平均的优势}
+
+\textbf{优势函数定义}：
+\begin{equation}
+A_\pi(s, a) = q_\pi(s, a) - v_\pi(s)
+\end{equation}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item $q_\pi(s, a)$：动作 $a$ 的价值（这个动作值多少钱）
+    \item $v_\pi(s)$：状态 $s$ 的平均价值（这个状态的平均值）
+    \item $A_\pi(s, a)$：动作 $a$ 相对于平均的"优势"
+    \item 如果 $A_\pi(s, a) > 0$，动作比平均好
+    \item 如果 $A_\pi(s, a) < 0$，动作比平均差
+\end{itemize}
+
+\textbf{类比：学做菜}
+\begin{itemize}
+    \item "放两勺盐"的价值是8分（$q_\pi = 8$）
+    \item 这个状态的平均价值是6分（$v_\pi = 6$）
+    \item "放两勺盐"的优势是 $8 - 6 = 2$（比平均好2分）
+    \item 你增加"放两勺盐"的概率
+\end{itemize}
+
+\textbf{TD误差作为优势估计}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma v_\pi(S_{t+1}) - v_\pi(S_t) \approx A_\pi(S_t, A_t)
+\end{equation}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item TD误差可以近似表示优势
+    \item 如果TD误差大，说明动作比预期好
+    \item 如果TD误差小，说明动作比预期差
+\end{itemize}
+
+\section{完整例子：学做菜的策略梯度}
+
+\subsection{场景设置}
+
+\textbf{场景}：你正在学习如何做一道菜，需要决定放多少盐。
+
+\textbf{状态}：
+\begin{itemize}
+    \item $s_1$：菜还没放盐
+    \item $s_2$：菜已经放了一勺盐
+    \item $s_3$：菜已经放了两勺盐
+\end{itemize}
+
+\textbf{动作}：
+\begin{itemize}
+    \item $a_1$：放一勺盐
+    \item $a_2$：放两勺盐
+    \item $a_3$：放三勺盐
+\end{itemize}
+
+\textbf{策略}：$\pi(a|s, \theta)$（在状态 $s$ 选择动作 $a$ 的概率）
+
+\subsection{REINFORCE过程}
+
+\textbf{第1次做菜}：
+\begin{enumerate}
+    \item 在状态 $s_1$，你按照策略选择动作 $a_2$（放两勺盐）
+    \item 你做完菜，评价结果：$G_1 = 8$（8分，结果很好）
+    \item 你更新策略：增加"在状态 $s_1$ 放两勺盐"的概率
+    \begin{equation}
+    \theta \gets \theta + \alpha \times 8 \times \nabla_\theta \ln \pi(a_2|s_1, \theta)
+    \end{equation}
+    \item 因为结果好（8分），你增加"放两勺盐"的概率
+\end{enumerate}
+
+\textbf{第2次做菜}：
+\begin{enumerate}
+    \item 在状态 $s_1$，你按照更新后的策略选择动作 $a_2$（放两勺盐，概率增加了）
+    \item 你做完菜，评价结果：$G_2 = 7$（7分，结果还可以）
+    \item 你更新策略：稍微增加"在状态 $s_1$ 放两勺盐"的概率
+    \begin{equation}
+    \theta \gets \theta + \alpha \times 7 \times \nabla_\theta \ln \pi(a_2|s_1, \theta)
+    \end{equation}
+\end{enumerate}
+
+\textbf{继续学习}：
+\begin{itemize}
+    \item 你继续做菜，根据结果调整策略
+    \item 如果"放两勺盐"的结果好，你增加概率
+    \item 如果"放两勺盐"的结果不好，你减少概率
+    \item 最终，你学会了"在状态 $s_1$ 应该放两勺盐"
+\end{itemize}
+
+\subsection{带基线的REINFORCE过程}
+
+\textbf{第1次做菜}：
+\begin{enumerate}
+    \item 在状态 $s_1$，你按照策略选择动作 $a_2$（放两勺盐）
+    \item 你做完菜，评价结果：$G_1 = 8$（8分）
+    \item 你估计状态 $s_1$ 的平均价值：$\hat{v}(s_1, w) = 6$（平均6分）
+    \item 你计算优势：$8 - 6 = 2$（比平均好2分）
+    \item 你更新策略：增加"在状态 $s_1$ 放两勺盐"的概率
+    \begin{equation}
+    \theta \gets \theta + \alpha \times (8 - 6) \times \nabla_\theta \ln \pi(a_2|s_1, \theta)
+    \end{equation}
+    \item 因为比平均好（+2），你增加"放两勺盐"的概率
+\end{enumerate}
+
+\textbf{优势}：
+\begin{itemize}
+    \item 使用基线减少了波动
+    \item 即使结果波动大，你也能稳定地学习
+    \item 你判断的是"比平均好多少"，而不是"绝对好坏"
+\end{itemize}
+
+\subsection{Actor-Critic过程}
+
+\textbf{第1次做菜}：
+\begin{enumerate}
+    \item 在状态 $s_1$，Actor按照策略选择动作 $a_2$（放两勺盐）
+    \item 你执行动作，转移到状态 $s_2$，获得奖励 $R = 2$
+    \item Critic评价：$\hat{v}(s_1, w) = 6$，$\hat{v}(s_2, w) = 7$
+    \item 计算TD误差：$\delta = 2 + 0.9 \times 7 - 6 = 2.3$（预测比当前价值高）
+    \item Actor更新策略：增加"在状态 $s_1$ 放两勺盐"的概率
+    \begin{equation}
+    \theta \gets \theta + \alpha \times 2.3 \times \nabla_\theta \ln \pi(a_2|s_1, \theta)
+    \end{equation}
+    \item 因为TD误差大（预测好），你增加"放两勺盐"的概率
+\end{enumerate}
+
+\textbf{优势}：
+\begin{itemize}
+    \item 可以立即更新，不需要等待做完整个菜
+    \item 使用预测减少方差，学习更快
+    \item Actor和Critic同时学习，相互促进
+\end{itemize}
+
+\section{方法对比}
+
+\begin{center}
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{方法} & \textbf{通俗理解} & \textbf{优点} & \textbf{缺点} \\
+\hline
+\textbf{REINFORCE} & 做完后根据结果调整 & 简单直观，无偏 & 方差大，学习慢 \\
+\hline
+\textbf{REINFORCE+Baseline} & 做完后根据"比平均好多少"调整 & 减少方差 & 仍需等待完成 \\
+\hline
+\textbf{Actor-Critic} & 边做边根据预测调整 & 可以立即更新，学习快 & 有偏差 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{总结}
+
+\subsection{核心概念（通俗版）}
+
+\begin{enumerate}
+    \item \textbf{策略梯度方法}：直接学习"怎么做"，而不是"值多少钱"
+    
+    \item \textbf{策略参数化}：把你的做事方式写成公式，可以调整参数
+    
+    \item \textbf{策略梯度定理}：告诉你如何调整参数，使"值钱的动作"更容易被选择
+    
+    \item \textbf{REINFORCE}：做完后根据结果好坏来调整做事方式
+    
+    \item \textbf{基线}：使用"平均结果"作为参考，减少波动
+    
+    \item \textbf{Actor-Critic}：演员按照策略表演，评论家评价好坏，演员根据评价调整
+\end{enumerate}
+
+\subsection{关键公式（简化版）}
+
+\textbf{策略梯度定理}：
+\begin{equation}
+\text{如何调整参数} \propto \text{动作价值} \times \text{如何调整策略}
+\end{equation}
+
+\textbf{REINFORCE}：
+\begin{equation}
+\text{新参数} = \text{旧参数} + \alpha \times \text{回报} \times \text{增加动作概率的方向}
+\end{equation}
+
+\textbf{带基线的REINFORCE}：
+\begin{equation}
+\text{新参数} = \text{旧参数} + \alpha \times (\text{回报} - \text{基线}) \times \text{增加动作概率的方向}
+\end{equation}
+
+\textbf{Actor-Critic}：
+\begin{equation}
+\text{新参数} = \text{旧参数} + \alpha \times \text{TD误差} \times \text{增加动作概率的方向}
+\end{equation}
+
+\subsection{记忆技巧}
+
+\begin{itemize}
+    \item \textbf{策略梯度}：直接学"怎么做"，不学"值多少钱"
+    \item \textbf{REINFORCE}：做完后根据结果调整
+    \item \textbf{基线}：用"平均结果"作参考，减少波动
+    \item \textbf{Actor-Critic}：演员表演，评论家评价，演员调整
+    \item \textbf{优势函数}：动作相对于平均的"优势"
+\end{itemize}
+
+\end{document}
+

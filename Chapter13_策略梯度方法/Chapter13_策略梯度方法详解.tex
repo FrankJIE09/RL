@@ -1,0 +1,644 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{第13章：策略梯度方法详解}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+本章介绍\textbf{策略梯度方法}（Policy Gradient Methods），这是强化学习中的一类重要方法。与之前章节中基于动作价值函数的方法不同，策略梯度方法直接学习参数化的策略，可以无需价值函数就能选择动作。
+
+\textbf{核心思想}：
+\begin{itemize}
+    \item 直接学习参数化策略 $\pi(a|s, \theta)$
+    \item 通过梯度上升优化性能指标 $J(\theta)$
+    \item 使用策略梯度定理计算梯度
+    \item 可以学习随机最优策略
+\end{itemize}
+
+\section{策略近似及其优势}
+
+\subsection{策略参数化}
+
+\textbf{参数化策略}：
+\begin{equation}
+\pi(a|s, \theta) = \Pr\{A_t = a | S_t = s, \theta_t = \theta\}
+\end{equation}
+
+其中 $\theta \in \mathbb{R}^{d'}$ 是策略的参数向量。
+
+\textbf{要求}：
+\begin{itemize}
+    \item 策略必须关于参数可微：$\nabla_\theta \pi(a|s, \theta)$ 存在且有限
+    \item 为保证探索，策略通常不能变成确定性的：$\pi(a|s, \theta) \in (0, 1)$
+\end{itemize}
+
+\subsection{Soft-max动作偏好参数化}
+
+对于离散动作空间，最常用的参数化方式是\textbf{soft-max动作偏好}：
+
+\begin{equation}
+\pi(a|s, \theta) = \frac{e^{h(s, a, \theta)}}{\sum_{b} e^{h(s, b, \theta)}}
+\label{eq:softmax_policy}
+\end{equation}
+
+其中 $h(s, a, \theta) \in \mathbb{R}$ 是状态-动作对的数值偏好。
+
+\textbf{动作偏好的参数化}：
+\begin{itemize}
+    \item \textbf{线性偏好}：$h(s, a, \theta) = \theta^T x(s, a)$
+    \item \textbf{神经网络}：$h(s, a, \theta)$ 由深度神经网络计算（如 AlphaGo）
+\end{itemize}
+
+\subsection{策略参数化的优势}
+
+\textbf{1. 可以接近确定性策略}：
+\begin{itemize}
+    \item 策略梯度方法可以学习接近确定性的策略
+    \item 而 $\varepsilon$-贪婪方法总是有 $\varepsilon$ 概率选择随机动作
+    \item 最优动作的偏好会被驱动到无穷大（相对于次优动作）
+\end{itemize}
+
+\textbf{2. 可以学习随机最优策略}：
+\begin{itemize}
+    \item 在某些问题中，最优策略可能是随机的（如扑克中的虚张声势）
+    \item 动作价值方法无法自然地找到随机最优策略
+    \item 策略近似方法可以学习任意概率分布
+\end{itemize}
+
+\textbf{3. 策略可能更简单}：
+\begin{itemize}
+    \item 对于某些问题，策略函数比动作价值函数更简单
+    \item 策略方法可能学习更快，得到更好的渐近策略
+\end{itemize}
+
+\textbf{4. 注入先验知识}：
+\begin{itemize}
+    \item 策略参数化是向强化学习系统注入先验知识的好方法
+    \item 这是使用基于策略的学习方法的最重要原因之一
+\end{itemize}
+
+\section{策略梯度定理}
+
+\subsection{性能指标}
+
+\textbf{回合制任务}：
+\begin{equation}
+J(\theta) = v_{\pi_\theta}(s_0)
+\label{eq:episodic_performance}
+\end{equation}
+
+其中 $s_0$ 是起始状态，$v_{\pi_\theta}$ 是策略 $\pi_\theta$ 的真实价值函数。
+
+\textbf{持续任务}：
+\begin{equation}
+J(\theta) = r(\pi) = \lim_{h \to \infty} \frac{1}{h} \sum_{t=1}^{h} \mathbb{E}[R_t | S_0, A_{0:t-1} \sim \pi]
+\end{equation}
+
+\subsection{策略梯度定理（回合制）}
+
+\begin{theorem}[策略梯度定理]
+对于回合制任务，性能指标的梯度为：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\label{eq:policy_gradient_theorem}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\mu(s)$ 是在策略 $\pi$ 下的状态分布（on-policy distribution）
+    \item $q_\pi(s, a)$ 是动作价值函数
+    \item $\propto$ 表示"正比于"
+\end{itemize}
+\end{theorem}
+
+\textbf{关键洞察}：
+\begin{itemize}
+    \item 梯度不涉及状态分布的导数
+    \item 只需要知道策略参数化 $\pi(a|s, \theta)$ 和动作价值函数 $q_\pi(s, a)$
+    \item 这使得我们可以估计性能梯度，即使不知道策略变化对状态分布的影响
+\end{itemize}
+
+\subsection{策略梯度定理的证明思路}
+
+\textbf{步骤1}：状态价值函数的梯度
+\begin{equation}
+\nabla v_\pi(s) = \nabla \left[\sum_{a} \pi(a|s) q_\pi(s, a)\right]
+\end{equation}
+
+\textbf{步骤2}：使用乘积法则
+\begin{equation}
+\nabla v_\pi(s) = \sum_{a} \left[\nabla \pi(a|s) q_\pi(s, a) + \pi(a|s) \nabla q_\pi(s, a)\right]
+\end{equation}
+
+\textbf{步骤3}：展开 $q_\pi(s, a)$ 并递归展开
+\begin{equation}
+\nabla v_\pi(s) = \sum_{x \in \mathcal{S}} \sum_{k=0}^{\infty} \Pr(s \to x, k, \pi) \sum_{a} \nabla \pi(a|x) q_\pi(x, a)
+\end{equation}
+
+\textbf{步骤4}：应用到性能指标
+\begin{equation}
+\nabla J(\theta) = \nabla v_\pi(s_0) = \sum_{s} \mu(s) \sum_{a} \nabla \pi(a|s) q_\pi(s, a)
+\end{equation}
+
+\subsection{策略梯度定理的期望形式}
+
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi \left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\label{eq:policy_gradient_expectation}
+\end{equation}
+
+\section{REINFORCE：蒙特卡洛策略梯度}
+
+\subsection{REINFORCE算法推导}
+
+从策略梯度定理的期望形式出发，引入实际选择的动作 $A_t$：
+
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi \left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right] \\
+&= \mathbb{E}_\pi \left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] \\
+&= \mathbb{E}_\pi \left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\label{eq:reinforce_gradient}
+\end{align}
+
+其中最后一步使用了 $\mathbb{E}_\pi[G_t | S_t, A_t] = q_\pi(S_t, A_t)$。
+
+\subsection{REINFORCE更新规则}
+
+使用样本梯度进行随机梯度上升：
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta_t)}{\pi(A_t|S_t, \theta_t)}
+\label{eq:reinforce_update}
+\end{equation}
+
+\textbf{等价形式}（使用对数梯度）：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\label{eq:reinforce_log}
+\end{equation}
+
+其中使用了恒等式：$\nabla \ln x = \frac{\nabla x}{x}$。
+
+\textbf{资格向量}（Eligibility Vector）：
+\begin{equation}
+\nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+这是策略参数化在算法中唯一出现的地方。
+
+\subsection{REINFORCE算法伪代码}
+
+\begin{algorithm}[H]
+\caption{REINFORCE：蒙特卡洛策略梯度控制（回合制）}
+\begin{algorithmic}[1]
+\REQUIRE 可微策略参数化 $\pi(a|s, \theta)$
+\ENSURE 最优策略 $\pi_*$
+\STATE \textbf{算法参数}：步长 $\alpha > 0$
+\STATE \textbf{初始化}：策略参数 $\theta \in \mathbb{R}^{d'}$（如设为0）
+\REPEAT
+    \STATE 生成回合：$S_0, A_0, R_1, \ldots, S_{T-1}, A_{T-1}, R_T$，遵循 $\pi(\cdot|\cdot, \theta)$
+    \FOR{回合的每一步 $t = 0, 1, \ldots, T-1$}
+        \STATE $G \gets \sum_{k=t+1}^{T} \gamma^{k-t-1} R_k$ \COMMENT{计算回报 $G_t$}
+        \STATE $\theta \gets \theta + \alpha \gamma^t G \nabla_\theta \ln \pi(A_t|S_t, \theta)$
+    \ENDFOR
+\UNTIL{收敛}
+\RETURN $\pi_* = \pi(\cdot|\cdot, \theta)$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{REINFORCE的特点}
+
+\textbf{优点}：
+\begin{itemize}
+    \item \textbf{理论收敛性}：期望更新方向与性能梯度方向相同
+    \item \textbf{无偏估计}：使用完整回报 $G_t$，不引入偏差
+    \item \textbf{简单直观}：更新与回报成正比，与动作概率成反比
+\end{itemize}
+
+\textbf{缺点}：
+\begin{itemize}
+    \item \textbf{高方差}：作为蒙特卡洛方法，方差可能很大
+    \item \textbf{学习慢}：高方差导致学习速度慢
+    \item \textbf{仅适用于回合制}：需要等待回合结束
+\end{itemize}
+
+\subsection{REINFORCE的直观理解}
+
+\textbf{更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item $G_t$：回报越大，参数更新越大（鼓励高回报动作）
+    \item $\nabla_\theta \ln \pi(A_t|S_t, \theta_t)$：增加在状态 $S_t$ 选择动作 $A_t$ 的概率的方向
+    \item 除以 $\pi(A_t|S_t, \theta_t)$：防止频繁选择的动作获得不公平优势
+\end{itemize}
+
+\section{带基线的REINFORCE}
+
+\subsection{带基线的策略梯度定理}
+
+策略梯度定理可以推广到包含基线 $b(s)$：
+
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} [q_\pi(s, a) - b(s)] \nabla_\theta \pi(a|s, \theta)
+\label{eq:policy_gradient_baseline}
+\end{equation}
+
+\textbf{基线的条件}：
+\begin{itemize}
+    \item 基线可以是任何函数，甚至是随机变量
+    \item 只要基线不依赖于动作 $a$，等式就成立
+    \item 因为：$\sum_{a} b(s) \nabla_\theta \pi(a|s, \theta) = b(s) \nabla_\theta \sum_{a} \pi(a|s, \theta) = b(s) \nabla_\theta 1 = 0$
+\end{itemize}
+
+\subsection{带基线的REINFORCE更新}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [G_t - b(S_t)] \frac{\nabla_\theta \pi(A_t|S_t, \theta_t)}{\pi(A_t|S_t, \theta_t)}
+\label{eq:reinforce_baseline}
+\end{equation}
+
+\textbf{等价形式}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [G_t - b(S_t)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{基线的效果}：
+\begin{itemize}
+    \item \textbf{期望值不变}：基线不改变更新的期望值
+    \item \textbf{减少方差}：合适的基线可以显著减少方差，加速学习
+    \item \textbf{状态相关}：基线应该随状态变化
+\end{itemize}
+
+\subsection{使用状态价值函数作为基线}
+
+\textbf{自然选择}：使用状态价值函数的估计 $\hat{v}(S_t, w)$ 作为基线
+
+\begin{equation}
+b(S_t) = \hat{v}(S_t, w)
+\end{equation}
+
+其中 $w \in \mathbb{R}^d$ 是价值函数的权重向量。
+
+\subsection{带基线的REINFORCE算法}
+
+\begin{algorithm}[H]
+\caption{带基线的REINFORCE（回合制）}
+\begin{algorithmic}[1]
+\REQUIRE 可微策略参数化 $\pi(a|s, \theta)$
+\REQUIRE 可微状态价值函数参数化 $\hat{v}(s, w)$
+\ENSURE 最优策略 $\pi_*$
+\STATE \textbf{算法参数}：步长 $\alpha_\theta > 0$，$\alpha_w > 0$
+\STATE \textbf{初始化}：策略参数 $\theta$ 和状态价值权重 $w$（如设为0）
+\REPEAT
+    \STATE 生成回合：$S_0, A_0, R_1, \ldots, S_{T-1}, A_{T-1}, R_T$，遵循 $\pi(\cdot|\cdot, \theta)$
+    \FOR{回合的每一步 $t = 0, 1, \ldots, T-1$}
+        \STATE $G \gets \sum_{k=t+1}^{T} \gamma^{k-t-1} R_k$ \COMMENT{计算回报 $G_t$}
+        \STATE $\delta \gets G - \hat{v}(S_t, w)$ \COMMENT{TD误差}
+        \STATE $w \gets w + \alpha_w \delta \nabla_w \hat{v}(S_t, w)$ \COMMENT{更新价值函数}
+        \STATE $\theta \gets \theta + \alpha_\theta \gamma^t \delta \nabla_\theta \ln \pi(A_t|S_t, \theta)$ \COMMENT{更新策略}
+    \ENDFOR
+\UNTIL{收敛}
+\RETURN $\pi_* = \pi(\cdot|\cdot, \theta)$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 同时学习策略和价值函数
+    \item 价值函数仅用作基线，不用于自举
+    \item 使用蒙特卡洛方法学习价值函数
+\end{itemize}
+
+\section{Actor-Critic方法}
+
+\subsection{什么是Actor-Critic？}
+
+\textbf{定义}：
+\begin{itemize}
+    \item \textbf{Actor}：学习的策略（演员）
+    \item \textbf{Critic}：学习的价值函数（评论家）
+    \item \textbf{关键区别}：Critic 用于\textbf{自举}（bootstrapping），而不仅仅是基线
+\end{itemize}
+
+\textbf{REINFORCE with Baseline vs Actor-Critic}：
+\begin{itemize}
+    \item \textbf{REINFORCE with Baseline}：价值函数仅用作基线，不使用自举
+    \item \textbf{Actor-Critic}：价值函数用于自举，引入偏差但减少方差
+\end{itemize}
+
+\subsection{一步Actor-Critic}
+
+\textbf{更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\label{eq:one_step_actor_critic}
+\end{equation}
+
+\textbf{TD误差}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\textbf{更新规则（使用TD误差）}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\subsection{一步Actor-Critic算法}
+
+\begin{algorithm}[H]
+\caption{一步Actor-Critic（回合制）}
+\begin{algorithmic}[1]
+\REQUIRE 可微策略参数化 $\pi(a|s, \theta)$
+\REQUIRE 可微状态价值函数参数化 $\hat{v}(s, w)$
+\ENSURE 最优策略 $\pi_*$
+\STATE \textbf{算法参数}：步长 $\alpha_\theta > 0$，$\alpha_w > 0$
+\STATE \textbf{初始化}：策略参数 $\theta$ 和状态价值权重 $w$（如设为0）
+\REPEAT
+    \STATE 初始化 $S$（回合的起始状态）
+    \STATE $I \gets 1$ \COMMENT{折扣因子修正}
+    \WHILE{$S$ 不是终止状态}
+        \STATE $A \sim \pi(\cdot|S, \theta)$ \COMMENT{根据策略选择动作}
+        \STATE 执行动作 $A$，观察 $S'$，$R$
+        \STATE $\delta \gets R + \gamma \hat{v}(S', w) - \hat{v}(S, w)$ \COMMENT{TD误差}
+        \IF{$S'$ 是终止状态}
+            \STATE $\hat{v}(S', w) \gets 0$
+        \ENDIF
+        \STATE $w \gets w + \alpha_w \delta \nabla_w \hat{v}(S, w)$ \COMMENT{更新Critic}
+        \STATE $\theta \gets \theta + \alpha_\theta I \delta \nabla_\theta \ln \pi(A|S, \theta)$ \COMMENT{更新Actor}
+        \STATE $I \gets \gamma I$
+        \STATE $S \gets S'$
+    \ENDWHILE
+\UNTIL{收敛}
+\RETURN $\pi_* = \pi(\cdot|\cdot, \theta)$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{特点}：
+\begin{itemize}
+    \item \textbf{完全在线}：每个时间步都可以更新
+    \item \textbf{增量式}：不需要等待回合结束
+    \item \textbf{使用自举}：减少方差，但引入偏差
+\end{itemize}
+
+\subsection{优势函数（Advantage Function）}
+
+\textbf{定义}：
+\begin{equation}
+A_\pi(s, a) = q_\pi(s, a) - v_\pi(s)
+\label{eq:advantage_function}
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 优势函数表示动作 $a$ 相对于平均动作的"优势"
+    \item 如果 $A_\pi(s, a) > 0$，则动作 $a$ 比平均动作好
+    \item 如果 $A_\pi(s, a) < 0$，则动作 $a$ 比平均动作差
+\end{itemize}
+
+\textbf{使用优势函数的策略梯度}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} A_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{TD误差作为优势估计}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma v_\pi(S_{t+1}) - v_\pi(S_t) \approx A_\pi(S_t, A_t)
+\end{equation}
+
+\subsection{带资格迹的Actor-Critic}
+
+\textbf{推广到 $n$ 步和 $\lambda$-回报}：
+\begin{itemize}
+    \item 一步回报：$G_{t:t+1} = R_{t+1} + \gamma \hat{v}(S_{t+1}, w)$
+    \item $n$ 步回报：$G_{t:t+n}$
+    \item $\lambda$-回报：$G_t^\lambda$
+\end{itemize}
+
+\textbf{后向视图}：使用资格迹
+
+\begin{algorithm}[H]
+\caption{带资格迹的Actor-Critic（回合制）}
+\begin{algorithmic}[1]
+\REQUIRE 可微策略参数化 $\pi(a|s, \theta)$
+\REQUIRE 可微状态价值函数参数化 $\hat{v}(s, w)$
+\ENSURE 最优策略 $\pi_*$
+\STATE \textbf{算法参数}：资格迹衰减率 $\lambda_\theta \in [0, 1]$，$\lambda_w \in [0, 1]$；步长 $\alpha_\theta > 0$，$\alpha_w > 0$
+\STATE \textbf{初始化}：策略参数 $\theta$ 和状态价值权重 $w$（如设为0）
+\REPEAT
+    \STATE 初始化 $S$（回合的起始状态）
+    \STATE $z_\theta \gets 0$（$d'$ 维资格迹向量）
+    \STATE $z_w \gets 0$（$d$ 维资格迹向量）
+    \STATE $I \gets 1$
+    \WHILE{$S$ 不是终止状态}
+        \STATE $A \sim \pi(\cdot|S, \theta)$
+        \STATE 执行动作 $A$，观察 $S'$，$R$
+        \STATE $\delta \gets R + \gamma \hat{v}(S', w) - \hat{v}(S, w)$
+        \IF{$S'$ 是终止状态}
+            \STATE $\hat{v}(S', w) \gets 0$
+        \ENDIF
+        \STATE $z_w \gets \gamma \lambda_w z_w + \nabla_w \hat{v}(S, w)$ \COMMENT{更新Critic资格迹}
+        \STATE $z_\theta \gets \gamma \lambda_\theta z_\theta + I \nabla_\theta \ln \pi(A|S, \theta)$ \COMMENT{更新Actor资格迹}
+        \STATE $w \gets w + \alpha_w \delta z_w$ \COMMENT{更新Critic}
+        \STATE $\theta \gets \theta + \alpha_\theta \delta z_\theta$ \COMMENT{更新Actor}
+        \STATE $I \gets \gamma I$
+        \STATE $S \gets S'$
+    \ENDWHILE
+\UNTIL{收敛}
+\RETURN $\pi_* = \pi(\cdot|\cdot, \theta)$
+\end{algorithmic}
+\end{algorithm}
+
+\section{持续问题的策略梯度}
+
+\subsection{性能指标}
+
+对于持续问题（没有回合边界），性能定义为平均奖励率：
+
+\begin{equation}
+J(\theta) = r(\pi) = \lim_{h \to \infty} \frac{1}{h} \sum_{t=1}^{h} \mathbb{E}[R_t | S_0, A_{0:t-1} \sim \pi]
+\end{equation}
+
+\subsection{持续问题的策略梯度定理}
+
+\begin{theorem}[持续问题的策略梯度定理]
+对于持续问题，性能指标的梯度为：
+\begin{equation}
+\nabla_\theta J(\theta) = \sum_{s} \mu(s) \sum_{a} [q_\pi(s, a) - v_\pi(s)] \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+其中 $\mu(s)$ 是在策略 $\pi$ 下的稳态分布。
+\end{theorem}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item 回合制：$\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)$
+    \item 持续问题：$\nabla_\theta J(\theta) = \sum_{s} \mu(s) \sum_{a} A_\pi(s, a) \nabla_\theta \pi(a|s, \theta)$
+    \item 持续问题中使用优势函数，而不是动作价值函数
+\end{itemize}
+
+\section{连续动作的策略参数化}
+
+\subsection{问题}
+
+对于连续动作空间，不能使用 soft-max 分布。需要其他参数化方式。
+
+\subsection{高斯策略}
+
+\textbf{高斯策略}：
+\begin{equation}
+\pi(a|s, \theta) = \frac{1}{\sigma(s, \theta) \sqrt{2\pi}} \exp\left(-\frac{(a - \mu(s, \theta))^2}{2\sigma(s, \theta)^2}\right)
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\mu(s, \theta)$：均值（可以是状态的函数）
+    \item $\sigma(s, \theta)$：标准差（可以是状态的函数或常数）
+\end{itemize}
+
+\textbf{参数化}：
+\begin{itemize}
+    \item 均值：$\mu(s, \theta) = \theta_\mu^T x_\mu(s)$（线性）或神经网络
+    \item 标准差：$\sigma(s, \theta) = \exp(\theta_\sigma^T x_\sigma(s))$（保证为正）
+\end{itemize}
+
+\subsection{其他连续动作分布}
+
+\begin{itemize}
+    \item \textbf{Beta分布}：适用于有界动作空间
+    \item \textbf{混合分布}：多个高斯分布的混合
+    \item \textbf{确定性策略}：$\mu(s, \theta)$ 直接作为动作（如 DDPG）
+\end{itemize}
+
+\section{核心公式总结}
+
+\subsection{策略梯度定理}
+
+\textbf{回合制}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{持续问题}：
+\begin{equation}
+\nabla_\theta J(\theta) = \sum_{s} \mu(s) \sum_{a} A_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\subsection{REINFORCE}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\subsection{带基线的REINFORCE}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [G_t - b(S_t)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\subsection{一步Actor-Critic}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+其中：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\subsection{优势函数}
+
+\begin{equation}
+A_\pi(s, a) = q_\pi(s, a) - v_\pi(s)
+\end{equation}
+
+\section{方法对比}
+
+\begin{table}[H]
+\centering
+\caption{策略梯度方法对比}
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{方法} & \textbf{更新规则} & \textbf{偏差} & \textbf{方差} \\
+\hline
+\textbf{REINFORCE} & $G_t \nabla_\theta \ln \pi$ & 无偏 & 高 \\
+\hline
+\textbf{REINFORCE+Baseline} & $[G_t - b(S_t)] \nabla_\theta \ln \pi$ & 无偏 & 中等 \\
+\hline
+\textbf{Actor-Critic} & $\delta_t \nabla_\theta \ln \pi$ & 有偏 & 低 \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{策略梯度方法}直接学习参数化策略，无需价值函数即可选择动作
+    
+    \item \textbf{策略梯度定理}提供了计算性能梯度的解析表达式，不涉及状态分布的导数
+    
+    \item \textbf{REINFORCE}是蒙特卡洛策略梯度方法，使用完整回报，无偏但方差大
+    
+    \item \textbf{基线}可以减少方差而不改变期望值，常用状态价值函数作为基线
+    
+    \item \textbf{Actor-Critic}方法同时学习策略和价值函数，使用自举减少方差但引入偏差
+    
+    \item \textbf{优势函数} $A_\pi(s, a) = q_\pi(s, a) - v_\pi(s)$ 是策略梯度的自然形式
+\end{enumerate}
+
+\subsection{关键优势}
+
+\begin{itemize}
+    \item 可以学习随机最优策略
+    \item 可以接近确定性策略
+    \item 策略可能比价值函数更简单
+    \item 可以注入先验知识
+    \item 更强的收敛保证
+\end{itemize}
+
+\subsection{应用}
+
+策略梯度方法是现代深度强化学习的基础，包括：
+\begin{itemize}
+    \item PPO（Proximal Policy Optimization）
+    \item TRPO（Trust Region Policy Optimization）
+    \item A3C（Asynchronous Advantage Actor-Critic）
+    \item SAC（Soft Actor-Critic）
+    \item DDPG（Deep Deterministic Policy Gradient）
+\end{itemize}
+
+\end{document}
+

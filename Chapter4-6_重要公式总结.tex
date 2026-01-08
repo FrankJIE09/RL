@@ -1,0 +1,638 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{float}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{强化学习第2-6章重要公式总结}
+\author{强化学习笔记}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{第2章：多臂老虎机}
+
+\subsection{动作-价值方法}
+
+\subsubsection{样本平均方法}
+\begin{equation}
+Q_t(a) = \frac{\text{所有在时间 } t \text{ 之前选择动作 } a \text{ 的奖励之和}}{\text{在时间 } t \text{ 之前选择动作 } a \text{ 的次数}}
+\end{equation}
+
+\subsubsection{贪婪动作选择}
+\begin{equation}
+A_t = \arg\max_a Q_t(a)
+\end{equation}
+
+\subsubsection{$\varepsilon$-贪婪方法}
+\begin{itemize}
+    \item 以概率 $1-\varepsilon$ 选择贪婪动作
+    \item 以概率 $\varepsilon$ 随机选择动作
+\end{itemize}
+
+\subsection{增量实现}
+
+\subsubsection{增量更新公式}
+\begin{equation}
+Q_{n+1} = Q_n + \frac{1}{n}[R_n - Q_n]
+\end{equation}
+
+\subsubsection{通用形式}
+\begin{equation}
+\text{新估计} \leftarrow \text{旧估计} + \text{步长}[\text{目标} - \text{旧估计}]
+\end{equation}
+
+\subsection{跟踪非平稳问题}
+
+\subsubsection{常数步长参数}
+\begin{equation}
+Q_{n+1} = Q_n + \alpha[R_n - Q_n]
+\end{equation}
+
+其中 $\alpha \in (0, 1]$ 是常数。
+
+\subsubsection{指数近因加权平均}
+\begin{equation}
+Q_{n+1} = (1-\alpha)^n Q_1 + \sum_{i=1}^n \alpha(1-\alpha)^{n-i} R_i
+\end{equation}
+
+\subsubsection{收敛条件（随机逼近理论）}
+\begin{enumerate}
+    \item $\sum_{n=1}^{\infty} \alpha_n(a) = \infty$
+    \item $\sum_{n=1}^{\infty} \alpha_n^2(a) < \infty$
+\end{enumerate}
+
+\subsection{上置信界动作选择（UCB）}
+
+\subsubsection{UCB动作选择}
+\begin{equation}
+A_t = \arg\max_a \left[ Q_t(a) + c\sqrt{\frac{\ln t}{N_t(a)}} \right]
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\ln t$：$t$ 的自然对数
+    \item $N_t(a)$：在时间 $t$ 之前动作 $a$ 被选择的次数
+    \item $c > 0$：控制探索程度的参数
+\end{itemize}
+
+\subsection{梯度老虎机算法}
+
+\subsubsection{动作选择（Soft-max分布）}
+\begin{equation}
+\Pr\{A_t = a\} = \frac{e^{H_t(a)}}{\sum_{b=1}^k e^{H_t(b)}} = \pi_t(a)
+\end{equation}
+
+\subsubsection{更新规则}
+\begin{align}
+H_{t+1}(A_t) &= H_t(A_t) + \alpha[R_t - \bar{R}_t][1 - \pi_t(A_t)] \\
+H_{t+1}(a) &= H_t(a) - \alpha[R_t - \bar{R}_t]\pi_t(a), \quad \text{对所有 } a \neq A_t
+\end{align}
+
+其中：
+\begin{itemize}
+    \item $\alpha > 0$：步长参数
+    \item $\bar{R}_t$：到时间 $t$ 为止所有奖励的平均值（基线）
+\end{itemize}
+
+\section{第3章：有限马尔可夫决策过程}
+
+\subsection{回报定义}
+
+\subsubsection{回报（Return）}
+\begin{equation}
+G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots = \sum_{k=0}^{\infty} \gamma^k R_{t+k+1}
+\end{equation}
+
+\subsubsection{回报的递归形式}
+\begin{equation}
+G_t = R_{t+1} + \gamma G_{t+1}
+\end{equation}
+
+\subsection{价值函数}
+
+\subsubsection{状态价值函数}
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s] = \mathbb{E}_\pi\left[\sum_{k=0}^{\infty} \gamma^k R_{t+k+1} \middle| S_t = s\right]
+\end{equation}
+
+\subsubsection{动作价值函数}
+\begin{equation}
+q_\pi(s, a) = \mathbb{E}_\pi[G_t | S_t = s, A_t = a] = \mathbb{E}_\pi\left[\sum_{k=0}^{\infty} \gamma^k R_{t+k+1} \middle| S_t = s, A_t = a\right]
+\end{equation}
+
+\subsection{价值函数之间的关系}
+
+\subsubsection{状态价值到动作价值}
+\begin{equation}
+v_\pi(s) = \sum_{a \in \mathcal{A}(s)} \pi(a | s) q_\pi(s, a)
+\end{equation}
+
+\subsubsection{动作价值到状态价值}
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\subsection{贝尔曼方程}
+
+\subsubsection{状态价值函数的贝尔曼方程}
+\begin{equation}
+v_\pi(s) = \sum_{a \in \mathcal{A}(s)} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\subsubsection{动作价值函数的贝尔曼方程}
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi(s', a')\right]
+\end{equation}
+
+\subsubsection{矩阵形式的贝尔曼方程}
+\begin{equation}
+\mathbf{v}_\pi = \mathbf{r}_\pi + \gamma \mathbf{P}_\pi \mathbf{v}_\pi
+\end{equation}
+
+\subsubsection{矩阵形式的解}
+\begin{equation}
+\mathbf{v}_\pi = (\mathbf{I} - \gamma \mathbf{P}_\pi)^{-1} \mathbf{r}_\pi
+\end{equation}
+
+\subsection{最优价值函数}
+
+\subsubsection{最优状态价值函数}
+\begin{equation}
+v_*(s) = \max_\pi v_\pi(s), \quad \text{对所有 } s \in \mathcal{S}
+\end{equation}
+
+\subsubsection{最优动作价值函数}
+\begin{equation}
+q_*(s, a) = \max_\pi q_\pi(s, a), \quad \text{对所有 } s \in \mathcal{S}, a \in \mathcal{A}(s)
+\end{equation}
+
+\subsection{贝尔曼最优性方程}
+
+\subsubsection{$v_*$ 的贝尔曼最优性方程}
+\begin{equation}
+v_*(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\end{equation}
+
+\subsubsection{$q_*$ 的贝尔曼最优性方程}
+\begin{equation}
+q_*(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \max_{a'} q_*(s', a')\right]
+\end{equation}
+
+\subsubsection{最优策略}
+\begin{equation}
+\pi_*(a | s) = \begin{cases}
+1, & \text{如果 } a = \arg\max_{a'} q_*(s, a') \\
+0, & \text{否则}
+\end{cases}
+\end{equation}
+
+\section{第4章：动态规划}
+
+\subsection{策略评估}
+
+\subsubsection{迭代策略评估（状态价值函数）}
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\subsubsection{迭代策略评估（动作价值函数）}
+\begin{equation}
+q_\pi^{k+1}(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi^k(s', a')\right]
+\end{equation}
+
+\subsection{策略改进}
+
+\subsubsection{策略改进定理}
+如果 $q_\pi(s, \pi'(s)) \geq v_\pi(s)$ 对所有 $s$ 成立，则 $v_{\pi'}(s) \geq v_\pi(s)$ 对所有 $s$ 成立。
+
+\subsubsection{策略改进（基于状态价值函数）}
+\begin{equation}
+\pi'(s) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\subsubsection{策略改进（基于动作价值函数）}
+\begin{equation}
+\pi'(s) = \arg\max_{a} q_\pi(s, a)
+\end{equation}
+
+\subsection{策略迭代}
+
+\subsubsection{策略迭代算法}
+\begin{enumerate}
+    \item \textbf{策略评估}：计算 $v_\pi$ 或 $q_\pi$
+    \item \textbf{策略改进}：基于价值函数改进策略
+    \item \textbf{重复}：直到策略不再改变
+\end{enumerate}
+
+\subsection{价值迭代}
+
+\subsubsection{价值迭代更新}
+\begin{equation}
+v_{k+1}(s) = \max_{a \in \mathcal{A}(s)} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\subsubsection{价值迭代（动作价值函数形式）}
+\begin{equation}
+q_{k+1}(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \max_{a'} q_k(s', a')\right]
+\end{equation}
+
+\subsection{期望更新}
+
+\subsubsection{期望更新（策略评估）}
+\begin{equation}
+v_\pi^{k+1}(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+\end{equation}
+
+\subsubsection{期望更新（价值迭代）}
+\begin{equation}
+v_{k+1}(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\section{第5章：蒙特卡洛方法}
+
+\subsection{回报定义}
+
+\subsubsection{回报（Return）}
+\begin{equation}
+G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots + \gamma^{T-t-1} R_T
+\end{equation}
+
+\subsubsection{回报的递归形式}
+\begin{equation}
+G_t = R_{t+1} + \gamma G_{t+1}
+\end{equation}
+
+\subsection{蒙特卡洛预测}
+
+\subsubsection{状态价值函数的估计}
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
+\end{equation}
+
+\subsubsection{显式平均（批量方法）}
+\begin{equation}
+V(s) = \frac{1}{n} \sum_{i=1}^{n} G_i
+\end{equation}
+
+其中 $n$ 是访问状态 $s$ 的次数，$G_i$ 是第 $i$ 次访问后的回报。
+
+\subsubsection{增量式平均（在线方法）}
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\end{equation}
+
+\begin{itemize}
+    \item 如果 $\alpha = \frac{1}{n}$（$n$ 是访问次数），这是\textbf{算术平均}
+    \item 如果 $\alpha$ 是固定值，这是\textbf{指数移动平均}
+\end{itemize}
+
+\subsection{蒙特卡洛动作价值估计}
+
+\subsubsection{动作价值函数的估计}
+\begin{equation}
+q_\pi(s, a) = \mathbb{E}_\pi[G_t | S_t = s, A_t = a]
+\end{equation}
+
+\subsubsection{增量式更新}
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [G_t - Q(S_t, A_t)]
+\end{equation}
+
+\subsection{首次访问 vs 每次访问}
+
+\subsubsection{首次访问蒙特卡洛}
+只计算\textbf{首次访问}状态 $s$ 后的回报。
+
+\subsubsection{每次访问蒙特卡洛}
+计算\textbf{每次访问}状态 $s$ 后的回报。
+
+\subsection{蒙特卡洛控制}
+
+\subsubsection{$\varepsilon$-贪婪策略}
+\begin{equation}
+\pi(a | s) = \begin{cases}
+1 - \varepsilon + \frac{\varepsilon}{|\mathcal{A}(s)|}, & \text{如果 } a = \arg\max_{a'} Q(s, a') \\
+\frac{\varepsilon}{|\mathcal{A}(s)|}, & \text{否则}
+\end{cases}
+\end{equation}
+
+\subsubsection{策略改进（基于动作价值函数）}
+\begin{equation}
+\pi(s) \gets \arg\max_{a} Q(s, a)
+\end{equation}
+
+\subsection{重要性采样（Off-policy）}
+
+\subsubsection{重要性采样比率}
+\begin{equation}
+\rho_{t:T-1} = \prod_{k=t}^{T-1} \frac{\pi(A_k | S_k)}{b(A_k | S_k)}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\pi$ 是目标策略（要评估的策略）
+    \item $b$ 是行为策略（生成数据的策略）
+\end{itemize}
+
+\subsubsection{加权回报（普通重要性采样）}
+\begin{equation}
+V(s) \gets V(s) + \alpha [\rho_{t:T-1} G_t - V(s)]
+\end{equation}
+
+\subsubsection{加权回报（加权重要性采样）}
+\begin{equation}
+V(s) \gets V(s) + \frac{W}{C(s)} [G_t - V(s)]
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $W$ 是重要性采样权重
+    \item $C(s)$ 是累积权重
+\end{itemize}
+
+\subsubsection{加权重要性采样更新}
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \frac{W}{C(S_t, A_t)} [G_t - Q(S_t, A_t)]
+\end{equation}
+
+其中：
+\begin{align}
+C(S_t, A_t) &\gets C(S_t, A_t) + W \\
+W &\gets W \frac{\pi(A_t | S_t)}{b(A_t | S_t)}
+\end{align}
+
+\section{第6章：时序差分学习}
+
+\subsection{TD(0)预测}
+
+\subsubsection{TD(0)更新公式}
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+\end{equation}
+
+\subsubsection{TD误差}
+\begin{equation}
+\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+\end{equation}
+
+\subsubsection{TD目标}
+\begin{equation}
+\text{目标} = R_{t+1} + \gamma V(S_{t+1})
+\end{equation}
+
+\subsection{TD(0) vs 蒙特卡洛}
+
+\subsubsection{蒙特卡洛更新}
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\end{equation}
+
+其中 $G_t$ 是完整回报。
+
+\subsubsection{TD(0)更新}
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+\end{equation}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item \textbf{蒙特卡洛}：使用完整回报 $G_t$（需要等待回合结束）
+    \item \textbf{TD(0)}：使用一步前瞻 $R_{t+1} + \gamma V(S_{t+1})$（可以立即更新）
+\end{itemize}
+
+\subsection{TD误差与蒙特卡洛误差的关系}
+
+如果价值函数在回合中不改变，蒙特卡洛误差可以写成TD误差的折扣和：
+
+\begin{equation}
+G_t - V(S_t) = \delta_t + \gamma \delta_{t+1} + \gamma^2 \delta_{t+2} + \cdots
+\end{equation}
+
+其中：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)
+\end{equation}
+
+\subsection{SARSA（On-policy TD控制）}
+
+\subsubsection{SARSA更新公式}
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+\subsubsection{SARSA的关键特征}
+\begin{itemize}
+    \item \textbf{On-policy}：使用当前策略选择动作
+    \item \textbf{五元组}：$(S_t, A_t, R_{t+1}, S_{t+1}, A_{t+1})$
+    \item \textbf{自举法}：使用 $Q(S_{t+1}, A_{t+1})$ 更新 $Q(S_t, A_t)$
+\end{itemize}
+
+\subsubsection{SARSA算法流程}
+\begin{enumerate}
+    \item 初始化 $Q(s, a)$ 和策略 $\pi$（$\varepsilon$-贪婪）
+    \item 对每个时间步：
+    \begin{itemize}
+        \item 执行动作 $A_t$，观察 $R_{t+1}, S_{t+1}$
+        \item 选择下一动作 $A_{t+1}$（根据策略 $\pi$）
+        \item 更新：$Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]$
+        \item 策略改进：$\pi(S_t) \gets \varepsilon$-贪婪策略，基于 $Q(S_t, \cdot)$
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Q-learning（Off-policy TD控制）}
+
+\subsubsection{Q-learning更新公式}
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\end{equation}
+
+\subsubsection{Q-learning的关键特征}
+\begin{itemize}
+    \item \textbf{Off-policy}：学习最优动作价值函数，但可以使用任何策略收集数据
+    \item \textbf{最大化操作}：使用 $\max_{a} Q(S_{t+1}, a)$ 而不是 $Q(S_{t+1}, A_{t+1})$
+    \item \textbf{直接学习最优策略}：不需要显式策略改进步骤
+\end{itemize}
+
+\subsubsection{Q-learning算法流程}
+\begin{enumerate}
+    \item 初始化 $Q(s, a)$
+    \item 对每个时间步：
+    \begin{itemize}
+        \item 执行动作 $A_t$（行为策略选择），观察 $R_{t+1}, S_{t+1}$
+        \item 更新：$Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]$
+    \end{itemize}
+    \item 提取最优策略：$\pi_*(s) = \arg\max_{a} Q(s, a)$
+\end{enumerate}
+
+\subsection{SARSA vs Q-learning}
+
+\subsubsection{更新公式对比}
+
+\textbf{SARSA（On-policy）}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{Q-learning（Off-policy）}：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]
+\end{equation}
+
+\subsubsection{关键区别}
+
+\begin{table}[H]
+\centering
+\caption{SARSA vs Q-learning 对比}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{特征} & \textbf{SARSA} & \textbf{Q-learning} \\
+\hline
+更新目标 & $Q(S_{t+1}, A_{t+1})$ & $\max_{a} Q(S_{t+1}, a)$ \\
+\hline
+依赖实际动作 & 是 & 否 \\
+\hline
+学习目标 & 当前策略的价值函数 & 最优策略的价值函数 \\
+\hline
+策略类型 & On-policy & Off-policy \\
+\hline
+探索考虑 & 考虑探索风险 & 不考虑探索风险 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Expected SARSA}
+
+\subsubsection{Expected SARSA更新公式}
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha \left[R_{t+1} + \gamma \sum_{a} \pi(a | S_{t+1}) Q(S_{t+1}, a) - Q(S_t, A_t)\right]
+\end{equation}
+
+\subsubsection{Expected SARSA的特点}
+\begin{itemize}
+    \item 使用期望值而不是采样值
+    \item 可以用于 On-policy 或 Off-policy
+    \item 当目标策略是贪婪策略时，Expected SARSA 就是 Q-learning
+\end{itemize}
+
+\section{公式关系总结}
+
+\subsection{价值函数关系链}
+
+\begin{enumerate}
+    \item \textbf{状态价值函数}：
+    \begin{equation}
+    v_\pi(s) = \sum_{a} \pi(a | s) q_\pi(s, a)
+    \end{equation}
+    
+    \item \textbf{动作价值函数}：
+    \begin{equation}
+    q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+    \end{equation}
+    
+    \item \textbf{贝尔曼方程}（状态价值）：
+    \begin{equation}
+    v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+    \end{equation}
+    
+    \item \textbf{贝尔曼方程}（动作价值）：
+    \begin{equation}
+    q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi(s', a')\right]
+    \end{equation}
+\end{enumerate}
+
+\subsection{方法对比}
+
+\begin{table}[H]
+\centering
+\caption{强化学习方法对比}
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+\textbf{方法} & \textbf{更新公式} & \textbf{需要模型} & \textbf{自举法} & \textbf{采样} \\
+\hline
+\textbf{多臂老虎机} & $Q_{n+1} = Q_n + \alpha[R_n - Q_n]$ & 否 & 否 & 是 \\
+\hline
+\textbf{动态规划} & 期望更新 & 是 & 是 & 否 \\
+\hline
+\textbf{蒙特卡洛} & $V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]$ & 否 & 否 & 是 \\
+\hline
+\textbf{TD(0)} & $V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]$ & 否 & 是 & 是 \\
+\hline
+\textbf{SARSA} & $Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]$ & 否 & 是 & 是 \\
+\hline
+\textbf{Q-learning} & $Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma \max_{a} Q(S_{t+1}, a) - Q(S_t, A_t)]$ & 否 & 是 & 是 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{关键概念}
+
+\begin{enumerate}
+    \item \textbf{自举法（Bootstrapping）}：使用估计值来更新估计值
+    \begin{itemize}
+        \item 动态规划：使用 $v_k(s')$ 更新 $v_{k+1}(s)$
+        \item TD方法：使用 $V(S_{t+1})$ 更新 $V(S_t)$
+    \end{itemize}
+    
+    \item \textbf{采样（Sampling）}：使用样本而不是期望值
+    \begin{itemize}
+        \item 蒙特卡洛：使用样本回报 $G_t$
+        \item TD方法：使用样本转移 $(S_t, R_{t+1}, S_{t+1})$
+    \end{itemize}
+    
+    \item \textbf{On-policy vs Off-policy}：
+    \begin{itemize}
+        \item \textbf{On-policy}：评估和改进的是同一个策略（如 SARSA）
+        \item \textbf{Off-policy}：评估一个策略，但使用另一个策略的数据（如 Q-learning）
+    \end{itemize}
+\end{enumerate}
+
+\section{符号说明}
+
+\subsection{第2章符号}
+\begin{itemize}
+    \item $Q_t(a)$：在时间 $t$ 对动作 $a$ 的价值估计
+    \item $q_*(a)$：动作 $a$ 的真实价值
+    \item $N_t(a)$：在时间 $t$ 之前动作 $a$ 被选择的次数
+    \item $R_t$：在时间 $t$ 获得的奖励
+    \item $H_t(a)$：在时间 $t$ 对动作 $a$ 的数值偏好
+    \item $\pi_t(a)$：在时间 $t$ 选择动作 $a$ 的概率
+    \item $\bar{R}_t$：到时间 $t$ 为止所有奖励的平均值
+    \item $\varepsilon$：探索参数（$\varepsilon$-贪婪策略）
+    \item $c$：UCB算法的探索参数
+\end{itemize}
+
+\subsection{第3章及后续章节符号}
+\begin{itemize}
+    \item $S_t$：时刻 $t$ 的状态
+    \item $A_t$：时刻 $t$ 的动作
+    \item $R_{t+1}$：时刻 $t+1$ 的奖励
+    \item $G_t$：从时刻 $t$ 开始的回报
+    \item $\gamma$：折扣因子，$\gamma \in [0, 1]$
+    \item $\alpha$：步长参数（学习率），$\alpha \in (0, 1]$
+    \item $\pi$：策略
+    \item $v_\pi(s)$：策略 $\pi$ 下状态 $s$ 的价值函数
+    \item $q_\pi(s, a)$：策略 $\pi$ 下状态-动作对 $(s, a)$ 的价值函数
+    \item $v_*(s)$：最优状态价值函数
+    \item $q_*(s, a)$：最优动作价值函数
+    \item $\pi_*$：最优策略
+    \item $p(s', r | s, a)$：环境动态函数（转移概率和奖励）
+    \item $\delta_t$：TD误差
+    \item $\rho_{t:T-1}$：重要性采样比率
+\end{itemize}
+
+\end{document}
+

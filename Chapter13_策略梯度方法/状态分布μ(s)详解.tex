@@ -1,0 +1,513 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{状态分布 $\mu(s)$ 详解}
+\subtitle{策略梯度定理中的关键概念}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+在策略梯度定理中，我们经常看到 $\sum_{s} \mu(s)$ 这样的表达式。本文详细解释状态分布 $\mu(s)$ 的含义、计算方法和在策略梯度中的作用。
+
+\section{状态分布 $\mu(s)$ 的定义}
+
+\subsection{基本定义}
+
+\begin{definition}[状态分布 $\mu(s)$]
+\textbf{状态分布} $\mu(s)$ 是在策略 $\pi$ 下，状态 $s$ 的\textbf{长期访问频率}或\textbf{稳态分布}。
+
+对于回合制任务：
+\begin{equation}
+\mu(s) = \sum_{k=0}^{\infty} \Pr(s_0 \to s, k, \pi)
+\end{equation}
+
+其中 $\Pr(s_0 \to s, k, \pi)$ 是从起始状态 $s_0$ 开始，在 $k$ 步后到达状态 $s$ 的概率。
+\end{definition}
+
+\textbf{通俗理解}：
+\begin{itemize}
+    \item $\mu(s)$ 表示"在策略 $\pi$ 下，状态 $s$ 被访问的频率"
+    \item 如果 $\mu(s_1) = 0.3$，$\mu(s_2) = 0.7$，则状态 $s_2$ 比 $s_1$ 更常被访问
+    \item 所有状态的分布加起来等于1（归一化后）
+\end{itemize}
+
+\subsection{归一化形式}
+
+\textbf{归一化状态分布}：
+\begin{equation}
+\mu(s) = \frac{\sum_{k=0}^{\infty} \Pr(s_0 \to s, k, \pi)}{\sum_{s'} \sum_{k=0}^{\infty} \Pr(s_0 \to s', k, \pi)}
+\end{equation}
+
+\textbf{性质}：
+\begin{equation}
+\sum_{s} \mu(s) = 1
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 所有状态的访问频率加起来等于1
+    \item $\mu(s)$ 可以理解为"状态 $s$ 被访问的概率"（在长期平均意义下）
+\end{itemize}
+
+\section{$\sum_{s} \mu(s)$ 的含义}
+
+\subsection{基本含义}
+
+\textbf{表达式}：$\sum_{s} \mu(s)$
+
+\textbf{计算}：
+\begin{equation}
+\sum_{s} \mu(s) = \mu(s_1) + \mu(s_2) + \mu(s_3) + \cdots
+\end{equation}
+
+\textbf{结果}：
+\begin{itemize}
+    \item 如果 $\mu(s)$ 是归一化的，则 $\sum_{s} \mu(s) = 1$
+    \item 如果 $\mu(s)$ 是未归一化的（访问次数），则 $\sum_{s} \mu(s)$ 等于总访问次数
+\end{itemize}
+
+\subsection{在策略梯度定理中的作用}
+
+\textbf{策略梯度定理}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{$\sum_{s} \mu(s)$ 的作用}：
+\begin{itemize}
+    \item 这是一个\textbf{加权求和}，权重是状态分布 $\mu(s)$
+    \item 经常被访问的状态（$\mu(s)$ 大）对梯度的贡献更大
+    \item 很少被访问的状态（$\mu(s)$ 小）对梯度的贡献较小
+    \item 这符合直觉：我们应该更关注经常访问的状态
+\end{itemize}
+
+\section{具体计算例子}
+
+\subsection{例子1：简单的3状态问题}
+
+\textbf{环境}：
+\begin{itemize}
+    \item 状态：$s_0$（起始）→ $s_1$ → $s_2$ → $G$（终止）
+    \item 策略：总是向右移动
+    \item 折扣因子：$\gamma = 1$（无折扣）
+\end{itemize}
+
+\textbf{计算状态分布}：
+
+\textbf{状态 $s_0$}：
+\begin{itemize}
+    \item $\Pr(s_0 \to s_0, 0, \pi) = 1$（第0步，在起始状态）
+    \item $\Pr(s_0 \to s_0, 1, \pi) = 0$（第1步，已经离开）
+    \item $\Pr(s_0 \to s_0, 2, \pi) = 0$（第2步，已经离开）
+    \item $\mu(s_0) = 1 + 0 + 0 + \cdots = 1$
+\end{itemize}
+
+\textbf{状态 $s_1$}：
+\begin{itemize}
+    \item $\Pr(s_0 \to s_1, 0, \pi) = 0$（第0步，还在 $s_0$）
+    \item $\Pr(s_0 \to s_1, 1, \pi) = 1$（第1步，到达 $s_1$）
+    \item $\Pr(s_0 \to s_1, 2, \pi) = 0$（第2步，已经离开）
+    \item $\mu(s_1) = 0 + 1 + 0 + \cdots = 1$
+\end{itemize}
+
+\textbf{状态 $s_2$}：
+\begin{itemize}
+    \item $\Pr(s_0 \to s_2, 0, \pi) = 0$（第0步，还在 $s_0$）
+    \item $\Pr(s_0 \to s_2, 1, \pi) = 0$（第1步，还在 $s_1$）
+    \item $\Pr(s_0 \to s_2, 2, \pi) = 1$（第2步，到达 $s_2$）
+    \item $\mu(s_2) = 0 + 0 + 1 + \cdots = 1$
+\end{itemize}
+
+\textbf{归一化}：
+\begin{itemize}
+    \item 总访问次数：$\sum_{s} \mu(s) = 1 + 1 + 1 = 3$
+    \item 归一化后：$\mu(s_0) = \frac{1}{3}$，$\mu(s_1) = \frac{1}{3}$，$\mu(s_2) = \frac{1}{3}$
+    \item $\sum_{s} \mu(s) = \frac{1}{3} + \frac{1}{3} + \frac{1}{3} = 1$
+\end{itemize}
+
+\subsection{例子2：有循环的情况}
+
+\textbf{环境}：
+\begin{itemize}
+    \item 状态：$s_0$（起始）→ $s_1$ → $s_2$ → $s_1$ → $\cdots$（循环）
+    \item 策略：总是向右移动（在 $s_2$ 后回到 $s_1$）
+    \item 这是一个持续任务（没有终止状态）
+\end{itemize}
+
+\textbf{计算状态分布}（稳态分布）：
+
+\textbf{状态 $s_0$}：
+\begin{itemize}
+    \item 只在第0步被访问一次
+    \item 之后不再被访问（因为总是向右）
+    \item $\mu(s_0) = 1$（未归一化）
+\end{itemize}
+
+\textbf{状态 $s_1$}：
+\begin{itemize}
+    \item 在第1步被访问
+    \item 在第4步、第7步、$\cdots$ 被访问（循环）
+    \item 访问次数：$1 + 1 + 1 + \cdots = \infty$（在持续任务中）
+    \item 稳态分布：$\mu(s_1) = \frac{1}{2}$（归一化后，因为 $s_1$ 和 $s_2$ 各占一半时间）
+\end{itemize}
+
+\textbf{状态 $s_2$}：
+\begin{itemize}
+    \item 在第2步、第5步、第8步、$\cdots$ 被访问
+    \item 稳态分布：$\mu(s_2) = \frac{1}{2}$（归一化后）
+\end{itemize}
+
+\textbf{归一化}：
+\begin{itemize}
+    \item 对于持续任务，使用稳态分布
+    \item $\mu(s_0) = 0$（在稳态中不被访问）
+    \item $\mu(s_1) = \frac{1}{2}$，$\mu(s_2) = \frac{1}{2}$
+    \item $\sum_{s} \mu(s) = 0 + \frac{1}{2} + \frac{1}{2} = 1$
+\end{itemize}
+
+\section{$\sum_{s} \mu(s)$ 在策略梯度定理中的作用}
+
+\subsection{策略梯度定理}
+
+\textbf{策略梯度定理}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\label{eq:policy_gradient}
+\end{equation}
+
+\textbf{$\sum_{s} \mu(s)$ 的作用}：
+\begin{itemize}
+    \item 这是一个\textbf{加权平均}，权重是状态分布 $\mu(s)$
+    \item 对每个状态 $s$，计算 $\sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)$
+    \item 然后用 $\mu(s)$ 加权求和
+    \item 经常被访问的状态权重更大
+\end{itemize}
+
+\subsection{直观理解}
+
+\textbf{类比：加权平均}
+
+想象你在计算"平均成绩"：
+\begin{itemize}
+    \item 每个状态 $s$ 对应一个"成绩"：$\sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)$
+    \item 状态分布 $\mu(s)$ 是"权重"（这个状态出现的频率）
+    \item $\sum_{s} \mu(s)$ 是"加权平均"：$\frac{\sum_{s} \mu(s) \times \text{成绩}_s}{\sum_{s} \mu(s)}$
+    \item 如果 $\mu(s)$ 已归一化，$\sum_{s} \mu(s) = 1$，就是加权平均
+\end{itemize}
+
+\textbf{为什么使用状态分布作为权重？}
+\begin{itemize}
+    \item 经常被访问的状态对性能的影响更大
+    \item 我们应该更关注这些状态
+    \item 使用 $\mu(s)$ 作为权重是合理的
+\end{itemize}
+
+\section{具体计算例子}
+
+\subsection{例子：计算策略梯度}
+
+\textbf{环境}：3个状态 $s_0, s_1, s_2$，2个动作 $a_1, a_2$
+
+\textbf{状态分布}（假设已知）：
+\begin{align}
+\mu(s_0) &= 0.5 \quad \text{（经常访问）} \\
+\mu(s_1) &= 0.3 \quad \text{（偶尔访问）} \\
+\mu(s_2) &= 0.2 \quad \text{（很少访问）}
+\end{align}
+
+验证：$\sum_{s} \mu(s) = 0.5 + 0.3 + 0.2 = 1$（归一化）
+
+\textbf{动作价值函数}（假设已知）：
+\begin{align}
+q_\pi(s_0, a_1) &= 5, \quad q_\pi(s_0, a_2) = 3 \\
+q_\pi(s_1, a_1) &= 4, \quad q_\pi(s_1, a_2) = 2 \\
+q_\pi(s_2, a_1) &= 6, \quad q_\pi(s_2, a_2) = 1
+\end{align}
+
+\textbf{策略梯度}（假设 $\nabla_\theta \pi(a_1|s, \theta) = [1, 0]^T$，$\nabla_\theta \pi(a_2|s, \theta) = [0, 1]^T$）：
+
+\textbf{对状态 $s_0$ 的贡献}：
+\begin{align}
+\sum_{a} q_\pi(s_0, a) \nabla_\theta \pi(a|s_0, \theta) &= q_\pi(s_0, a_1) \nabla_\theta \pi(a_1|s_0, \theta) + q_\pi(s_0, a_2) \nabla_\theta \pi(a_2|s_0, \theta) \\
+&= 5 \times [1, 0]^T + 3 \times [0, 1]^T \\
+&= [5, 3]^T
+\end{align}
+
+加权后：$\mu(s_0) \times [5, 3]^T = 0.5 \times [5, 3]^T = [2.5, 1.5]^T$
+
+\textbf{对状态 $s_1$ 的贡献}：
+\begin{align}
+\sum_{a} q_\pi(s_1, a) \nabla_\theta \pi(a|s_1, \theta) &= 4 \times [1, 0]^T + 2 \times [0, 1]^T \\
+&= [4, 2]^T
+\end{align}
+
+加权后：$\mu(s_1) \times [4, 2]^T = 0.3 \times [4, 2]^T = [1.2, 0.6]^T$
+
+\textbf{对状态 $s_2$ 的贡献}：
+\begin{align}
+\sum_{a} q_\pi(s_2, a) \nabla_\theta \pi(a|s_2, \theta) &= 6 \times [1, 0]^T + 1 \times [0, 1]^T \\
+&= [6, 1]^T
+\end{align}
+
+加权后：$\mu(s_2) \times [6, 1]^T = 0.2 \times [6, 1]^T = [1.2, 0.2]^T$
+
+\textbf{总梯度}：
+\begin{align}
+\nabla_\theta J(\theta) &\propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta) \\
+                         &= [2.5, 1.5]^T + [1.2, 0.6]^T + [1.2, 0.2]^T \\
+                         &= [4.9, 2.3]^T
+\end{align}
+
+\textbf{观察}：
+\begin{itemize}
+    \item 状态 $s_0$ 的贡献最大（$[2.5, 1.5]^T$），因为 $\mu(s_0) = 0.5$ 最大
+    \item 状态 $s_2$ 的贡献较小（$[1.2, 0.2]^T$），因为 $\mu(s_2) = 0.2$ 最小
+    \item 即使 $s_2$ 的动作价值很高（$q_\pi(s_2, a_1) = 6$），但由于访问频率低，贡献较小
+\end{itemize}
+
+\section{状态分布的计算方法}
+
+\subsection{回合制任务}
+
+\textbf{方法1：直接计算}
+\begin{equation}
+\mu(s) = \sum_{k=0}^{\infty} \Pr(s_0 \to s, k, \pi)
+\end{equation}
+
+\textbf{方法2：通过状态转移矩阵}
+
+定义状态转移概率矩阵 $\mathbf{P}_\pi$，其中：
+\begin{equation}
+P_\pi[i, j] = \sum_{a} \pi(a|s_i) \sum_{r} p(s_j, r | s_i, a)
+\end{equation}
+
+则状态分布满足：
+\begin{equation}
+\boldsymbol{\mu} = \boldsymbol{\mu}_0 + \boldsymbol{\mu}_0 \mathbf{P}_\pi + \boldsymbol{\mu}_0 \mathbf{P}_\pi^2 + \cdots
+\end{equation}
+
+其中 $\boldsymbol{\mu}_0$ 是初始状态分布（通常是 $[1, 0, 0, \ldots]^T$，从 $s_0$ 开始）。
+
+\subsection{持续任务}
+
+\textbf{稳态分布}：
+\begin{equation}
+\boldsymbol{\mu} = \boldsymbol{\mu} \mathbf{P}_\pi
+\end{equation}
+
+即状态分布是状态转移矩阵的左特征向量（特征值为1）。
+
+\section{$\sum_{s} \mu(s)$ 的性质}
+
+\subsection{归一化性质}
+
+\textbf{如果 $\mu(s)$ 是归一化的}：
+\begin{equation}
+\sum_{s} \mu(s) = 1
+\end{equation}
+
+\textbf{如果 $\mu(s)$ 是未归一化的（访问次数）}：
+\begin{equation}
+\sum_{s} \mu(s) = \text{总访问次数}
+\end{equation}
+
+\subsection{在策略梯度定理中}
+
+\textbf{策略梯度定理}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 符号 $\propto$ 表示"正比于"
+    \item 在回合制任务中，$\sum_{s} \mu(s)$ 等于平均episode长度
+    \item 在持续任务中，$\sum_{s} \mu(s) = 1$（归一化）
+    \item 常数因子可以被步长 $\alpha$ 吸收
+\end{itemize}
+
+\section{具体例子：Gridworld}
+
+\subsection{问题设置}
+
+\textbf{环境}：3×3 Gridworld
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+终止 & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & 终止 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{策略}：等概率随机策略（每个动作概率 $0.25$）
+
+\textbf{起始状态}：$s_5$（中心）
+
+\subsection{计算状态分布}
+
+\textbf{方法}：通过模拟或解析计算
+
+\textbf{假设结果}（简化）：
+\begin{align}
+\mu(s_2) &= 0.15 \\
+\mu(s_3) &= 0.10 \\
+\mu(s_4) &= 0.15 \\
+\mu(s_5) &= 0.20 \quad \text{（起始状态，访问频率高）} \\
+\mu(s_6) &= 0.10 \\
+\mu(s_7) &= 0.15 \\
+\mu(s_8) &= 0.15
+\end{align}
+
+\textbf{验证}：
+\begin{equation}
+\sum_{s} \mu(s) = 0.15 + 0.10 + 0.15 + 0.20 + 0.10 + 0.15 + 0.15 = 1.0
+\end{equation}
+
+\textbf{观察}：
+\begin{itemize}
+    \item 起始状态 $s_5$ 的访问频率最高（$0.20$）
+    \item 边缘状态（$s_2, s_3, s_4, s_6, s_7, s_8$）的访问频率较低
+    \item 这符合直觉：从中心开始，更容易访问中心附近的状态
+\end{itemize}
+
+\subsection{在策略梯度中的应用}
+
+\textbf{策略梯度计算}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{对每个状态的贡献}：
+\begin{itemize}
+    \item 状态 $s_5$：贡献 $= 0.20 \times \sum_{a} q_\pi(s_5, a) \nabla_\theta \pi(a|s_5, \theta)$（权重最大）
+    \item 状态 $s_2$：贡献 $= 0.15 \times \sum_{a} q_\pi(s_2, a) \nabla_\theta \pi(a|s_2, \theta)$
+    \item 状态 $s_3$：贡献 $= 0.10 \times \sum_{a} q_\pi(s_3, a) \nabla_\theta \pi(a|s_3, \theta)$（权重最小）
+    \item $\cdots$
+\end{itemize}
+
+\textbf{总梯度}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto 0.20 \times \text{贡献}_{s_5} + 0.15 \times \text{贡献}_{s_2} + 0.15 \times \text{贡献}_{s_4} + \cdots
+\end{equation}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 经常访问的状态（如 $s_5$）对梯度的贡献更大
+    \item 很少访问的状态（如 $s_3$）对梯度的贡献较小
+    \item 这符合直觉：我们应该更关注经常访问的状态
+\end{itemize}
+
+\section{为什么使用状态分布？}
+
+\subsection{理论原因}
+
+\textbf{策略梯度定理的推导}：
+\begin{itemize}
+    \item 从性能指标 $J(\theta) = v_{\pi_\theta}(s_0)$ 开始
+    \item 计算梯度 $\nabla_\theta v_{\pi_\theta}(s_0)$
+    \item 通过展开和递归，得到：
+    \begin{equation}
+    \nabla_\theta v_{\pi_\theta}(s_0) = \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+    \end{equation}
+    \item 状态分布 $\mu(s)$ 自然出现在推导中
+\end{itemize}
+
+\textbf{关键洞察}：
+\begin{itemize}
+    \item 梯度不涉及状态分布的导数
+    \item 只需要知道状态分布 $\mu(s)$ 的值
+    \item 这使我们可以估计梯度，即使不知道策略变化对状态分布的影响
+\end{itemize}
+
+\subsection{实际原因}
+
+\textbf{加权平均的合理性}：
+\begin{itemize}
+    \item 经常访问的状态对性能的影响更大
+    \item 我们应该更关注这些状态
+    \item 使用 $\mu(s)$ 作为权重是合理的
+\end{itemize}
+
+\textbf{样本效率}：
+\begin{itemize}
+    \item 在策略 $\pi$ 下，状态 $s$ 被访问的频率是 $\mu(s)$
+    \item 如果我们按照策略 $\pi$ 采样，状态 $s$ 出现的频率就是 $\mu(s)$
+    \item 这使我们可以从样本中估计梯度
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心概念}
+
+\begin{enumerate}
+    \item \textbf{状态分布 $\mu(s)$}：
+    \begin{itemize}
+        \item 在策略 $\pi$ 下，状态 $s$ 的长期访问频率
+        \item 归一化后：$\sum_{s} \mu(s) = 1$
+    \end{itemize}
+    
+    \item \textbf{$\sum_{s} \mu(s)$}：
+    \begin{itemize}
+        \item 如果 $\mu(s)$ 归一化：$\sum_{s} \mu(s) = 1$
+        \item 如果 $\mu(s)$ 未归一化：$\sum_{s} \mu(s) =$ 总访问次数
+    \end{itemize}
+    
+    \item \textbf{在策略梯度中的作用}：
+    \begin{itemize}
+        \item 作为加权求和的权重
+        \item 经常访问的状态权重更大
+        \item 使梯度更关注重要的状态
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键公式}
+
+\textbf{状态分布定义}：
+\begin{equation}
+\mu(s) = \sum_{k=0}^{\infty} \Pr(s_0 \to s, k, \pi)
+\end{equation}
+
+\textbf{归一化}：
+\begin{equation}
+\sum_{s} \mu(s) = 1
+\end{equation}
+
+\textbf{策略梯度定理}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\subsection{直观理解}
+
+\begin{quote}
+\textbf{$\sum_{s} \mu(s)$} 是一个加权求和，权重是状态分布 $\mu(s)$。经常被访问的状态（$\mu(s)$ 大）对梯度的贡献更大，很少被访问的状态（$\mu(s)$ 小）对梯度的贡献较小。这符合直觉：我们应该更关注经常访问的状态，因为它们对性能的影响更大。
+\end{quote}
+
+\end{document}
+

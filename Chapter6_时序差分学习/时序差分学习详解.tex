@@ -135,6 +135,310 @@ V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
     \item TD误差在强化学习中以各种形式出现
 \end{itemize}
 
+\subsection{为什么 $R_{t+1} + \gamma V(S_{t+1})$ 是"更好的估计"？}
+
+\textbf{问题}：为什么称 $R_{t+1} + \gamma V(S_{t+1})$ 为"更好的估计"？
+
+\textbf{答案}：因为它基于\textbf{贝尔曼方程}，利用了更多信息。
+
+\subsubsection{理论基础：贝尔曼方程}
+
+\textbf{状态价值函数的贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s]
+\label{eq:bellman_equation}
+\end{equation}
+
+\textbf{关键洞察}：
+\begin{quote}
+根据贝尔曼方程，$v_\pi(S_t)$ 的\textbf{真实值}等于 $\mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s]$ 的期望值。
+\end{quote}
+
+\textbf{TD目标}：
+\begin{equation}
+R_{t+1} + \gamma V(S_{t+1})
+\end{equation}
+
+\textbf{为什么它是"更好的估计"？}
+
+\textbf{1. 它使用了实际观察到的信息}：
+\begin{itemize}
+    \item $R_{t+1}$：实际观察到的即时奖励（真实值，不是估计）
+    \item $S_{t+1}$：实际观察到的下一状态（真实值，不是估计）
+    \item $V(S_{t+1})$：下一状态的估计值
+\end{itemize}
+
+\textbf{2. 它基于贝尔曼方程的结构}：
+
+\textbf{真实值}（根据贝尔曼方程）：
+\begin{equation}
+v_\pi(S_t) = \mathbb{E}_\pi[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s]
+\end{equation}
+
+\textbf{TD目标}（使用观察到的样本）：
+\begin{equation}
+R_{t+1} + \gamma V(S_{t+1})
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item TD目标是真实值的\textbf{无偏估计}（如果 $V(S_{t+1}) = v_\pi(S_{t+1})$）
+    \item 它使用了\textbf{实际观察到的} $R_{t+1}$ 和 $S_{t+1}$
+    \item 它比只使用 $V(S_t)$ 更准确，因为它利用了新的信息
+\end{itemize}
+
+\textbf{3. 与当前估计 $V(S_t)$ 的对比}：
+
+\textbf{当前估计 $V(S_t)$}：
+\begin{itemize}
+    \item 可能是基于旧的信息
+    \item 可能还没有更新
+    \item 可能不准确
+\end{itemize}
+
+\textbf{TD目标 $R_{t+1} + \gamma V(S_{t+1})$}：
+\begin{itemize}
+    \item 使用了\textbf{刚刚观察到的}新信息 $R_{t+1}$ 和 $S_{t+1}$
+    \item 结合了即时奖励和下一状态的估计
+    \item 更接近真实值（根据贝尔曼方程）
+\end{itemize}
+
+\subsubsection{具体例子说明}
+
+\textbf{例子}：在Gridworld中，状态 $s_5$（中心状态）
+
+\textbf{假设}：
+\begin{itemize}
+    \item 当前估计：$V(s_5) = -2.0$
+    \item 执行动作"上"，观察到：$R_1 = -1$，$S_1 = s_2$
+    \item 下一状态的估计：$V(s_2) = -1.0$
+\end{itemize}
+
+\textbf{TD目标}：
+\begin{equation}
+R_1 + \gamma V(S_1) = -1 + 0.9 \times (-1.0) = -1.9
+\end{equation}
+
+\textbf{为什么 $-1.9$ 比 $-2.0$ 更好？}
+
+\textbf{原因1：使用了新信息}：
+\begin{itemize}
+    \item 我们刚刚观察到从 $s_5$ 到 $s_2$ 的转移
+    \item 我们知道实际的奖励是 $-1$
+    \item 我们知道下一状态是 $s_2$，其估计值是 $-1.0$
+    \item 这些是\textbf{实际发生}的信息，不是猜测
+\end{itemize}
+
+\textbf{原因2：基于贝尔曼方程}：
+\begin{itemize}
+    \item 根据贝尔曼方程，$v_\pi(s_5)$ 应该等于从 $s_5$ 出发的期望回报
+    \item 期望回报 = $\mathbb{E}[R_1 + \gamma v_\pi(S_1) | S_0 = s_5]$
+    \item TD目标 $R_1 + \gamma V(S_1) = -1.9$ 是这个期望的\textbf{一个样本}
+    \item 如果 $V(S_1)$ 接近 $v_\pi(S_1)$，那么 $-1.9$ 就是 $v_\pi(s_5)$ 的一个好估计
+\end{itemize}
+
+\textbf{原因3：信息更及时}：
+\begin{itemize}
+    \item $V(s_5) = -2.0$ 可能是基于旧的信息计算的
+    \item TD目标 $-1.9$ 使用了\textbf{刚刚观察到的}新信息
+    \item 新信息通常比旧信息更准确
+\end{itemize}
+
+\subsubsection{与完整回报 $G_t$ 的对比}
+
+\textbf{完整回报 $G_t$}：
+\begin{equation}
+G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots
+\end{equation}
+
+\textbf{TD目标}：
+\begin{equation}
+R_{t+1} + \gamma V(S_{t+1})
+\end{equation}
+
+\textbf{对比}：
+
+\textbf{完整回报 $G_t$}：
+\begin{itemize}
+    \item \textbf{优点}：使用完整的真实回报，无偏估计
+    \item \textbf{缺点}：需要等待回合结束，信息延迟
+    \item \textbf{方差}：可能很大（因为依赖整个轨迹）
+\end{itemize}
+
+\textbf{TD目标 $R_{t+1} + \gamma V(S_{t+1})$}：
+\begin{itemize}
+    \item \textbf{优点}：可以立即使用，信息及时
+    \item \textbf{优点}：方差可能更小（只依赖一步）
+    \item \textbf{缺点}：使用估计值 $V(S_{t+1})$，可能有偏差
+    \item \textbf{缺点}：如果 $V(S_{t+1})$ 不准确，TD目标也不准确
+\end{itemize}
+
+\textbf{关键洞察}：
+\begin{quote}
+TD目标 $R_{t+1} + \gamma V(S_{t+1})$ 是"更好的估计"，因为：
+\begin{enumerate}
+    \item 它使用了\textbf{实际观察到的}新信息（$R_{t+1}$ 和 $S_{t+1}$）
+    \item 它基于\textbf{贝尔曼方程}的结构
+    \item 它比旧的估计 $V(S_t)$ 更及时、更准确
+    \item 虽然它使用估计值 $V(S_{t+1})$，但通过迭代，这些估计会逐渐改善
+\end{enumerate}
+\end{quote}
+
+\subsubsection{数学上的"更好"}
+
+\textbf{无偏性}：
+
+如果 $V(S_{t+1}) = v_\pi(S_{t+1})$（即估计是准确的），那么：
+\begin{align}
+\mathbb{E}[R_{t+1} + \gamma V(S_{t+1}) | S_t = s] &= \mathbb{E}[R_{t+1} + \gamma v_\pi(S_{t+1}) | S_t = s] \\
+                                                  &= v_\pi(s) \quad \text{（根据贝尔曼方程）}
+\end{align}
+
+\textbf{结论}：TD目标是 $v_\pi(s)$ 的\textbf{无偏估计}（如果 $V(S_{t+1})$ 准确）。
+
+\textbf{方差}：
+
+TD目标的方差通常比完整回报 $G_t$ 的方差小，因为：
+\begin{itemize}
+    \item TD目标只依赖一步转移：$R_{t+1} + \gamma V(S_{t+1})$
+    \item 完整回报依赖整个轨迹：$R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \cdots$
+    \item 更少的随机性意味着更小的方差
+\end{itemize}
+
+\textbf{偏差-方差权衡}：
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{方法} & \textbf{偏差} & \textbf{方差} \\
+\hline
+完整回报 $G_t$ & 无偏 & 高方差 \\
+\hline
+TD目标 $R_{t+1} + \gamma V(S_{t+1})$ & 可能有偏（如果 $V$ 不准确） & 低方差 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsubsection{为什么TD目标不包含动作信息？}
+
+\textbf{重要观察}：TD目标 $R_{t+1} + \gamma V(S_{t+1})$ \textbf{不包含动作信息}。
+
+\textbf{原因1：这是状态价值函数的更新}：
+
+\textbf{状态价值函数 $v_\pi(s)$}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 状态价值函数评估的是\textbf{在策略 $\pi$ 下状态 $s$ 的价值}
+    \item 动作是由策略 $\pi$ \textbf{自动决定}的，不需要显式包含
+    \item 贝尔曼方程中，动作信息通过\textbf{策略 $\pi(a|s)$ 的期望}隐式包含
+\end{itemize}
+
+\textbf{状态价值函数的贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a | s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 对\textbf{所有动作} $a$ 求期望（按策略 $\pi(a|s)$ 加权）
+    \item 对\textbf{所有可能的} $(s', r)$ 求期望
+    \item 动作信息通过 $\sum_{a} \pi(a | s)$ 隐式包含
+\end{itemize}
+
+\textbf{TD(0)更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+\end{equation}
+
+\textbf{为什么不需要动作？}
+\begin{itemize}
+    \item 在TD(0)预测中，我们评估的是\textbf{给定策略 $\pi$}
+    \item 动作 $A_t$ 是由策略 $\pi$ 根据状态 $S_t$ 选择的
+    \item 我们观察到的 $R_{t+1}$ 和 $S_{t+1}$ 已经是执行动作 $A_t$ 的结果
+    \item 因此，动作信息已经\textbf{隐含在观察结果}中
+\end{itemize}
+
+\textbf{原因2：与动作价值函数的对比}：
+
+\textbf{动作价值函数 $q_\pi(s, a)$}：
+\begin{equation}
+q_\pi(s, a) = \mathbb{E}_\pi[G_t | S_t = s, A_t = a]
+\end{equation}
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 动作价值函数评估的是\textbf{在状态 $s$ 执行动作 $a$ 的价值}
+    \item 动作 $a$ 是\textbf{显式给定}的，必须包含在函数中
+\end{itemize}
+
+\textbf{动作价值函数的贝尔曼方程}：
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) \left[r + \gamma \sum_{a'} \pi(a' | s') q_\pi(s', a')\right]
+\end{equation}
+
+\textbf{在控制问题中的TD更新}：
+
+\textbf{SARSA}（On-policy TD控制）：
+\begin{equation}
+Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+\end{equation}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item \textbf{状态价值}：$R_{t+1} + \gamma V(S_{t+1})$（不包含动作）
+    \item \textbf{动作价值}：$R_{t+1} + \gamma Q(S_{t+1}, A_{t+1})$（包含下一动作）
+\end{itemize}
+
+\textbf{为什么动作价值需要包含动作？}
+\begin{itemize}
+    \item 在控制问题中，我们需要评估\textbf{每个动作}的价值
+    \item 不同动作会导致不同的下一状态和奖励
+    \item 因此，必须显式指定动作 $A_{t+1}$ 来评估 $Q(S_{t+1}, A_{t+1})$
+\end{itemize}
+
+\textbf{原因3：动作信息在哪里？}
+
+\textbf{在状态价值函数中}：
+\begin{itemize}
+    \item 动作信息通过\textbf{策略 $\pi(a|s)$} 隐式包含
+    \item 在贝尔曼方程中：$\sum_{a} \pi(a | s) \cdots$
+    \item 在TD更新中：动作由策略选择，结果体现在 $R_{t+1}$ 和 $S_{t+1}$ 中
+\end{itemize}
+
+\textbf{在动作价值函数中}：
+\begin{itemize}
+    \item 动作信息\textbf{显式包含}在函数参数中：$Q(s, a)$
+    \item 在TD更新中：必须指定当前动作 $A_t$ 和下一动作 $A_{t+1}$
+\end{itemize}
+
+\textbf{总结}：
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{函数类型} & \textbf{TD目标} & \textbf{是否包含动作} \\
+\hline
+状态价值 $V(s)$ & $R_{t+1} + \gamma V(S_{t+1})$ & 否（动作由策略决定） \\
+\hline
+动作价值 $Q(s, a)$ & $R_{t+1} + \gamma Q(S_{t+1}, A_{t+1})$ & 是（显式指定动作） \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{关键洞察}：
+\begin{quote}
+$R_{t+1} + \gamma V(S_{t+1})$ 不包含动作信息，因为：
+\begin{enumerate}
+    \item 它用于更新\textbf{状态价值函数}，动作由策略隐式决定
+    \item 动作信息已经体现在观察结果 $R_{t+1}$ 和 $S_{t+1}$ 中
+    \item 在控制问题中，我们使用\textbf{动作价值函数} $Q(s, a)$，此时需要显式包含动作
+\end{enumerate}
+\end{quote}
+
 \textbf{TD更新用TD误差表示}：
 \begin{equation}
 V(S_t) \gets V(S_t) + \alpha \delta_t

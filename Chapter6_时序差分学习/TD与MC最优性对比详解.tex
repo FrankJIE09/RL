@@ -1,0 +1,459 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+
+\geometry{margin=2.5cm}
+
+\title{TD与蒙特卡洛方法的最优性对比详解}
+\subtitle{为什么说"蒙特卡洛方法只在有限意义下最优，而TD在预测回报方面更相关地最优"？}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{核心问题}
+
+\textbf{关键陈述}：
+\begin{quote}
+"The Monte Carlo method is optimal only in a limited way, and that TD is optimal in a way that is more relevant to predicting returns."
+\end{quote}
+
+\textbf{中文翻译}：
+\begin{quote}
+"蒙特卡洛方法只在有限意义下最优，而TD在预测回报方面更相关地最优。"
+\end{quote}
+
+\textbf{问题}：这句话是什么意思？为什么说MC是"有限的最优"，而TD是"更相关地最优"？
+
+\section{背景：批量更新（Batch Updating）}
+
+\subsection{什么是批量更新？}
+
+\textbf{批量更新}：给定有限的经验数据（如10个回合或100个时间步），重复处理这些数据直到算法收敛。
+
+\textbf{过程}：
+\begin{enumerate}
+    \item 给定价值函数 $V$，对每个时间步计算更新增量
+    \item 但价值函数只更新一次（所有增量的和）
+    \item 用新的价值函数再次处理所有经验数据
+    \item 重复直到收敛
+\end{enumerate}
+
+\textbf{关键特性}：
+\begin{itemize}
+    \item 在批量更新下，TD(0)和常数-$\alpha$ MC都确定性地收敛
+    \item 但它们收敛到\textbf{不同的答案}
+    \item 理解这两个答案的差异是关键
+\end{itemize}
+
+\section{蒙特卡洛方法的"有限最优性"}
+
+\subsection{蒙特卡洛方法的最优性}
+
+\textbf{定理}：批量蒙特卡洛方法总是找到在\textbf{训练集}上最小化均方误差的估计。
+
+\textbf{数学表达}：
+\begin{equation}
+V_{\text{MC}} = \arg\min_V \sum_{t} [G_t - V(S_t)]^2
+\end{equation}
+
+其中求和是对训练集中所有状态访问的。
+
+\textbf{解释}：
+\begin{itemize}
+    \item 蒙特卡洛方法找到的是在\textbf{已观察到的回报}上误差最小的估计
+    \item 它最小化的是\textbf{训练数据上的误差}
+    \item 这是"有限的最优性"：只对训练数据最优
+\end{itemize}
+
+\subsection{为什么是"有限的"？}
+
+\textbf{关键限制}：
+\begin{enumerate}
+    \item \textbf{只考虑训练数据}：
+    \begin{itemize}
+        \item MC方法只优化在已观察到的回报上的误差
+        \item 它不考虑马尔可夫性质
+        \item 它不考虑状态转移的结构
+    \end{itemize}
+    
+    \item \textbf{不利用马尔可夫性质}：
+    \begin{itemize}
+        \item MC方法直接使用观察到的回报
+        \item 它不利用状态之间的转移关系
+        \item 它不利用"从A到B的转移"这一信息
+    \end{itemize}
+    
+    \item \textbf{对未来数据的泛化能力有限}：
+    \begin{itemize}
+        \item 在训练数据上误差最小，不一定在测试数据上误差最小
+        \item 如果过程是马尔可夫的，利用转移结构可能更好
+    \end{itemize}
+\end{enumerate}
+
+\section{TD方法的"更相关的最优性"}
+
+\subsection{TD方法的最优性}
+
+\textbf{定理}：批量TD(0)总是找到对\textbf{最大似然马尔可夫过程模型}完全正确的估计。
+
+\textbf{数学表达}：
+\begin{itemize}
+    \item 首先，从观察到的数据构建最大似然模型：
+    \begin{align}
+    \hat{p}(s' | s) &= \frac{\text{从 } s \text{ 到 } s' \text{ 的转移次数}}{\text{从 } s \text{ 出发的总转移次数}} \\
+    \hat{r}(s, s') &= \text{从 } s \text{ 到 } s' \text{ 的观察到的奖励的平均值}
+    \end{align}
+    
+    \item 然后，计算在这个模型下完全正确的价值函数估计
+    \item 这个估计称为\textbf{确定性等价估计}（Certainty-Equivalence Estimate）
+\end{itemize}
+
+\textbf{解释}：
+\begin{itemize}
+    \item TD方法找到的是对\textbf{马尔可夫过程模型}的最优估计
+    \item 它利用状态转移的结构
+    \item 它假设模型是准确的，然后计算相应的价值函数
+\end{itemize}
+
+\subsection{为什么"更相关"？}
+
+\textbf{关键优势}：
+\begin{enumerate}
+    \item \textbf{利用马尔可夫性质}：
+    \begin{itemize}
+        \item TD方法利用状态之间的转移关系
+        \item 它知道"从A总是转移到B"
+        \item 它利用这个结构信息
+    \end{itemize}
+    
+    \item \textbf{对未来数据的泛化能力更强}：
+    \begin{itemize}
+        \item 如果过程确实是马尔可夫的，TD的估计在测试数据上误差更小
+        \item 它能够预测未观察到的状态转移
+        \item 它能够利用转移结构进行推理
+    \end{itemize}
+    
+    \item \textbf{更符合预测回报的目标}：
+    \begin{itemize}
+        \item 预测回报的目标是估计从状态开始的期望回报
+        \item 这需要理解状态转移和奖励结构
+        \item TD方法正是基于这个结构进行估计
+    \end{itemize}
+\end{enumerate}
+
+\section{具体例子：Example 6.4}
+
+\subsection{问题设置}
+
+\textbf{观察到的8个回合}：
+\begin{align}
+&\text{回合1: } A, 0, B, 0 \\
+&\text{回合2-7: } B, 1 \quad \text{（6次）} \\
+&\text{回合8: } B, 0
+\end{align}
+
+\textbf{问题}：给定这些数据，最优的 $V(A)$ 和 $V(B)$ 是什么？
+
+\subsection{两个合理的答案}
+
+\textbf{答案1：蒙特卡洛方法}
+
+\textbf{对于 $V(B)$}：
+\begin{itemize}
+    \item 在状态 $B$ 观察到的回报：6次是1，2次是0
+    \item 平均回报：$\frac{6 \times 1 + 2 \times 0}{8} = \frac{6}{8} = \frac{3}{4}$
+    \item 因此：$V(B) = \frac{3}{4}$
+\end{itemize}
+
+\textbf{对于 $V(A)$}：
+\begin{itemize}
+    \item 从状态 $A$ 只观察到一个回报：0
+    \item 因此：$V(A) = 0$
+    \item 这个答案在训练数据上误差为0（完美拟合）
+\end{itemize}
+
+\textbf{答案2：TD(0)方法}
+
+\textbf{对于 $V(B)$}：
+\begin{itemize}
+    \item 与MC相同：$V(B) = \frac{3}{4}$
+\end{itemize}
+
+\textbf{对于 $V(A)$}：
+\begin{itemize}
+    \item 观察：100\%的时间从 $A$ 转移到 $B$（奖励为0）
+    \item 已知：$V(B) = \frac{3}{4}$
+    \item 因此：$V(A) = 0 + \gamma \times \frac{3}{4} = \frac{3}{4}$（假设 $\gamma = 1$）
+    \item 这个答案基于马尔可夫过程模型
+\end{itemize}
+
+\subsection{哪个答案更好？}
+
+\textbf{在训练数据上}：
+\begin{itemize}
+    \item MC答案：$V(A) = 0$，误差为0（完美）
+    \item TD答案：$V(A) = \frac{3}{4}$，误差不为0
+    \item MC在训练数据上更优
+\end{itemize}
+
+\textbf{在未来数据上}：
+\begin{itemize}
+    \item 如果过程是马尔可夫的，从 $A$ 总是转移到 $B$
+    \item 而 $B$ 的期望回报是 $\frac{3}{4}$
+    \item 因此，$A$ 的期望回报也应该是 $\frac{3}{4}$
+    \item TD答案在未来数据上误差更小
+\end{itemize}
+
+\textbf{关键洞察}：
+\begin{quote}
+MC方法在训练数据上最优，但TD方法在预测未来回报方面更优，因为它利用了马尔可夫性质。
+\end{quote}
+
+\section{数学形式化}
+
+\subsection{蒙特卡洛方法的最优性}
+
+\textbf{目标函数}：
+\begin{equation}
+V_{\text{MC}} = \arg\min_V \sum_{(s, G) \in \mathcal{D}} [G - V(s)]^2
+\end{equation}
+
+其中 $\mathcal{D}$ 是训练数据集，包含状态-回报对 $(s, G)$。
+
+\textbf{解}：
+\begin{equation}
+V_{\text{MC}}(s) = \frac{1}{N(s)} \sum_{i=1}^{N(s)} G_i(s)
+\end{equation}
+
+其中 $N(s)$ 是状态 $s$ 在训练数据中出现的次数，$G_i(s)$ 是第 $i$ 次访问 $s$ 时的回报。
+
+\textbf{特性}：
+\begin{itemize}
+    \item 这是训练数据上均方误差的最小值
+    \item 在训练数据上误差最小
+    \item 但不一定对未来数据最优
+\end{itemize}
+
+\subsection{TD方法的最优性}
+
+\textbf{步骤1：构建最大似然模型}
+
+从观察到的数据估计转移概率和奖励：
+\begin{align}
+\hat{p}(s' | s) &= \frac{N(s, s')}{N(s)} \\
+\hat{r}(s, s') &= \frac{1}{N(s, s')} \sum_{i=1}^{N(s, s')} r_i(s, s')
+\end{align}
+
+其中 $N(s, s')$ 是从 $s$ 到 $s'$ 的转移次数。
+
+\textbf{步骤2：计算确定性等价估计}
+
+在假设模型准确的情况下，价值函数满足贝尔曼方程：
+\begin{equation}
+V_{\text{TD}}(s) = \sum_{s'} \hat{p}(s' | s) [\hat{r}(s, s') + \gamma V_{\text{TD}}(s')]
+\end{equation}
+
+\textbf{特性}：
+\begin{itemize}
+    \item 这是对最大似然模型完全正确的估计
+    \item 利用状态转移的结构
+    \item 对未来数据（如果过程是马尔可夫的）泛化能力更强
+\end{itemize}
+
+\section{为什么TD"更相关"？}
+
+\subsection{预测回报的目标}
+
+\textbf{目标}：估计从状态 $s$ 开始的期望回报 $v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]$。
+
+\textbf{关键点}：
+\begin{itemize}
+    \item 这个目标需要理解状态转移和奖励结构
+    \item 它需要利用马尔可夫性质
+    \item 它需要能够预测未观察到的状态序列
+\end{itemize}
+
+\subsection{TD方法的优势}
+
+\textbf{1. 利用马尔可夫性质}：
+\begin{itemize}
+    \item TD方法基于状态转移结构进行估计
+    \item 它知道"从A总是转移到B"
+    \item 它利用这个信息来估计 $V(A)$
+\end{itemize}
+
+\textbf{2. 泛化能力}：
+\begin{itemize}
+    \item TD方法能够预测未观察到的状态序列
+    \item 它知道即使没有从 $A$ 开始的完整轨迹，也可以利用转移结构
+    \item 它能够从部分观察中推断完整信息
+\end{itemize}
+
+\textbf{3. 对未来数据的预测}：
+\begin{itemize}
+    \item 如果过程是马尔可夫的，TD的估计在未来数据上误差更小
+    \item 它能够利用转移结构进行推理
+    \item 它更符合预测回报的目标
+\end{itemize}
+
+\subsection{蒙特卡洛方法的限制}
+
+\textbf{1. 不利用结构}：
+\begin{itemize}
+    \item MC方法直接使用观察到的回报
+    \item 它不考虑状态转移结构
+    \item 它不知道"从A总是转移到B"这一信息
+\end{itemize}
+
+\textbf{2. 泛化能力有限}：
+\begin{itemize}
+    \item MC方法需要观察完整的轨迹
+    \item 如果某个状态只出现一次，它只能使用那一次的回报
+    \item 它不能利用转移结构进行推理
+\end{itemize}
+
+\textbf{3. 只优化训练数据}：
+\begin{itemize}
+    \item MC方法只优化在训练数据上的误差
+    \item 它不考虑对未来数据的预测
+    \item 这是"有限的最优性"
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心区别}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{蒙特卡洛} & \textbf{TD(0)} \\
+\hline
+\textbf{最优性} & 训练数据上MSE最小 & 最大似然模型的确定性等价估计 \\
+\hline
+\textbf{利用结构} & 否 & 是（马尔可夫性质） \\
+\hline
+\textbf{泛化能力} & 有限 & 更强 \\
+\hline
+\textbf{预测未来} & 较差 & 更好 \\
+\hline
+\textbf{为什么"有限"？} & 只优化训练数据 & 利用转移结构 \\
+\hline
+\textbf{为什么"更相关"？} & 不相关 & 更符合预测回报的目标 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{蒙特卡洛方法只在有限意义下最优}：它只优化在训练数据上的误差，不利用马尔可夫性质，对未来数据的泛化能力有限。
+
+\textbf{TD方法在预测回报方面更相关地最优}：它利用马尔可夫性质，基于状态转移结构进行估计，对未来数据的预测能力更强，更符合预测回报的目标。
+\end{quote}
+
+\subsection{实际意义}
+
+\begin{enumerate}
+    \item \textbf{为什么TD收敛更快？}
+    \begin{itemize}
+        \item TD方法利用状态转移结构
+        \item 它能够从部分信息推断完整信息
+        \item 它更有效地利用数据
+    \end{itemize}
+    
+    \item \textbf{什么时候TD更好？}
+    \begin{itemize}
+        \item 当过程是马尔可夫的
+        \item 当数据有限时
+        \item 当需要预测未来回报时
+    \end{itemize}
+    
+    \item \textbf{什么时候MC更好？}
+    \begin{itemize}
+        \item 当过程不是马尔可夫的
+        \item 当只需要拟合训练数据时
+        \item 当有大量完整轨迹数据时
+    \end{itemize}
+\end{enumerate}
+
+\section{确定性等价估计（Certainty-Equivalence Estimate）}
+
+\subsection{定义}
+
+\textbf{确定性等价估计}：假设从数据估计的模型是准确的，然后计算在该模型下完全正确的价值函数估计。
+
+\textbf{步骤}：
+\begin{enumerate}
+    \item 从观察数据构建最大似然模型
+    \item 假设这个模型是准确的（确定性）
+    \item 计算在该模型下的价值函数
+\end{enumerate}
+
+\subsection{为什么叫"确定性等价"？}
+
+\textbf{等价性}：
+\begin{itemize}
+    \item 这个估计等价于假设模型是已知的（确定性）
+    \item 而不是近似的（不确定性）
+    \item 因此称为"确定性等价"
+\end{itemize}
+
+\subsection{TD(0)与确定性等价估计}
+
+\textbf{定理}：批量TD(0)收敛到确定性等价估计。
+
+\textbf{意义}：
+\begin{itemize}
+    \item TD(0)找到的是对最大似然模型完全正确的估计
+    \item 它利用状态转移结构
+    \item 它更符合预测回报的目标
+\end{itemize}
+
+\section{计算复杂度}
+
+\subsection{直接计算确定性等价估计}
+
+\textbf{复杂度}：
+\begin{itemize}
+    \item 构建最大似然模型：$O(n^2)$ 内存（$n$ 是状态数）
+    \item 计算价值函数：$O(n^3)$ 计算步骤
+    \item 对于大状态空间，这不可行
+\end{itemize}
+
+\subsection{TD方法的优势}
+
+\textbf{复杂度}：
+\begin{itemize}
+    \item TD方法只需要 $O(n)$ 内存
+    \item 通过重复处理训练数据来近似确定性等价估计
+    \item 对于大状态空间，TD可能是唯一可行的方法
+\end{itemize}
+
+\textbf{关键洞察}：
+\begin{quote}
+TD方法能够以 $O(n)$ 的复杂度近似 $O(n^3)$ 的确定性等价估计，这是TD方法的一个重要优势。
+\end{quote}
+
+\end{document}
+

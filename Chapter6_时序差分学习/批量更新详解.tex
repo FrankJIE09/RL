@@ -1,0 +1,508 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\geometry{margin=2.5cm}
+
+\title{批量更新详解}
+\subtitle{什么是批量更新？与普通更新有什么区别？}
+\author{}
+\date{}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{什么是批量更新？}
+
+\subsection{基本定义}
+
+\begin{definition}[批量更新（Batch Updating）]
+\textbf{批量更新}是一种学习方式，其中：
+\begin{enumerate}
+    \item 给定有限的经验数据（如10个回合或100个时间步）
+    \item 对每个时间步计算更新增量，但\textbf{不立即更新}价值函数
+    \item 处理完所有数据后，将\textbf{所有增量的和}一次性应用到价值函数
+    \item 用新的价值函数\textbf{重复处理}所有经验数据
+    \item 重复直到价值函数收敛
+\end{enumerate}
+\end{definition}
+
+\textbf{关键特征}：
+\begin{itemize}
+    \item 更新只在处理完\textbf{完整批次}的训练数据后进行
+    \item 价值函数在处理批次期间\textbf{保持不变}
+    \item 所有数据被\textbf{重复使用}直到收敛
+\end{itemize}
+
+\subsection{为什么叫"批量"？}
+
+\textbf{"批量"的含义}：
+\begin{itemize}
+    \item 将经验数据组织成\textbf{批次}（batch）
+    \item 每次处理一个完整的批次
+    \item 更新只在批次处理完成后进行
+    \item 类似于机器学习中的"批量梯度下降"
+\end{itemize}
+
+\section{批量更新 vs 普通更新}
+
+\subsection{普通更新（Normal Updating / Online Updating）}
+
+\textbf{过程}：
+\begin{enumerate}
+    \item 观察一个经验样本 $(S_t, A_t, R_{t+1}, S_{t+1})$
+    \item \textbf{立即计算}更新增量
+    \item \textbf{立即应用}更新到价值函数
+    \item 继续下一个样本
+\end{enumerate}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 每个样本处理后就更新
+    \item 价值函数在每个时间步都改变
+    \item 也称为\textbf{在线更新}（Online Updating）或\textbf{增量更新}（Incremental Updating）
+\end{itemize}
+
+\textbf{TD(0)的普通更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]
+\end{equation}
+
+\textbf{蒙特卡洛的普通更新}：
+\begin{equation}
+V(S_t) \gets V(S_t) + \alpha [G_t - V(S_t)]
+\end{equation}
+
+\subsection{批量更新（Batch Updating）}
+
+\textbf{过程}：
+\begin{enumerate}
+    \item 收集一批经验数据 $\mathcal{D} = \{(S_t, A_t, R_{t+1}, S_{t+1})\}$
+    \item 对每个样本计算更新增量，但\textbf{不立即更新}
+    \item 计算所有增量的\textbf{总和}
+    \item \textbf{一次性应用}总和到价值函数
+    \item 用新的价值函数\textbf{重复处理}同一批数据
+    \item 重复直到收敛
+\end{enumerate}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 更新只在批次处理完成后进行
+    \item 价值函数在处理批次期间保持不变
+    \item 所有数据被重复使用
+\end{itemize}
+
+\subsection{对比表格}
+
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{特性} & \textbf{普通更新} & \textbf{批量更新} \\
+\hline
+\textbf{更新时机} & 每个样本后立即更新 & 批次处理完成后更新 \\
+\hline
+\textbf{价值函数变化} & 每个时间步都改变 & 批次处理期间不变 \\
+\hline
+\textbf{数据使用} & 每个样本只用一次 & 数据重复使用直到收敛 \\
+\hline
+\textbf{收敛性} & 可能不收敛到确定值 & 确定性地收敛到唯一值 \\
+\hline
+\textbf{步长依赖} & 依赖步长参数 & 只要步长足够小，结果独立于步长 \\
+\hline
+\textbf{计算方式} & 增量式 & 批量式 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{批量更新的详细过程}
+
+\subsection{算法伪代码}
+
+\begin{algorithm}[H]
+\caption{批量更新算法（以TD(0)为例）}
+\begin{algorithmic}[1]
+\REQUIRE 经验数据批次 $\mathcal{D} = \{(S_t, A_t, R_{t+1}, S_{t+1})\}$
+\REQUIRE 初始价值函数 $V_0$
+\REQUIRE 步长 $\alpha$（足够小）
+\ENSURE 收敛的价值函数 $V$
+\STATE $V \gets V_0$
+\REPEAT
+    \STATE $\Delta V(s) \gets 0$ 对所有 $s \in \mathcal{S}$（初始化增量）
+    \FOR{每个经验样本 $(S_t, A_t, R_{t+1}, S_{t+1}) \in \mathcal{D}$}
+        \STATE 计算增量：$\delta_t = R_{t+1} + \gamma V(S_{t+1}) - V(S_t)$
+        \STATE 累加增量：$\Delta V(S_t) \gets \Delta V(S_t) + \delta_t$
+    \ENDFOR
+    \STATE 应用所有增量：$V(s) \gets V(s) + \alpha \cdot \Delta V(s)$ 对所有 $s$
+\UNTIL{收敛（$\Delta V(s)$ 接近0对所有 $s$）}
+\RETURN $V$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{逐步说明}
+
+\textbf{步骤1：初始化}
+\begin{itemize}
+    \item 初始化价值函数 $V(s)$
+    \item 初始化增量累加器 $\Delta V(s) = 0$ 对所有状态
+\end{itemize}
+
+\textbf{步骤2：处理批次}
+\begin{itemize}
+    \item 对批次中的每个经验样本：
+    \begin{itemize}
+        \item 使用\textbf{当前}价值函数 $V$ 计算更新增量
+        \item 将增量累加到 $\Delta V(S_t)$
+        \item \textbf{不更新} $V$（在处理批次期间保持不变）
+    \end{itemize}
+\end{itemize}
+
+\textbf{步骤3：应用更新}
+\begin{itemize}
+    \item 处理完所有样本后，一次性应用所有增量：
+    \begin{equation}
+    V(s) \gets V(s) + \alpha \cdot \Delta V(s)
+    \end{equation}
+\end{itemize}
+
+\textbf{步骤4：重复}
+\begin{itemize}
+    \item 用新的价值函数重新处理同一批数据
+    \item 重复直到收敛
+\end{itemize}
+
+\section{具体例子}
+
+\subsection{例子：简单的3状态MDP}
+
+\textbf{设置}：
+\begin{itemize}
+    \item 状态：$s_1, s_2, s_3$（$s_3$ 是终止状态）
+    \item 折扣因子：$\gamma = 1$
+    \item 步长：$\alpha = 0.1$
+    \item 初始价值：$V(s_1) = 0, V(s_2) = 0$
+\end{itemize}
+
+\textbf{经验数据批次}（3个样本）：
+\begin{align}
+&\text{样本1: } s_1 \to s_2, R = 1 \\
+&\text{样本2: } s_2 \to s_3, R = 2 \\
+&\text{样本3: } s_2 \to s_3, R = 3
+\end{align}
+
+\subsection{批量更新过程}
+
+\textbf{第1轮迭代}：
+
+\textbf{初始化}：
+\begin{align}
+V(s_1) &= 0 \\
+V(s_2) &= 0 \\
+\Delta V(s_1) &= 0 \\
+\Delta V(s_2) &= 0
+\end{align}
+
+\textbf{处理样本1}：$s_1 \to s_2, R = 1$
+\begin{align}
+\delta_1 &= R + \gamma V(s_2) - V(s_1) = 1 + 1 \times 0 - 0 = 1 \\
+\Delta V(s_1) &\gets \Delta V(s_1) + \delta_1 = 0 + 1 = 1
+\end{align}
+
+\textbf{处理样本2}：$s_2 \to s_3, R = 2$
+\begin{align}
+\delta_2 &= R + \gamma V(s_3) - V(s_2) = 2 + 1 \times 0 - 0 = 2 \\
+\Delta V(s_2) &\gets \Delta V(s_2) + \delta_2 = 0 + 2 = 2
+\end{align}
+
+\textbf{处理样本3}：$s_2 \to s_3, R = 3$
+\begin{align}
+\delta_3 &= R + \gamma V(s_3) - V(s_2) = 3 + 1 \times 0 - 0 = 3 \\
+\Delta V(s_2) &\gets \Delta V(s_2) + \delta_3 = 2 + 3 = 5
+\end{align}
+
+\textbf{应用更新}：
+\begin{align}
+V(s_1) &\gets V(s_1) + \alpha \cdot \Delta V(s_1) = 0 + 0.1 \times 1 = 0.1 \\
+V(s_2) &\gets V(s_2) + \alpha \cdot \Delta V(s_2) = 0 + 0.1 \times 5 = 0.5
+\end{align}
+
+\textbf{第2轮迭代}：
+
+\textbf{重置增量}：
+\begin{align}
+\Delta V(s_1) &= 0 \\
+\Delta V(s_2) &= 0
+\end{align}
+
+\textbf{处理样本1}：$s_1 \to s_2, R = 1$（使用新的 $V$）
+\begin{align}
+\delta_1 &= R + \gamma V(s_2) - V(s_1) = 1 + 1 \times 0.5 - 0.1 = 1.4 \\
+\Delta V(s_1) &\gets 0 + 1.4 = 1.4
+\end{align}
+
+\textbf{处理样本2}：$s_2 \to s_3, R = 2$
+\begin{align}
+\delta_2 &= R + \gamma V(s_3) - V(s_2) = 2 + 1 \times 0 - 0.5 = 1.5 \\
+\Delta V(s_2) &\gets 0 + 1.5 = 1.5
+\end{align}
+
+\textbf{处理样本3}：$s_2 \to s_3, R = 3$
+\begin{align}
+\delta_3 &= R + \gamma V(s_3) - V(s_2) = 3 + 1 \times 0 - 0.5 = 2.5 \\
+\Delta V(s_2) &\gets 1.5 + 2.5 = 4.0
+\end{align}
+
+\textbf{应用更新}：
+\begin{align}
+V(s_1) &\gets 0.1 + 0.1 \times 1.4 = 0.24 \\
+V(s_2) &\gets 0.5 + 0.1 \times 4.0 = 0.9
+\end{align}
+
+\textbf{继续迭代}直到收敛...
+
+\subsection{普通更新过程（对比）}
+
+\textbf{处理样本1}：$s_1 \to s_2, R = 1$
+\begin{align}
+V(s_1) &\gets V(s_1) + \alpha [R + \gamma V(s_2) - V(s_1)] \\
+       &= 0 + 0.1 \times [1 + 1 \times 0 - 0] = 0.1
+\end{align}
+
+\textbf{处理样本2}：$s_2 \to s_3, R = 2$（使用更新后的 $V$）
+\begin{align}
+V(s_2) &\gets V(s_2) + \alpha [R + \gamma V(s_3) - V(s_2)] \\
+       &= 0 + 0.1 \times [2 + 1 \times 0 - 0] = 0.2
+\end{align}
+
+\textbf{处理样本3}：$s_2 \to s_3, R = 3$（使用更新后的 $V$）
+\begin{align}
+V(s_2) &\gets V(s_2) + \alpha [R + \gamma V(s_3) - V(s_2)] \\
+       &= 0.2 + 0.1 \times [3 + 1 \times 0 - 0.2] = 0.48
+\end{align}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item 普通更新：每个样本处理后立即更新，后续样本使用更新后的 $V$
+    \item 批量更新：所有样本使用相同的 $V$ 计算增量，然后一次性更新
+\end{itemize}
+
+\section{批量更新的特点}
+
+\subsection{确定性收敛}
+
+\textbf{定理}：在批量更新下，TD(0)和常数-$\alpha$ MC都确定性地收敛到唯一值。
+
+\textbf{条件}：
+\begin{itemize}
+    \item 步长 $\alpha$ 足够小
+    \item 数据被重复处理直到收敛
+\end{itemize}
+
+\textbf{意义}：
+\begin{itemize}
+    \item 不依赖步长的具体值（只要足够小）
+    \item 收敛结果是确定的
+    \item 可以用于理论分析
+\end{itemize}
+
+\subsection{与普通更新的关系}
+
+\textbf{关键洞察}：
+\begin{quote}
+普通更新方法不会完全到达批量更新的答案，但在某种意义上朝着这个方向移动。
+\end{quote}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 普通更新是增量式的，每一步都改变价值函数
+    \item 批量更新是批量式的，处理完所有数据后才更新
+    \item 普通更新朝着批量更新的方向移动，但可能不会完全到达
+\end{itemize}
+
+\subsection{为什么使用批量更新？}
+
+\textbf{1. 理论分析}：
+\begin{itemize}
+    \item 批量更新有确定性的收敛结果
+    \item 可以用于比较不同方法的最优性
+    \item 可以用于理解方法的本质差异
+\end{itemize}
+
+\textbf{2. 理解方法差异}：
+\begin{itemize}
+    \item 批量更新下，TD(0)和MC收敛到不同的答案
+    \item 这些答案揭示了方法的本质差异
+    \item 有助于理解为什么TD方法在某些情况下更好
+\end{itemize}
+
+\textbf{3. 实际应用}：
+\begin{itemize}
+    \item 在某些场景下，批量更新可能更稳定
+    \item 可以用于离线学习（offline learning）
+    \item 可以用于经验回放（experience replay）
+\end{itemize}
+
+\section{批量更新下的收敛结果}
+
+\subsection{TD(0)的收敛结果}
+
+\textbf{定理}：批量TD(0)收敛到\textbf{确定性等价估计}（Certainty-Equivalence Estimate）。
+
+\textbf{含义}：
+\begin{itemize}
+    \item 对最大似然马尔可夫过程模型完全正确的估计
+    \item 利用状态转移结构
+    \item 对未来数据泛化能力更强
+\end{itemize}
+
+\subsection{蒙特卡洛的收敛结果}
+
+\textbf{定理}：批量蒙特卡洛方法收敛到在\textbf{训练数据上}最小化均方误差的估计。
+
+\textbf{含义}：
+\begin{itemize}
+    \item 在训练数据上误差最小
+    \item 不利用马尔可夫性质
+    \item 对未来数据泛化能力有限
+\end{itemize}
+
+\subsection{为什么不同？}
+
+\textbf{关键区别}：
+\begin{itemize}
+    \item TD(0)利用状态转移结构，基于模型进行估计
+    \item MC直接使用观察到的回报，不利用结构
+    \item 这导致了不同的收敛结果
+\end{itemize}
+
+\section{批量更新的实现细节}
+
+\subsection{增量累加}
+
+\textbf{方法1：累加所有增量}
+\begin{itemize}
+    \item 对每个状态 $s$，维护累加器 $\Delta V(s)$
+    \item 对每个样本，计算增量并累加
+    \item 处理完所有样本后，一次性应用
+\end{itemize}
+
+\textbf{方法2：平均增量}
+\begin{itemize}
+    \item 对每个状态 $s$，计算所有增量的平均值
+    \item 应用平均增量
+    \item 等价于方法1（如果步长相同）
+\end{itemize}
+
+\subsection{收敛判断}
+
+\textbf{判断标准}：
+\begin{itemize}
+    \item 所有状态的增量都接近0
+    \item 价值函数变化小于阈值
+    \item 达到最大迭代次数
+\end{itemize}
+
+\textbf{实现}：
+\begin{align}
+\text{收敛} \Leftrightarrow \max_s |\Delta V(s)| < \epsilon
+\end{align}
+
+其中 $\epsilon$ 是收敛阈值。
+
+\section{批量更新 vs 小批量更新}
+
+\subsection{小批量更新（Mini-batch Updating）}
+
+\textbf{定义}：将数据分成多个小批次，每个小批次处理完后更新。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 介于普通更新和批量更新之间
+    \item 每个小批次处理完后更新
+    \item 平衡了计算效率和收敛稳定性
+\end{itemize}
+
+\subsection{对比}
+
+\begin{center}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{特性} & \textbf{普通更新} & \textbf{小批量更新} & \textbf{批量更新} \\
+\hline
+\textbf{批次大小} & 1 & 小（如32, 64） & 全部数据 \\
+\hline
+\textbf{更新频率} & 每个样本 & 每个小批次 & 整个数据集 \\
+\hline
+\textbf{计算效率} & 高 & 中等 & 低 \\
+\hline
+\textbf{收敛稳定性} & 低 & 中等 & 高 \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{总结}
+
+\subsection{关键要点}
+
+\begin{enumerate}
+    \item \textbf{定义}：批量更新是在处理完所有数据后才更新价值函数的方法
+    
+    \item \textbf{过程}：
+    \begin{itemize}
+        \item 收集一批经验数据
+        \item 对每个样本计算增量（使用当前 $V$）
+        \item 累加所有增量
+        \item 一次性应用更新
+        \item 重复直到收敛
+    \end{itemize}
+    
+    \item \textbf{特点}：
+    \begin{itemize}
+        \item 确定性地收敛到唯一值
+        \item 结果独立于步长（只要足够小）
+        \item 价值函数在处理批次期间不变
+    \end{itemize}
+    
+    \item \textbf{与普通更新的区别}：
+    \begin{itemize}
+        \item 普通更新：每个样本后立即更新
+        \item 批量更新：批次处理完后更新
+        \item 普通更新朝着批量更新的方向移动
+    \end{itemize}
+    
+    \item \textbf{用途}：
+    \begin{itemize}
+        \item 理论分析和方法比较
+        \item 理解方法本质差异
+        \item 某些实际应用场景
+    \end{itemize}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{批量更新是一种理论工具，用于理解不同学习方法的本质差异。它通过重复处理数据直到收敛，揭示了TD方法和蒙特卡洛方法在最优性方面的根本区别。}
+\end{quote}
+
+\end{document}
+

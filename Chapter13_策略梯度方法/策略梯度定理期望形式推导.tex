@@ -1,0 +1,356 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{策略梯度定理期望形式推导}
+\subtitle{从求和形式到期望形式的详细推导}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题}
+
+\textbf{问题}：如何从策略梯度定理的求和形式：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\label{eq:sum_form}
+\end{equation}
+
+推导出期望形式：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi \left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\label{eq:expectation_form}
+\end{equation}
+
+\section{关键概念}
+
+\subsection{状态分布 $\mu(s)$}
+
+\textbf{定义}：
+\begin{equation}
+\mu(s) = \sum_{k=0}^{\infty} \Pr(s_0 \to s, k, \pi)
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item $\mu(s)$ 是在策略 $\pi$ 下，状态 $s$ 的长期访问频率
+    \item 归一化后：$\sum_{s} \mu(s) = 1$（或等于平均episode长度）
+\end{itemize}
+
+\subsection{期望的定义}
+
+\textbf{离散随机变量的期望}：
+\begin{equation}
+\mathbb{E}[X] = \sum_{x} x \Pr(X = x)
+\end{equation}
+
+\textbf{加权平均}：
+\begin{equation}
+\sum_{s} \mu(s) f(s) = \mathbb{E}_\mu[f(S)]
+\end{equation}
+
+其中 $S$ 是按照分布 $\mu(s)$ 分布的随机变量。
+
+\section{推导过程}
+
+\subsection{步骤1：从求和形式开始}
+
+\textbf{策略梯度定理（求和形式）}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\label{eq:step1}
+\end{equation}
+
+\subsection{步骤2：识别加权平均}
+
+\textbf{观察}：
+\begin{itemize}
+    \item $\sum_{s} \mu(s) \cdots$ 是一个加权求和
+    \item 权重是状态分布 $\mu(s)$
+    \item 这可以写成期望的形式
+\end{itemize}
+
+\textbf{定义函数}：
+\begin{equation}
+f(s) = \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{重写}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) f(s)
+\label{eq:step2}
+\end{equation}
+
+\subsection{步骤3：转换为期望}
+
+\textbf{关键洞察}：
+\begin{itemize}
+    \item $\sum_{s} \mu(s) f(s)$ 是函数 $f(s)$ 关于分布 $\mu(s)$ 的期望
+    \item 如果 $S$ 是按照分布 $\mu(s)$ 分布的随机变量，则：
+    \begin{equation}
+    \sum_{s} \mu(s) f(s) = \mathbb{E}_\mu[f(S)]
+    \end{equation}
+\end{itemize}
+
+\textbf{应用}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) f(s) = \mathbb{E}_\mu[f(S)]
+\end{equation}
+
+\textbf{展开}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\mu\left[\sum_{a} q_\pi(S, a) \nabla_\theta \pi(a|S, \theta)\right]
+\label{eq:step3}
+\end{equation}
+
+\subsection{步骤4：理解分布 $\mu(s)$}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 状态分布 $\mu(s)$ 是在策略 $\pi$ 下的状态分布
+    \item 如果我们按照策略 $\pi$ 与环境交互，状态 $S_t$ 的分布就是 $\mu(s)$
+    \item 因此，$\mathbb{E}_\mu[\cdots]$ 等价于 $\mathbb{E}_\pi[\cdots]$（在策略 $\pi$ 下的期望）
+\end{itemize}
+
+\textbf{最终形式}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\label{eq:final}
+\end{equation}
+
+其中 $S_t$ 是按照策略 $\pi$ 下的状态分布 $\mu(s)$ 分布的随机变量。
+
+\section{详细数学推导}
+
+\subsection{从求和到期望的严格推导}
+
+\textbf{步骤1：求和形式}
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{步骤2：定义随机变量}
+\begin{itemize}
+    \item 设 $S$ 是随机变量，取值于状态空间 $\mathcal{S}$
+    \item $S$ 的分布是 $\mu(s)$：$\Pr(S = s) = \mu(s)$
+\end{itemize}
+
+\textbf{步骤3：期望的定义}
+\begin{equation}
+\mathbb{E}_\mu[f(S)] = \sum_{s} \Pr(S = s) f(s) = \sum_{s} \mu(s) f(s)
+\end{equation}
+
+\textbf{步骤4：应用期望定义}
+\begin{align}
+\nabla_\theta J(\theta) &\propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta) \\
+                         &= \sum_{s} \mu(s) f(s) \quad \text{（其中 } f(s) = \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta) \text{）} \\
+                         &= \mathbb{E}_\mu[f(S)] \\
+                         &= \mathbb{E}_\mu\left[\sum_{a} q_\pi(S, a) \nabla_\theta \pi(a|S, \theta)\right]
+\end{align}
+
+\textbf{步骤5：理解分布}
+\begin{itemize}
+    \item 分布 $\mu(s)$ 是在策略 $\pi$ 下的状态分布
+    \item 如果我们按照策略 $\pi$ 与环境交互，状态 $S_t$ 的分布就是 $\mu(s)$
+    \item 因此，$\mathbb{E}_\mu[\cdots]$ 等价于 $\mathbb{E}_\pi[\cdots]$
+\end{itemize}
+
+\textbf{步骤6：最终形式}
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{equation}
+
+\section{具体例子}
+
+\subsection{例子：简单的3状态问题}
+
+\textbf{环境}：3个状态 $s_0, s_1, s_2$
+
+\textbf{状态分布}（假设已知）：
+\begin{align}
+\mu(s_0) &= 0.5 \\
+\mu(s_1) &= 0.3 \\
+\mu(s_2) &= 0.2
+\end{align}
+
+验证：$\sum_{s} \mu(s) = 0.5 + 0.3 + 0.2 = 1$
+
+\textbf{求和形式}：
+\begin{align}
+\nabla_\theta J(\theta) &\propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta) \\
+                         &= \mu(s_0) \sum_{a} q_\pi(s_0, a) \nabla_\theta \pi(a|s_0, \theta) \\
+                         &\quad + \mu(s_1) \sum_{a} q_\pi(s_1, a) \nabla_\theta \pi(a|s_1, \theta) \\
+                         &\quad + \mu(s_2) \sum_{a} q_\pi(s_2, a) \nabla_\theta \pi(a|s_2, \theta) \\
+                         &= 0.5 \times f(s_0) + 0.3 \times f(s_1) + 0.2 \times f(s_2)
+\end{align}
+
+其中 $f(s) = \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)$。
+
+\textbf{期望形式}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{equation}
+
+\textbf{计算期望}：
+\begin{align}
+\mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right] &= \sum_{s} \Pr(S_t = s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta) \\
+                                                                                    &= \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta) \\
+                                                                                    &= 0.5 \times f(s_0) + 0.3 \times f(s_1) + 0.2 \times f(s_2)
+\end{align}
+
+\textbf{验证}：
+\begin{itemize}
+    \item 求和形式和期望形式得到相同的结果
+    \item 这证明了推导的正确性
+\end{itemize}
+
+\section{为什么使用期望形式？}
+
+\subsection{优势1：便于采样}
+
+\textbf{期望形式的优势}：
+\begin{itemize}
+    \item 可以从样本中估计期望
+    \item 如果我们按照策略 $\pi$ 与环境交互，状态 $S_t$ 的分布就是 $\mu(s)$
+    \item 我们可以用样本平均来估计期望
+\end{itemize}
+
+\textbf{样本估计}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \frac{1}{n} \sum_{i=1}^{n} \sum_{a} q_\pi(S_t^{(i)}, a) \nabla_\theta \pi(a|S_t^{(i)}, \theta)
+\end{equation}
+
+其中 $S_t^{(i)}$ 是第 $i$ 个样本状态。
+
+\subsection{优势2：数学上的简洁性}
+
+\textbf{期望形式更简洁}：
+\begin{itemize}
+    \item 期望形式：$\mathbb{E}_\pi[\cdots]$
+    \item 求和形式：$\sum_{s} \mu(s) \cdots$
+    \item 期望形式更简洁，更易于理解和操作
+\end{itemize}
+
+\subsection{优势3：便于理论分析}
+
+\textbf{期望的性质}：
+\begin{itemize}
+    \item 期望的线性性质：$\mathbb{E}[aX + bY] = a\mathbb{E}[X] + b\mathbb{E}[Y]$
+    \item 期望的独立性：如果 $X$ 和 $Y$ 独立，$\mathbb{E}[XY] = \mathbb{E}[X]\mathbb{E}[Y]$
+    \item 这些性质便于理论分析
+\end{itemize}
+
+\section{从期望形式到REINFORCE}
+
+\subsection{进一步推导}
+
+\textbf{期望形式}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{equation}
+
+\textbf{引入动作概率}：
+\begin{align}
+\nabla_\theta J(\theta) &\propto \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right] \\
+                         &= \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \nabla_\theta \ln \pi(a|S_t, \theta)\right]
+\end{align}
+
+\textbf{引入实际选择的动作}：
+\begin{itemize}
+    \item 设 $A_t$ 是按照策略 $\pi(\cdot|S_t, \theta)$ 选择的动作
+    \item 则：
+    \begin{equation}
+    \mathbb{E}_\pi\left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \nabla_\theta \ln \pi(a|S_t, \theta)\right] = \mathbb{E}_\pi\left[q_\pi(S_t, A_t) \nabla_\theta \ln \pi(A_t|S_t, \theta)\right]
+    \end{equation}
+\end{itemize}
+
+\textbf{使用回报}：
+\begin{itemize}
+    \item 因为 $\mathbb{E}_\pi[G_t | S_t, A_t] = q_\pi(S_t, A_t)$
+    \item 所以：
+    \begin{equation}
+    \nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[G_t \nabla_\theta \ln \pi(A_t|S_t, \theta)\right]
+    \end{equation}
+\end{itemize}
+
+\textbf{REINFORCE更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\section{总结}
+
+\subsection{推导链条}
+
+\begin{enumerate}
+    \item \textbf{策略梯度定理（求和形式）}：
+    \begin{equation}
+    \nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+    \end{equation}
+    
+    \item \textbf{识别加权平均}：
+    \begin{equation}
+    \sum_{s} \mu(s) f(s) = \mathbb{E}_\mu[f(S)]
+    \end{equation}
+    
+    \item \textbf{转换为期望}：
+    \begin{equation}
+    \nabla_\theta J(\theta) \propto \mathbb{E}_\mu\left[\sum_{a} q_\pi(S, a) \nabla_\theta \pi(a|S, \theta)\right]
+    \end{equation}
+    
+    \item \textbf{理解分布}：
+    \begin{itemize}
+        \item 分布 $\mu(s)$ 是在策略 $\pi$ 下的状态分布
+        \item $\mathbb{E}_\mu[\cdots] = \mathbb{E}_\pi[\cdots]$
+    \end{itemize}
+    
+    \item \textbf{最终形式}：
+    \begin{equation}
+    \nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+    \end{equation}
+\end{enumerate}
+
+\subsection{关键洞察}
+
+\begin{quote}
+\textbf{从求和到期望的转换}：加权求和 $\sum_{s} \mu(s) f(s)$ 可以写成期望 $\mathbb{E}_\mu[f(S)]$，其中 $S$ 是按照分布 $\mu(s)$ 分布的随机变量。由于 $\mu(s)$ 是在策略 $\pi$ 下的状态分布，所以 $\mathbb{E}_\mu[\cdots] = \mathbb{E}_\pi[\cdots]$。
+\end{quote}
+
+\subsection{关键公式}
+
+\textbf{期望的定义}：
+\begin{equation}
+\mathbb{E}_\mu[f(S)] = \sum_{s} \mu(s) f(s)
+\end{equation}
+
+\textbf{策略梯度定理（期望形式）}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi\left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\end{equation}
+
+\textbf{REINFORCE}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\end{document}
+

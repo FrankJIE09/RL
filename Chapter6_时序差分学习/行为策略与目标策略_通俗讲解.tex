@@ -1,0 +1,740 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{行为策略与目标策略：通俗讲解}
+\subtitle{用生活例子理解On-policy和Off-policy}
+\author{强化学习笔记}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+本文用通俗易懂的方式，通过生活化的例子来解释"行为策略 = 目标策略"和"使用实际选择的下一动作"的含义及其关系。
+
+\section{生活类比：学开车}
+
+\subsection{类比设置}
+
+想象你在学开车：
+
+\begin{itemize}
+    \item \textbf{行为策略}：你\textbf{实际怎么开车}（你的驾驶方式）
+    \item \textbf{目标策略}：你\textbf{想要学会的驾驶方式}（理想的驾驶方式）
+    \item \textbf{动作}：方向盘、刹车、油门等操作
+    \item \textbf{状态}：路况、车速、位置等
+    \item \textbf{奖励}：安全到达、舒适度等
+\end{itemize}
+
+\subsection{On-policy：边学边用}
+
+\textbf{场景}：你正在学习如何开车，同时用你学到的知识来开车。
+
+\textbf{特点}：
+\begin{itemize}
+    \item \textbf{行为策略 = 目标策略}：你实际怎么开车 = 你想要学会的驾驶方式
+    \item 你\textbf{实际做的动作}（如"向左转"）就是你\textbf{正在学习的策略}选择的动作
+    \item 你从自己的驾驶经验中学习
+    \item 学习的是"你当前怎么开车"的价值
+\end{itemize}
+
+\textbf{例子}：
+\begin{enumerate}
+    \item 你学会了"在路口应该减速"
+    \item 你\textbf{实际在路口减速}（行为策略）
+    \item 你\textbf{学习的是"在路口减速"这个策略}（目标策略）
+    \item 行为策略 = 目标策略（同一个策略）
+    \item 你观察自己减速后的结果，学习这个策略的好坏
+\end{enumerate}
+
+\subsection{Off-policy：看别人开车来学习}
+
+\textbf{场景}：你观察教练或其他人开车，学习他们的驾驶方式。
+
+\textbf{特点}：
+\begin{itemize}
+    \item \textbf{行为策略 $\neq$ 目标策略}：别人怎么开车 $\neq$ 你想要学会的驾驶方式
+    \item 你观察\textbf{别人的动作}（如"教练向右转"），但学习的是\textbf{最优的驾驶方式}
+    \item 你可以从任何人的驾驶经验中学习
+    \item 学习的是"最优驾驶方式"的价值，而不是"别人怎么开车"的价值
+\end{itemize}
+
+\textbf{例子}：
+\begin{enumerate}
+    \item 教练在路口选择了"向右转"（行为策略：教练的策略）
+    \item 但你学习的是"最优动作"（目标策略：最优策略）
+    \item 即使教练向右转，你学习的是"在路口应该选择最优方向"
+    \item 行为策略 $\neq$ 目标策略（不同策略）
+    \item 你从教练的经验中学习，但目标是学会最优驾驶方式
+\end{enumerate}
+
+\section{通俗解释：行为策略 = 目标策略}
+
+\subsection{简单理解}
+
+\textbf{"行为策略 = 目标策略"就像}：
+
+\begin{quote}
+\textbf{"你实际怎么做 = 你想要学会怎么做"}
+\end{quote}
+
+\textbf{具体例子}：
+
+\textbf{例子1：学做菜}
+\begin{itemize}
+    \item \textbf{行为策略}：你实际怎么做菜（放多少盐、火候多大）
+    \item \textbf{目标策略}：你想要学会的做菜方式
+    \item \textbf{On-policy}：你实际怎么做 = 你想要学会怎么做
+    \item 你从自己的做菜经验中学习，改进自己的做菜方式
+\end{itemize}
+
+\textbf{例子2：学下棋}
+\begin{itemize}
+    \item \textbf{行为策略}：你实际怎么下棋（你的下棋策略）
+    \item \textbf{目标策略}：你想要学会的下棋方式
+    \item \textbf{On-policy}：你实际怎么下 = 你想要学会怎么下
+    \item 你从自己的下棋经验中学习，改进自己的下棋策略
+\end{itemize}
+
+\subsection{在算法中的体现}
+
+\textbf{SARSA（On-policy）}：
+\begin{itemize}
+    \item 智能体使用\textbf{当前策略} $\pi$ 选择动作
+    \item 智能体学习的是\textbf{当前策略} $\pi$ 的价值
+    \item 行为策略 = 目标策略 = $\pi$（同一个策略）
+\end{itemize}
+
+\textbf{类比}：
+\begin{itemize}
+    \item 就像你用自己的方式做事，同时学习这种方式的好坏
+    \item 你做的动作 = 你正在学习的策略选择的动作
+    \item 你从自己的经验中学习
+\end{itemize}
+
+\section{通俗解释：使用实际选择的下一动作}
+
+\subsection{简单理解}
+
+\textbf{"使用实际选择的下一动作"就像}：
+
+\begin{quote}
+\textbf{"你实际做了什么，就用这个结果来学习"}
+\end{quote}
+
+\textbf{具体例子}：
+
+\textbf{例子1：学做菜}
+\begin{itemize}
+    \item 你在做菜时，\textbf{实际选择了}"放一勺盐"
+    \item 你观察放一勺盐后的结果（菜的味道）
+    \item 你\textbf{用这个结果}来学习"放一勺盐"这个动作的好坏
+    \item 这就是"使用实际选择的动作"
+\end{itemize}
+
+\textbf{例子2：学下棋}
+\begin{itemize}
+    \item 你在下棋时，\textbf{实际选择了}"走马"
+    \item 你观察走马后的结果（棋局变化）
+    \item 你\textbf{用这个结果}来学习"走马"这个动作的好坏
+    \item 这就是"使用实际选择的动作"
+\end{itemize}
+
+\subsection{在算法中的体现}
+
+\textbf{SARSA}：
+\begin{itemize}
+    \item 在状态 $S_{t+1}$，智能体\textbf{实际选择了}动作 $A_{t+1}$
+    \item 更新时使用 $Q(S_{t+1}, A_{t+1})$（实际选择的动作的价值）
+    \item 学习的是"选择动作 $A_{t+1}$"的价值
+\end{itemize}
+
+\textbf{类比}：
+\begin{itemize}
+    \item 就像你实际做了什么，就用这个结果来学习
+    \item 你做的动作 = 你用来学习的动作
+    \item 你从自己的实际行为中学习
+\end{itemize}
+
+\section{两者的关系}
+
+\subsection{关系链（通俗版）}
+
+\textbf{第1步：行为策略 = 目标策略}
+\begin{quote}
+"你实际怎么做 = 你想要学会怎么做"
+\end{quote}
+
+\textbf{第2步：所有动作都由当前策略选择}
+\begin{quote}
+"因为你实际怎么做 = 你想要学会怎么做，所以你的所有动作都按照你想要学会的方式来做"
+\end{quote}
+
+\textbf{第3步：下一动作必须由当前策略选择}
+\begin{quote}
+"你的下一个动作也必须按照你想要学会的方式来做"
+\end{quote}
+
+\textbf{第4步：使用实际选择的动作}
+\begin{quote}
+"你实际做了什么，就用这个结果来学习"
+\end{quote}
+
+\textbf{第5步：学习当前策略的价值}
+\begin{quote}
+"你学习的是'你想要学会的方式'的好坏"
+\end{quote}
+
+\subsection{完整例子：学做菜}
+
+\textbf{场景}：你正在学习如何做一道菜。
+
+\textbf{第1步}：行为策略 = 目标策略
+\begin{itemize}
+    \item 你实际怎么做菜 = 你想要学会的做菜方式
+    \item 你边学边做，做的就是你正在学的
+\end{itemize}
+
+\textbf{第2步}：选择动作
+\begin{itemize}
+    \item 你\textbf{实际选择了}"放一勺盐"（按照你正在学的策略）
+    \item 这个动作\textbf{必须}由你正在学的策略选择
+\end{itemize}
+
+\textbf{第3步}：观察结果
+\begin{itemize}
+    \item 你观察放一勺盐后的结果（菜的味道）
+    \item 你\textbf{用这个结果}来学习
+\end{itemize}
+
+\textbf{第4步}：学习
+\begin{itemize}
+    \item 你学习的是"你正在学的做菜方式"中"放一勺盐"这个动作的好坏
+    \item 你从自己的实际行为中学习
+\end{itemize}
+
+\section{对比：On-policy vs Off-policy}
+
+\subsection{On-policy：边学边用（SARSA）}
+
+\textbf{类比}：你用自己的方式做事，同时学习这种方式的好坏。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 你实际怎么做 = 你想要学会怎么做
+    \item 你做的动作 = 你正在学习的策略选择的动作
+    \item 你从自己的经验中学习
+    \item 你实际选择了什么，就用什么来学习
+\end{itemize}
+
+\textbf{例子}：
+\begin{enumerate}
+    \item 你学会了"在路口应该减速"
+    \item 你\textbf{实际在路口减速}（行为策略）
+    \item 你\textbf{学习的是"在路口减速"这个策略}（目标策略）
+    \item 你观察减速后的结果，学习这个策略的好坏
+    \item 你实际选择了"减速"，就用"减速"的结果来学习
+\end{enumerate}
+
+\subsection{Off-policy：看别人学（Q-learning）}
+
+\textbf{类比}：你观察别人怎么做，但学习的是最优方式。
+
+\textbf{特点}：
+\begin{itemize}
+    \item 别人怎么做 $\neq$ 你想要学会的方式
+    \item 你观察别人的动作，但学习的是最优动作
+    \item 你可以从任何人的经验中学习
+    \item 即使别人选择了某个动作，你学习的是最优动作
+\end{itemize}
+
+\textbf{例子}：
+\begin{enumerate}
+    \item 教练在路口选择了"向右转"（行为策略：教练的策略）
+    \item 但你学习的是"在路口应该选择最优方向"（目标策略：最优策略）
+    \item 即使教练向右转，你学习的是"最优方向"（可能是左转）
+    \item 你从教练的经验中学习，但目标是学会最优方式
+    \item 教练实际选择了"右转"，但你学习的是"最优方向"的价值
+\end{enumerate}
+
+\section{为什么必须由当前策略选择？}
+
+\subsection{通俗解释}
+
+\textbf{问题}：为什么在On-policy方法中，$A_{t+1}$ 必须由当前策略选择？
+
+\textbf{答案}：
+
+\textbf{类比1：学做菜}
+\begin{itemize}
+    \item 如果你想要学习"你的做菜方式"，你必须\textbf{按照你的方式}来做菜
+    \item 如果你按照别人的方式做菜，你学习的就是"别人的做菜方式"，而不是"你的做菜方式"
+    \item 所以，你的所有动作（包括下一步）都必须按照"你的方式"来做
+\end{itemize}
+
+\textbf{类比2：学下棋}
+\begin{itemize}
+    \item 如果你想要学习"你的下棋策略"，你必须\textbf{按照你的策略}来下棋
+    \item 如果你按照别人的策略下棋，你学习的就是"别人的下棋策略"，而不是"你的下棋策略"
+    \item 所以，你的所有动作（包括下一步）都必须按照"你的策略"来做
+\end{itemize}
+
+\subsection{数学原因}
+
+\textbf{原因1：学习目标的一致性}
+\begin{itemize}
+    \item 你想要学习策略 $\pi$ 的价值函数
+    \item 要学习策略 $\pi$ 的价值，必须使用策略 $\pi$ 生成的数据
+    \item 如果使用其他策略的数据，学习的就是其他策略的价值
+\end{itemize}
+
+\textbf{原因2：数据分布匹配}
+\begin{itemize}
+    \item 你的学习目标是策略 $\pi$ 的价值函数
+    \item 你的数据必须来自策略 $\pi$
+    \item 所以，所有动作（包括 $A_{t+1}$）都必须由策略 $\pi$ 选择
+\end{itemize}
+
+\section{具体例子：SARSA vs Q-learning}
+
+\subsection{场景设置}
+
+\textbf{场景}：在Gridworld中，智能体在状态 $s_5$，执行动作"上"，转移到状态 $s_2$。
+
+\textbf{假设}：
+\begin{itemize}
+    \item $Q(s_2, \text{上}) = 0$
+    \item $Q(s_2, \text{下}) = 0$
+    \item $Q(s_2, \text{左}) = -0.1$
+    \item $Q(s_2, \text{右}) = 0$
+    \item 当前策略 $\pi$ 在 $s_2$ 倾向于选择"左"
+\end{itemize}
+
+\subsection{SARSA（On-policy）：边学边用}
+
+\textbf{行为策略 = 目标策略}：
+\begin{quote}
+"你实际怎么选择动作 = 你想要学会的选择方式"
+\end{quote}
+
+\textbf{过程}：
+\begin{enumerate}
+    \item 在状态 $s_2$，你\textbf{按照当前策略} $\pi$ 选择动作
+    \item 你\textbf{实际选择了}"左"（按照你正在学的策略）
+    \item 你\textbf{用"左"的结果}来学习
+    \item 更新：$Q(s_5, \text{上}) \gets Q(s_5, \text{上}) + \alpha [R + \gamma Q(s_2, \text{左}) - Q(s_5, \text{上})]$
+    \item 你学习的是"你当前策略"中"选择左"的价值
+\end{enumerate}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 你实际选择了"左"，就用"左"的价值来学习
+    \item 你学习的是"你当前策略"的价值
+    \item 行为策略 = 目标策略 = 你当前策略
+\end{itemize}
+
+\subsection{Q-learning（Off-policy）：看别人学}
+
+\textbf{行为策略 $\neq$ 目标策略}：
+\begin{quote}
+"你实际怎么选择动作 $\neq$ 你想要学会的选择方式"
+\end{quote}
+
+\textbf{过程}：
+\begin{enumerate}
+    \item 在状态 $s_2$，你\textbf{按照行为策略} $b$ 选择动作（用于探索）
+    \item 你\textbf{实际选择了}"右"（行为策略选择，用于探索）
+    \item 但你\textbf{学习的是"最优动作"的价值}，而不是"右"的价值
+    \item 更新：$Q(s_5, \text{上}) \gets Q(s_5, \text{上}) + \alpha [R + \gamma \max_{a} Q(s_2, a) - Q(s_5, \text{上})]$
+    \item 你学习的是"最优策略"的价值，即使你实际选择了"右"
+\end{enumerate}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 你实际选择了"右"，但学习的是"最优动作"（可能是"上"或"下"）的价值
+    \item 你学习的是"最优策略"的价值，而不是"你实际选择的动作"的价值
+    \item 行为策略 $\neq$ 目标策略
+\end{itemize}
+
+\section{Off-policy的更多通俗例子}
+
+\subsection{例子1：看视频学做菜}
+
+\textbf{场景}：你在看美食博主的做菜视频，学习如何做菜。
+
+\textbf{行为策略}：美食博主怎么做菜（博主的做菜方式）
+\begin{itemize}
+    \item 博主在视频中选择了"放两勺盐"（行为策略：博主的策略）
+    \item 博主实际做了这个动作
+\end{itemize}
+
+\textbf{目标策略}：你想要学会的做菜方式（最优的做菜方式）
+\begin{itemize}
+    \item 你想要学会"放多少盐最合适"（目标策略：最优策略）
+    \item 可能最优是"放一勺半盐"，而不是"两勺"
+\end{itemize}
+
+\textbf{Off-policy特点}：
+\begin{itemize}
+    \item 行为策略 $\neq$ 目标策略：博主怎么做 $\neq$ 你想要学会的方式
+    \item 你观察博主的动作（放两勺盐），但学习的是最优动作（放一勺半盐）
+    \item 即使博主放了两勺盐，你学习的是"最优盐量"的价值
+    \item 你可以从多个博主的视频中学习，但目标是学会最优方式
+\end{itemize}
+
+\textbf{类比到Q-learning}：
+\begin{itemize}
+    \item 博主选择了"放两勺盐"（行为策略选择）
+    \item 但你学习的是"最优盐量"（可能是"一勺半"）的价值
+    \item 你使用 $\max$ 操作：$\max\{\text{一勺的价值}, \text{一勺半的价值}, \text{两勺的价值}\}$
+    \item 即使博主放了两勺，你学习的是最优盐量的价值
+\end{itemize}
+
+\subsection{例子2：观察别人下棋来学习}
+
+\textbf{场景}：你观察别人下棋，学习最优下棋策略。
+
+\textbf{行为策略}：别人怎么下棋（观察对象的下棋方式）
+\begin{itemize}
+    \item 你观察的棋手在某个位置选择了"走马"（行为策略：棋手的策略）
+    \item 棋手实际走了这个动作
+\end{itemize}
+
+\textbf{目标策略}：你想要学会的最优下棋方式
+\begin{itemize}
+    \item 你想要学会"在这个位置应该走什么"（目标策略：最优策略）
+    \item 可能最优是"走车"，而不是"走马"
+\end{itemize}
+
+\textbf{Off-policy特点}：
+\begin{itemize}
+    \item 行为策略 $\neq$ 目标策略：棋手怎么下 $\neq$ 你想要学会的方式
+    \item 你观察棋手的动作（走马），但学习的是最优动作（走车）的价值
+    \item 即使棋手走了马，你学习的是"最优走法"的价值
+    \item 你可以观察多个棋手下棋，但目标是学会最优策略
+\end{itemize}
+
+\textbf{类比到Q-learning}：
+\begin{itemize}
+    \item 棋手选择了"走马"（行为策略选择）
+    \item 但你学习的是"最优走法"（可能是"走车"）的价值
+    \item 你使用 $\max$ 操作：$\max\{\text{走马的价值}, \text{走车的价值}, \text{走兵的价值}\}$
+    \item 即使棋手走了马，你学习的是最优走法的价值
+\end{itemize}
+
+\subsection{例子3：看别人开车来学习}
+
+\textbf{场景}：你坐在副驾驶，观察司机开车，学习最优驾驶方式。
+
+\textbf{行为策略}：司机怎么开车（司机的驾驶方式）
+\begin{itemize}
+    \item 司机在路口选择了"向右转"（行为策略：司机的策略）
+    \item 司机实际做了这个动作
+\end{itemize}
+
+\textbf{目标策略}：你想要学会的最优驾驶方式
+\begin{itemize}
+    \item 你想要学会"在路口应该选择什么方向"（目标策略：最优策略）
+    \item 可能最优是"直行"，而不是"右转"
+\end{itemize}
+
+\textbf{Off-policy特点}：
+\begin{itemize}
+    \item 行为策略 $\neq$ 目标策略：司机怎么开 $\neq$ 你想要学会的方式
+    \item 你观察司机的动作（右转），但学习的是最优动作（直行）的价值
+    \item 即使司机右转了，你学习的是"最优方向"的价值
+    \item 你可以观察多个司机开车，但目标是学会最优驾驶方式
+\end{itemize}
+
+\textbf{类比到Q-learning}：
+\begin{itemize}
+    \item 司机选择了"右转"（行为策略选择）
+    \item 但你学习的是"最优方向"（可能是"直行"）的价值
+    \item 你使用 $\max$ 操作：$\max\{\text{左转的价值}, \text{直行的价值}, \text{右转的价值}\}$
+    \item 即使司机右转了，你学习的是最优方向的价值
+\end{itemize}
+
+\subsection{例子4：看别人玩游戏来学习}
+
+\textbf{场景}：你观看游戏高手的直播，学习最优游戏策略。
+
+\textbf{行为策略}：游戏高手怎么玩（高手的游戏策略）
+\begin{itemize}
+    \item 高手在某个关卡选择了"使用技能A"（行为策略：高手的策略）
+    \item 高手实际使用了这个技能
+\end{itemize}
+
+\textbf{目标策略}：你想要学会的最优游戏策略
+\begin{itemize}
+    \item 你想要学会"在这个关卡应该使用什么技能"（目标策略：最优策略）
+    \item 可能最优是"使用技能B"，而不是"技能A"
+\end{itemize}
+
+\textbf{Off-policy特点}：
+\begin{itemize}
+    \item 行为策略 $\neq$ 目标策略：高手怎么玩 $\neq$ 你想要学会的方式
+    \item 你观察高手的动作（使用技能A），但学习的是最优动作（使用技能B）的价值
+    \item 即使高手用了技能A，你学习的是"最优技能"的价值
+    \item 你可以观看多个高手的直播，但目标是学会最优策略
+\end{itemize}
+
+\textbf{类比到Q-learning}：
+\begin{itemize}
+    \item 高手选择了"技能A"（行为策略选择）
+    \item 但你学习的是"最优技能"（可能是"技能B"）的价值
+    \item 你使用 $\max$ 操作：$\max\{\text{技能A的价值}, \text{技能B的价值}, \text{技能C的价值}\}$
+    \item 即使高手用了技能A，你学习的是最优技能的价值
+\end{itemize}
+
+\subsection{例子5：看别人投资来学习}
+
+\textbf{场景}：你观察别人的投资行为，学习最优投资策略。
+
+\textbf{行为策略}：别人怎么投资（投资者的投资方式）
+\begin{itemize}
+    \item 投资者选择了"买入股票A"（行为策略：投资者的策略）
+    \item 投资者实际做了这个投资决策
+\end{itemize}
+
+\textbf{目标策略}：你想要学会的最优投资策略
+\begin{itemize}
+    \item 你想要学会"应该投资什么"（目标策略：最优策略）
+    \item 可能最优是"买入股票B"，而不是"股票A"
+\end{itemize}
+
+\textbf{Off-policy特点}：
+\begin{itemize}
+    \item 行为策略 $\neq$ 目标策略：别人怎么投资 $\neq$ 你想要学会的方式
+    \item 你观察投资者的动作（买入股票A），但学习的是最优动作（买入股票B）的价值
+    \item 即使投资者买了股票A，你学习的是"最优投资"的价值
+    \item 你可以观察多个投资者的行为，但目标是学会最优投资策略
+\end{itemize}
+
+\textbf{类比到Q-learning}：
+\begin{itemize}
+    \item 投资者选择了"股票A"（行为策略选择）
+    \item 但你学习的是"最优投资"（可能是"股票B"）的价值
+    \item 你使用 $\max$ 操作：$\max\{\text{股票A的价值}, \text{股票B的价值}, \text{股票C的价值}\}$
+    \item 即使投资者买了股票A，你学习的是最优投资的价值
+\end{itemize}
+
+\subsection{例子6：看别人学习来学习}
+
+\textbf{场景}：你观察别人的学习方法，学习最优学习方法。
+
+\textbf{行为策略}：别人怎么学习（观察对象的学习方式）
+\begin{itemize}
+    \item 别人选择了"先看视频再做题"（行为策略：别人的学习策略）
+    \item 别人实际用了这个方法
+\end{itemize}
+
+\textbf{目标策略}：你想要学会的最优学习方法
+\begin{itemize}
+    \item 你想要学会"应该用什么方法学习"（目标策略：最优策略）
+    \item 可能最优是"先做题再看视频"，而不是"先看视频再做题"
+\end{itemize}
+
+\textbf{Off-policy特点}：
+\begin{itemize}
+    \item 行为策略 $\neq$ 目标策略：别人怎么学 $\neq$ 你想要学会的方式
+    \item 你观察别人的动作（先看视频再做题），但学习的是最优动作（先做题再看视频）的价值
+    \item 即使别人用了"先看视频再做题"，你学习的是"最优学习方法"的价值
+    \item 你可以观察多个人的学习方法，但目标是学会最优方法
+\end{itemize}
+
+\textbf{类比到Q-learning}：
+\begin{itemize}
+    \item 别人选择了"先看视频再做题"（行为策略选择）
+    \item 但你学习的是"最优方法"（可能是"先做题再看视频"）的价值
+    \item 你使用 $\max$ 操作：$\max\{\text{方法A的价值}, \text{方法B的价值}, \text{方法C的价值}\}$
+    \item 即使别人用了方法A，你学习的是最优方法的价值
+\end{itemize}
+
+\section{Off-policy的核心特点总结}
+
+\subsection{共同特征}
+
+所有Off-policy例子都有以下共同特征：
+
+\begin{enumerate}
+    \item \textbf{观察者 vs 行动者}：
+    \begin{itemize}
+        \item 有一个\textbf{行动者}（别人）按照行为策略行动
+        \item 有一个\textbf{观察者}（你）观察行动者的行为
+        \item 观察者学习的是目标策略，而不是行为策略
+    \end{itemize}
+    
+    \item \textbf{行为策略 $\neq$ 目标策略}：
+    \begin{itemize}
+        \item 行动者使用的策略 $\neq$ 观察者想要学习的策略
+        \item 行动者可能选择次优动作（用于探索）
+        \item 观察者学习的是最优动作的价值
+    \end{itemize}
+    
+    \item \textbf{使用最优值而不是实际值}：
+    \begin{itemize}
+        \item 即使行动者选择了某个动作，观察者学习的是最优动作的价值
+        \item 这就像Q-learning使用 $\max_{a} Q(S_{t+1}, a)$ 而不是 $Q(S_{t+1}, A_{t+1})$
+    \end{itemize}
+    
+    \item \textbf{可以从多个来源学习}：
+    \begin{itemize}
+        \item 可以观察多个行动者的行为
+        \item 可以从历史数据中学习
+        \item 样本效率高
+    \end{itemize}
+\end{enumerate}
+
+\subsection{与On-policy的对比}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{特征} & \textbf{On-policy} & \textbf{Off-policy} \\
+\hline
+\textbf{类比} & 边学边用 & 看别人学 \\
+\hline
+\textbf{行为策略} & 你自己的方式 & 别人的方式 \\
+\hline
+\textbf{目标策略} & 你自己的方式 & 最优方式 \\
+\hline
+\textbf{关系} & 行为策略 = 目标策略 & 行为策略 $\neq$ 目标策略 \\
+\hline
+\textbf{学习来源} & 自己的经验 & 别人的经验或历史数据 \\
+\hline
+\textbf{使用动作} & 实际选择的动作 & 最优动作（不是实际选择的） \\
+\hline
+\textbf{样本效率} & 较低（必须用自己的数据） & 较高（可以用历史数据） \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{常见问题解答}
+
+\subsection{问题1：为什么On-policy必须使用实际选择的动作？}
+
+\textbf{通俗回答}：
+
+想象你在学做菜：
+\begin{itemize}
+    \item 你想要学习"你的做菜方式"的好坏
+    \item 你必须\textbf{按照你的方式}来做菜
+    \item 你\textbf{实际做了什么}，就用\textbf{这个结果}来学习
+    \item 如果你按照别人的方式做菜，你学习的就是"别人的做菜方式"，而不是"你的做菜方式"
+\end{itemize}
+
+\textbf{数学回答}：
+\begin{itemize}
+    \item 因为行为策略 = 目标策略，所以所有动作都由当前策略选择
+    \item $A_{t+1}$ 必须由当前策略选择
+    \item 更新时使用 $Q(S_{t+1}, A_{t+1})$，学习的是当前策略的价值
+\end{itemize}
+
+\subsection{问题2：行为策略 = 目标策略 和 使用实际选择的动作 是什么关系？}
+
+\textbf{关系链}：
+
+\textbf{第1层：定义}
+\begin{itemize}
+    \item 行为策略 = 目标策略：你实际怎么做 = 你想要学会怎么做
+\end{itemize}
+
+\textbf{第2层：结果}
+\begin{itemize}
+    \item 因为行为策略 = 目标策略，所以所有动作都由当前策略选择
+    \item $A_{t+1}$ 必须由当前策略选择
+\end{itemize}
+
+\textbf{第3层：使用}
+\begin{itemize}
+    \item 因为 $A_{t+1}$ 由当前策略选择，所以更新时使用 $Q(S_{t+1}, A_{t+1})$
+    \item 使用实际选择的动作来学习
+\end{itemize}
+
+\textbf{第4层：目标}
+\begin{itemize}
+    \item 学习的是当前策略的价值函数
+\end{itemize}
+
+\subsection{问题3：能不能不用实际选择的动作？}
+
+\textbf{On-policy方法}：
+\begin{itemize}
+    \item \textbf{不能}：因为行为策略 = 目标策略，所以必须使用实际选择的动作
+    \item 如果不用实际选择的动作，学习的就是其他策略的价值
+\end{itemize}
+
+\textbf{Off-policy方法}：
+\begin{itemize}
+    \item \textbf{可以}：因为行为策略 $\neq$ 目标策略，所以可以使用最优动作
+    \item Q-learning 就是使用 $\max_{a} Q(S_{t+1}, a)$，而不是实际选择的动作
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心概念（通俗版）}
+
+\begin{enumerate}
+    \item \textbf{行为策略 = 目标策略}：
+    \begin{quote}
+    "你实际怎么做 = 你想要学会怎么做"
+    \end{quote}
+    
+    \item \textbf{使用实际选择的下一动作}：
+    \begin{quote}
+    "你实际做了什么，就用这个结果来学习"
+    \end{quote}
+    
+    \item \textbf{关系}：
+    \begin{quote}
+    "因为你实际怎么做 = 你想要学会怎么做，所以你的所有动作都按照你想要学会的方式来做，你实际选择了什么，就用什么来学习"
+    \end{quote}
+    
+    \item \textbf{为什么必须由当前策略选择？}：
+    \begin{quote}
+    "如果你想要学习'你的方式'，你必须按照'你的方式'来做，否则你学习的就是'别人的方式'"
+    \end{quote}
+\end{enumerate}
+
+\subsection{关键公式（简化版）}
+
+\textbf{On-policy条件}：
+\begin{equation}
+\text{你实际怎么做} = \text{你想要学会怎么做}
+\end{equation}
+
+\textbf{动作选择}：
+\begin{equation}
+\text{你的下一个动作} = \text{按照你想要学会的方式选择}
+\end{equation}
+
+\textbf{学习}：
+\begin{equation}
+\text{你实际选择了什么} \to \text{用这个结果来学习} \to \text{学习你想要学会的方式的好坏}
+\end{equation}
+
+\subsection{记忆技巧}
+
+\begin{itemize}
+    \item \textbf{On-policy}：边学边用，做的就是你学的
+    \item \textbf{Off-policy}：看别人学，但学的是最优的
+    \item \textbf{使用实际动作}：你实际做了什么，就用什么来学
+    \item \textbf{必须由当前策略}：因为你学的就是你的方式，所以必须按你的方式做
+\end{itemize}
+
+\end{document}
+

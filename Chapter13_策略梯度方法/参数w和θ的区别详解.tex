@@ -1,0 +1,483 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{参数$w$和$\theta$的区别详解}
+\subtitle{Actor-Critic方法中两个参数的含义、区别和联系}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题}
+
+\textbf{问题}：在Actor-Critic方法中，$w$是什么？$\theta$是什么？它们有什么区别？
+
+\section{参数定义}
+
+\subsection{$\theta$：Actor的参数}
+
+\textbf{定义}：
+\begin{itemize}
+    \item $\theta$ 是策略（policy）的参数
+    \item 策略函数：$\pi(a|s, \theta)$
+    \item 表示在状态 $s$ 下，选择动作 $a$ 的概率（或概率密度）
+    \item $\theta$ 决定了策略的行为
+\end{itemize}
+
+\textbf{作用}：
+\begin{itemize}
+    \item 控制Actor如何选择动作
+    \item 通过更新 $\theta$，可以改进策略
+    \item 目标是找到最优策略参数 $\theta^*$，使得期望回报最大
+\end{itemize}
+
+\textbf{更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\label{eq:theta_update}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\alpha$ 是学习率（Actor的学习率）
+    \item $\delta_t$ 是TD误差，由Critic提供
+    \item $\nabla_\theta \ln \pi(A_t|S_t, \theta_t)$ 是策略梯度的对数形式
+\end{itemize}
+
+\subsection{$w$：Critic的参数}
+
+\textbf{定义}：
+\begin{itemize}
+    \item $w$ 是价值函数（value function）的参数
+    \item 价值函数：$\hat{v}(s, w)$
+    \item 表示状态 $s$ 的价值估计
+    \item $w$ 决定了价值函数的形状
+\end{itemize}
+
+\textbf{作用}：
+\begin{itemize}
+    \item 控制Critic如何评估状态价值
+    \item 通过更新 $w$，可以改进价值估计
+    \item 目标是找到最优价值函数参数 $w^*$，使得价值估计准确
+\end{itemize}
+
+\textbf{更新规则}：
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\label{eq:w_update}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\beta$ 是学习率（Critic的学习率）
+    \item $\delta_t$ 是TD误差
+    \item $\nabla_w \hat{v}(S_t, w_t)$ 是价值函数关于参数 $w$ 的梯度
+\end{itemize}
+
+\section{主要区别}
+
+\subsection{区别1：所属组件不同}
+
+\textbf{$\theta$（Actor的参数）}：
+\begin{itemize}
+    \item 属于Actor组件
+    \item 用于参数化策略 $\pi(a|s, \theta)$
+    \item 控制动作选择
+\end{itemize}
+
+\textbf{$w$（Critic的参数）}：
+\begin{itemize}
+    \item 属于Critic组件
+    \item 用于参数化价值函数 $\hat{v}(s, w)$
+    \item 控制价值估计
+\end{itemize}
+
+\subsection{区别2：函数不同}
+
+\textbf{$\theta$ 参数化的函数}：
+\begin{equation}
+\pi(a|s, \theta) : \mathcal{S} \times \Theta \to [0, 1]
+\end{equation}
+
+\begin{itemize}
+    \item 输入：状态 $s$ 和参数 $\theta$
+    \item 输出：动作概率分布（或动作概率密度）
+    \item 类型：策略函数
+\end{itemize}
+
+\textbf{$w$ 参数化的函数}：
+\begin{equation}
+\hat{v}(s, w) : \mathcal{S} \times \mathcal{W} \to \mathbb{R}
+\end{equation}
+
+\begin{itemize}
+    \item 输入：状态 $s$ 和参数 $w$
+    \item 输出：状态价值（实数）
+    \item 类型：价值函数
+\end{itemize}
+
+\subsection{区别3：输出不同}
+
+\textbf{$\theta$ 的输出}：
+\begin{itemize}
+    \item 输出动作概率分布：$\pi(\cdot|s, \theta)$
+    \item 例如：$\pi(\text{左}|s, \theta) = 0.3, \pi(\text{右}|s, \theta) = 0.7$
+    \item 用于选择动作
+\end{itemize}
+
+\textbf{$w$ 的输出}：
+\begin{itemize}
+    \item 输出状态价值：$\hat{v}(s, w)$
+    \item 例如：$\hat{v}(s, w) = 5.2$
+    \item 用于评估状态
+\end{itemize}
+
+\subsection{区别4：更新目标不同}
+
+\textbf{$\theta$ 的更新目标}：
+\begin{itemize}
+    \item 最大化期望回报：$J(\theta) = \mathbb{E}_\pi[G_t | S_0 = s_0]$
+    \item 通过策略梯度方法更新
+    \item 目标是找到最优策略
+\end{itemize}
+
+\textbf{$w$ 的更新目标}：
+\begin{itemize}
+    \item 最小化价值估计误差
+    \item 通过TD误差更新
+    \item 目标是准确估计状态价值
+\end{itemize}
+
+\subsection{区别5：更新方式不同}
+
+\textbf{$\theta$ 的更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\begin{itemize}
+    \item 使用策略梯度：$\nabla_\theta \ln \pi(A_t|S_t, \theta_t)$
+    \item 更新方向：沿着策略梯度方向（最大化回报）
+    \item 学习率：$\alpha$（通常较小）
+\end{itemize}
+
+\textbf{$w$ 的更新}：
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\begin{itemize}
+    \item 使用价值函数梯度：$\nabla_w \hat{v}(S_t, w_t)$
+    \item 更新方向：沿着价值函数梯度方向（最小化误差）
+    \item 学习率：$\beta$（通常较大）
+\end{itemize}
+
+\subsection{区别6：学习率不同}
+
+\textbf{$\theta$ 的学习率 $\alpha$}：
+\begin{itemize}
+    \item 通常较小（例如：$\alpha = 0.001$）
+    \item 因为策略更新需要谨慎，避免策略变化太快
+    \item 策略变化太快会导致价值函数估计不准确
+\end{itemize}
+
+\textbf{$w$ 的学习率 $\beta$}：
+\begin{itemize}
+    \item 通常较大（例如：$\beta = 0.01$）
+    \item 因为价值函数更新可以更快，需要快速适应策略变化
+    \item 价值函数估计需要及时反映策略的变化
+\end{itemize}
+
+\textbf{关系}：
+\begin{equation}
+\beta > \alpha
+\end{equation}
+
+通常Critic的学习率比Actor的学习率大。
+
+\section{具体例子}
+
+\subsection{例子：神经网络参数化}
+
+\textbf{场景}：使用神经网络来参数化策略和价值函数
+
+\textbf{Actor网络（参数 $\theta$）}：
+\begin{itemize}
+    \item 输入：状态 $s$（例如：图像、特征向量）
+    \item 输出：动作概率分布 $\pi(\cdot|s, \theta)$
+    \item 参数：$\theta = \{W_1, b_1, W_2, b_2, \ldots\}$（权重和偏置）
+    \item 例如：$\theta$ 包含1000个参数
+\end{itemize}
+
+\textbf{Critic网络（参数 $w$）}：
+\begin{itemize}
+    \item 输入：状态 $s$（例如：图像、特征向量）
+    \item 输出：状态价值 $\hat{v}(s, w)$（标量）
+    \item 参数：$w = \{W_1', b_1', W_2', b_2', \ldots\}$（权重和偏置）
+    \item 例如：$w$ 包含800个参数
+\end{itemize}
+
+\textbf{区别}：
+\begin{itemize}
+    \item $\theta$ 和 $w$ 是完全不同的参数集合
+    \item 它们属于不同的神经网络
+    \item 它们有不同的结构和参数数量
+\end{itemize}
+
+\subsection{例子：线性函数近似}
+
+\textbf{场景}：使用线性函数来近似策略和价值函数
+
+\textbf{Actor（参数 $\theta$）}：
+\begin{equation}
+\pi(a|s, \theta) = \frac{\exp(\theta^T \phi(s, a))}{\sum_{a'} \exp(\theta^T \phi(s, a'))}
+\end{equation}
+
+\begin{itemize}
+    \item $\theta$ 是权重向量（例如：$\theta \in \mathbb{R}^{100}$）
+    \item $\phi(s, a)$ 是状态-动作特征向量
+    \item 输出：动作概率分布
+\end{itemize}
+
+\textbf{Critic（参数 $w$）}：
+\begin{equation}
+\hat{v}(s, w) = w^T \phi(s)
+\end{equation}
+
+\begin{itemize}
+    \item $w$ 是权重向量（例如：$w \in \mathbb{R}^{50}$）
+    \item $\phi(s)$ 是状态特征向量
+    \item 输出：状态价值（标量）
+\end{itemize}
+
+\textbf{区别}：
+\begin{itemize}
+    \item $\theta$ 和 $w$ 是不同的权重向量
+    \item 它们有不同的维度（$\theta$ 是100维，$w$ 是50维）
+    \item 它们用于不同的函数（策略函数 vs 价值函数）
+\end{itemize}
+
+\subsection{例子：Gridworld中的参数}
+
+\textbf{场景}：简单的Gridworld问题
+
+\textbf{Actor（参数 $\theta$）}：
+\begin{itemize}
+    \item 状态：$s = (x, y)$（位置坐标）
+    \item 动作：$a \in \{\text{上}, \text{下}, \text{左}, \text{右}\}$
+    \item 策略：$\pi(a|s, \theta) = \text{softmax}(\theta^T \phi(s, a))$
+    \item 参数：$\theta$ 是一个 $4 \times 2$ 的矩阵（4个动作，2个状态特征）
+    \item 例如：$\theta = \begin{pmatrix} 0.5 & -0.3 \\ 0.2 & 0.1 \\ -0.1 & 0.4 \\ 0.3 & -0.2 \end{pmatrix}$
+\end{itemize}
+
+\textbf{Critic（参数 $w$）}：
+\begin{itemize}
+    \item 状态：$s = (x, y)$（位置坐标）
+    \item 价值函数：$\hat{v}(s, w) = w^T \phi(s)$
+    \item 参数：$w$ 是一个 $2 \times 1$ 的向量（2个状态特征）
+    \item 例如：$w = \begin{pmatrix} 1.2 \\ -0.5 \end{pmatrix}$
+\end{itemize}
+
+\textbf{区别}：
+\begin{itemize}
+    \item $\theta$ 是 $4 \times 2$ 矩阵，用于策略函数
+    \item $w$ 是 $2 \times 1$ 向量，用于价值函数
+    \item 它们是完全不同的参数
+\end{itemize}
+
+\section{联系和协作}
+
+\subsection{通过TD误差联系}
+
+\textbf{TD误差}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\label{eq:td_error}
+\end{equation}
+
+\textbf{联系}：
+\begin{itemize}
+    \item TD误差 $\delta_t$ 同时用于更新 $\theta$ 和 $w$
+    \item $\theta$ 的更新依赖于Critic提供的 $\delta_t$
+    \item $w$ 的更新也依赖于 $\delta_t$
+    \item $\delta_t$ 是两者之间的桥梁
+\end{itemize}
+
+\subsection{相互依赖}
+
+\textbf{$\theta$ 依赖 $w$}：
+\begin{itemize}
+    \item Actor需要Critic提供的TD误差 $\delta_t$ 来更新策略
+    \item $\delta_t$ 的计算需要价值函数 $\hat{v}(s, w)$
+    \item 如果 $w$ 不准确，$\delta_t$ 也不准确，导致 $\theta$ 的更新不准确
+\end{itemize}
+
+\textbf{$w$ 依赖 $\theta$}：
+\begin{itemize}
+    \item Critic需要Actor选择的动作来产生数据（状态转移、奖励）
+    \item 如果 $\theta$ 不好，产生的数据质量差，导致 $w$ 的更新不准确
+    \item 策略 $\pi(a|s, \theta)$ 决定了状态分布，影响价值函数的估计
+\end{itemize}
+
+\subsection{协同更新}
+
+\textbf{同时更新}：
+\begin{enumerate}
+    \item Actor选择动作 $A_t$，与环境交互
+    \item 获得状态 $S_{t+1}$ 和奖励 $R_{t+1}$
+    \item Critic计算TD误差：$\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)$
+    \item 同时更新 $\theta$ 和 $w$：
+    \begin{align}
+    \theta_{t+1} &= \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t) \\
+    w_{t+1} &= w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+    \end{align}
+\end{enumerate}
+
+\textbf{关键}：
+\begin{itemize}
+    \item $\theta$ 和 $w$ 同时更新，相互影响
+    \item 它们需要协调工作，才能达到最优性能
+    \item 如果一方更新太快或太慢，都会影响另一方的学习
+\end{itemize}
+
+\section{参数维度对比}
+
+\subsection{维度可能不同}
+
+\textbf{$\theta$ 的维度}：
+\begin{itemize}
+    \item 取决于策略函数的复杂度
+    \item 例如：如果使用神经网络，$\theta$ 可能包含数千个参数
+    \item 如果使用线性函数，$\theta$ 可能只有几十个参数
+\end{itemize}
+
+\textbf{$w$ 的维度}：
+\begin{itemize}
+    \item 取决于价值函数的复杂度
+    \item 例如：如果使用神经网络，$w$ 可能包含数百个参数
+    \item 如果使用线性函数，$w$ 可能只有几个参数
+\end{itemize}
+
+\textbf{关系}：
+\begin{itemize}
+    \item $\theta$ 和 $w$ 的维度通常不同
+    \item 它们是完全独立的参数空间
+    \item 没有直接的关系
+\end{itemize}
+
+\subsection{共享特征的情况}
+
+\textbf{共享特征提取器}：
+\begin{itemize}
+    \item 有时Actor和Critic共享底层的特征提取器
+    \item 例如：共享卷积层来提取图像特征
+    \item 但 $\theta$ 和 $w$ 仍然不同（上层参数不同）
+\end{itemize}
+
+\textbf{例子}：
+\begin{itemize}
+    \item 共享部分：特征提取网络（例如：CNN的前几层）
+    \item Actor专用：$\theta_{\text{actor}}$（策略头）
+    \item Critic专用：$w_{\text{critic}}$（价值头）
+    \item 总参数：$\{\theta_{\text{shared}}, \theta_{\text{actor}}, w_{\text{critic}}\}$
+\end{itemize}
+
+\section{总结}
+
+\subsection{参数定义}
+
+\textbf{$\theta$（Actor的参数）}：
+\begin{itemize}
+    \item 策略函数的参数：$\pi(a|s, \theta)$
+    \item 控制动作选择
+    \item 更新目标：最大化期望回报
+    \item 更新方式：策略梯度
+\end{itemize}
+
+\textbf{$w$（Critic的参数）}：
+\begin{itemize}
+    \item 价值函数的参数：$\hat{v}(s, w)$
+    \item 控制价值估计
+    \item 更新目标：最小化价值估计误差
+    \item 更新方式：TD误差
+\end{itemize}
+
+\subsection{主要区别}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{特征} & \textbf{$\theta$（Actor）} & \textbf{$w$（Critic）} \\
+\midrule
+所属组件 & Actor & Critic \\
+参数化函数 & 策略 $\pi(a|s, \theta)$ & 价值函数 $\hat{v}(s, w)$ \\
+输出类型 & 动作概率分布 & 状态价值（标量） \\
+更新目标 & 最大化期望回报 & 最小化价值估计误差 \\
+更新方式 & 策略梯度 & TD误差 \\
+学习率 & $\alpha$（通常较小） & $\beta$（通常较大） \\
+\bottomrule
+\end{tabular}
+\caption{$\theta$ 和 $w$ 的主要区别}
+\label{tab:comparison}
+\end{table}
+
+\subsection{联系和协作}
+
+\begin{quote}
+\textbf{$\theta$ 和 $w$ 通过TD误差 $\delta_t$ 联系}：
+\begin{itemize}
+    \item TD误差同时用于更新 $\theta$ 和 $w$
+    \item $\theta$ 依赖 $w$ 提供的TD误差来更新策略
+    \item $w$ 依赖 $\theta$ 产生的数据来更新价值函数
+    \item 它们相互依赖、协同工作
+\end{itemize}
+\end{quote}
+
+\subsection{关键公式}
+
+\textbf{TD误差}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\textbf{Actor更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{Critic更新}：
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\subsection{直观理解}
+
+\begin{itemize}
+    \item \textbf{$\theta$}：就像"演员"的"演技参数"，决定了如何表演（选择动作）
+    \item \textbf{$w$}：就像"评论家"的"评分标准"，决定了如何评分（评估状态）
+    \item \textbf{TD误差 $\delta_t$}：就像"评论家"给出的"评分"，告诉"演员"表演的好坏
+    \item \textbf{协同工作}："演员"根据"评分"改进"演技"，"评论家"根据"表演"改进"评分标准"
+\end{itemize}
+
+\end{document}
+

@@ -1,0 +1,538 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{Critic更新公式详解}
+\subtitle{$w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)$ 的详细解释}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题}
+
+\textbf{问题}：如何理解Critic的更新公式？
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\label{eq:critic_update}
+\end{equation}
+
+\section{公式组成}
+
+\subsection{公式分解}
+
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\textbf{组成部分}：
+\begin{itemize}
+    \item $w_t$：当前时刻的价值函数参数
+    \item $w_{t+1}$：下一时刻的价值函数参数（更新后）
+    \item $\beta$：学习率（Critic的学习率）
+    \item $\delta_t$：TD误差（Temporal Difference Error）
+    \item $\nabla_w \hat{v}(S_t, w_t)$：价值函数关于参数 $w$ 的梯度
+\end{itemize}
+
+\subsection{各部分的含义}
+
+\textbf{$w_t$ 和 $w_{t+1}$}：
+\begin{itemize}
+    \item $w_t$：当前时刻的价值函数参数
+    \item $w_{t+1}$：更新后的价值函数参数
+    \item 通过更新，$w$ 会逐渐接近最优值 $w^*$
+\end{itemize}
+
+\textbf{$\beta$（学习率）}：
+\begin{itemize}
+    \item Critic的学习率，控制更新步长
+    \item 通常 $\beta > \alpha$（Actor的学习率）
+    \item 例如：$\beta = 0.01, 0.1, 0.5$ 等
+    \item 如果 $\beta$ 太大，更新不稳定；如果 $\beta$ 太小，学习太慢
+\end{itemize}
+
+\textbf{$\delta_t$（TD误差）}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w_t) - \hat{v}(S_t, w_t)
+\label{eq:td_error}
+\end{equation}
+
+\begin{itemize}
+    \item 表示实际回报与预期回报的差异
+    \item $\delta_t > 0$：实际回报比预期好，价值估计偏低
+    \item $\delta_t < 0$：实际回报比预期差，价值估计偏高
+    \item $\delta_t = 0$：价值估计准确
+\end{itemize}
+
+\textbf{$\nabla_w \hat{v}(S_t, w_t)$（梯度）}：
+\begin{itemize}
+    \item 价值函数关于参数 $w$ 的梯度
+    \item 表示在参数空间 $w$ 中，哪个方向可以最快增加 $\hat{v}(S_t, w_t)$
+    \item 是一个向量，维度与 $w$ 相同
+\end{itemize}
+
+\section{为什么这样更新？}
+
+\subsection{目标：最小化TD误差}
+
+\textbf{目标函数}：
+\begin{equation}
+L(w) = \frac{1}{2} \delta_t^2 = \frac{1}{2} [R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)]^2
+\label{eq:loss_function}
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item 我们希望最小化TD误差的平方
+    \item 如果 $\delta_t = 0$，说明价值估计准确
+    \item 通过最小化 $L(w)$，我们可以改进价值函数
+\end{itemize}
+
+\subsection{梯度下降}
+
+\textbf{梯度下降更新}：
+\begin{equation}
+w_{t+1} = w_t - \alpha \nabla_w L(w_t)
+\label{eq:gradient_descent}
+\end{equation}
+
+\textbf{计算梯度}：
+\begin{align}
+\nabla_w L(w) &= \nabla_w \left[\frac{1}{2} \delta_t^2\right] \\
+              &= \delta_t \nabla_w \delta_t \\
+              &= \delta_t \nabla_w [R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)] \\
+              &= \delta_t [\gamma \nabla_w \hat{v}(S_{t+1}, w) - \nabla_w \hat{v}(S_t, w)]
+\end{align}
+
+\textbf{简化（半梯度方法）}：
+\begin{itemize}
+    \item 在实际应用中，通常只考虑当前状态 $S_t$ 的梯度
+    \item 忽略下一状态 $S_{t+1}$ 的梯度（因为 $S_{t+1}$ 可能还没有更新）
+    \item 这称为"半梯度"（semi-gradient）方法
+\end{itemize}
+
+\textbf{半梯度更新}：
+\begin{align}
+\nabla_w L(w) &\approx -\delta_t \nabla_w \hat{v}(S_t, w) \\
+w_{t+1} &= w_t - \beta (-\delta_t \nabla_w \hat{v}(S_t, w)) \\
+        &= w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w)
+\end{align}
+
+这就是Critic的更新公式！
+
+\subsection{直观理解}
+
+\textbf{更新方向}：
+\begin{itemize}
+    \item 如果 $\delta_t > 0$：实际回报比预期好，价值估计偏低
+    \begin{itemize}
+        \item 更新方向：$+\delta_t \nabla_w \hat{v}(S_t, w_t)$（增加 $\hat{v}(S_t, w_t)$）
+        \item 结果：提高当前状态的价值估计
+    \end{itemize}
+    \item 如果 $\delta_t < 0$：实际回报比预期差，价值估计偏高
+    \begin{itemize}
+        \item 更新方向：$+\delta_t \nabla_w \hat{v}(S_t, w_t)$（减少 $\hat{v}(S_t, w_t)$）
+        \item 结果：降低当前状态的价值估计
+    \end{itemize}
+    \item 如果 $\delta_t = 0$：价值估计准确
+    \begin{itemize}
+        \item 更新量：$0$（不更新）
+        \item 结果：保持当前参数不变
+    \end{itemize}
+\end{itemize}
+
+\section{详细推导}
+
+\subsection{从TD学习到Critic更新}
+
+\textbf{TD(0)更新}：
+\begin{equation}
+v(S_t) \leftarrow v(S_t) + \alpha [R_{t+1} + \gamma v(S_{t+1}) - v(S_t)]
+\label{eq:td0_update}
+\end{equation}
+
+\textbf{函数近似}：
+\begin{itemize}
+    \item 在函数近似中，$v(S_t)$ 被替换为 $\hat{v}(S_t, w)$
+    \item 我们需要更新参数 $w$，而不是直接更新价值函数
+\end{itemize}
+
+\textbf{参数更新}：
+\begin{equation}
+w_{t+1} = w_t + \alpha [R_{t+1} + \gamma \hat{v}(S_{t+1}, w_t) - \hat{v}(S_t, w_t)] \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\textbf{使用TD误差}：
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+其中 $\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w_t) - \hat{v}(S_t, w_t)$。
+
+\subsection{严格的数学推导}
+
+\textbf{目标}：最小化TD误差的平方
+\begin{equation}
+L(w) = \frac{1}{2} [R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)]^2
+\end{equation}
+
+\textbf{梯度}：
+\begin{align}
+\nabla_w L(w) &= \frac{\partial L(w)}{\partial w} \\
+              &= \frac{\partial}{\partial w} \left[\frac{1}{2} [R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)]^2\right] \\
+              &= [R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)] \times \frac{\partial}{\partial w} [R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)] \\
+              &= \delta_t \times [\gamma \nabla_w \hat{v}(S_{t+1}, w) - \nabla_w \hat{v}(S_t, w)]
+\end{align}
+
+\textbf{半梯度方法}：
+\begin{itemize}
+    \item 在实际应用中，通常忽略 $\nabla_w \hat{v}(S_{t+1}, w)$
+    \item 只考虑 $\nabla_w \hat{v}(S_t, w)$
+    \item 这称为"半梯度"（semi-gradient）方法
+\end{itemize}
+
+\textbf{半梯度更新}：
+\begin{align}
+\nabla_w L(w) &\approx -\delta_t \nabla_w \hat{v}(S_t, w) \\
+w_{t+1} &= w_t - \beta \nabla_w L(w_t) \\
+        &= w_t - \beta (-\delta_t \nabla_w \hat{v}(S_t, w_t)) \\
+        &= w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{align}
+
+\section{具体例子}
+
+\subsection{例子1：线性函数近似}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 价值函数：$\hat{v}(s, w) = w^T \phi(s)$
+    \item 状态特征：$\phi(s) = [1, s_1, s_2]^T$（3维特征向量）
+    \item 参数：$w = [w_0, w_1, w_2]^T$（3维参数向量）
+    \item 当前状态：$S_t = (2, 3)$，特征：$\phi(S_t) = [1, 2, 3]^T$
+\end{itemize}
+
+\textbf{计算梯度}：
+\begin{align}
+\nabla_w \hat{v}(S_t, w) &= \nabla_w [w^T \phi(S_t)] \\
+                          &= \phi(S_t) \\
+                          &= [1, 2, 3]^T
+\end{align}
+
+\textbf{假设}：
+\begin{itemize}
+    \item 当前参数：$w_t = [0.5, 0.3, -0.2]^T$
+    \item 当前状态价值：$\hat{v}(S_t, w_t) = 0.5 \times 1 + 0.3 \times 2 + (-0.2) \times 3 = 0.5$
+    \item 下一状态价值：$\hat{v}(S_{t+1}, w_t) = 1.0$
+    \item 奖励：$R_{t+1} = -1$
+    \item 折扣因子：$\gamma = 0.9$
+    \item 学习率：$\beta = 0.01$
+\end{itemize}
+
+\textbf{计算TD误差}：
+\begin{align}
+\delta_t &= R_{t+1} + \gamma \hat{v}(S_{t+1}, w_t) - \hat{v}(S_t, w_t) \\
+         &= -1 + 0.9 \times 1.0 - 0.5 \\
+         &= -1 + 0.9 - 0.5 \\
+         &= -0.6
+\end{align}
+
+\textbf{更新参数}：
+\begin{align}
+w_{t+1} &= w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t) \\
+        &= [0.5, 0.3, -0.2]^T + 0.01 \times (-0.6) \times [1, 2, 3]^T \\
+        &= [0.5, 0.3, -0.2]^T + (-0.006) \times [1, 2, 3]^T \\
+        &= [0.5, 0.3, -0.2]^T + [-0.006, -0.012, -0.018]^T \\
+        &= [0.494, 0.288, -0.218]^T
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item TD误差 $\delta_t = -0.6 < 0$，说明价值估计偏高
+    \item 更新是负的，会降低价值估计
+    \item 参数 $w$ 被更新，使得 $\hat{v}(S_t, w)$ 降低
+\end{itemize}
+
+\textbf{验证}：
+\begin{align}
+\hat{v}(S_t, w_{t+1}) &= w_{t+1}^T \phi(S_t) \\
+                      &= 0.494 \times 1 + 0.288 \times 2 + (-0.218) \times 3 \\
+                      &= 0.494 + 0.576 - 0.654 \\
+                      &= 0.416
+\end{align}
+
+确实降低了（从 $0.5$ 降到 $0.416$）！
+
+\subsection{例子2：神经网络}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 价值函数：$\hat{v}(s, w)$ 是一个神经网络
+    \item 输入：状态 $s$（例如：图像、特征向量）
+    \item 输出：状态价值（标量）
+    \item 参数：$w = \{W_1, b_1, W_2, b_2, \ldots\}$（权重和偏置）
+\end{itemize}
+
+\textbf{计算梯度}：
+\begin{itemize}
+    \item 使用反向传播（backpropagation）计算 $\nabla_w \hat{v}(S_t, w_t)$
+    \item 这是一个向量，维度与 $w$ 相同
+    \item 例如：如果 $w$ 有1000个参数，$\nabla_w \hat{v}(S_t, w_t)$ 也是1000维向量
+\end{itemize}
+
+\textbf{更新过程}：
+\begin{enumerate}
+    \item 前向传播：计算 $\hat{v}(S_t, w_t)$ 和 $\hat{v}(S_{t+1}, w_t)$
+    \item 计算TD误差：$\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w_t) - \hat{v}(S_t, w_t)$
+    \item 反向传播：计算 $\nabla_w \hat{v}(S_t, w_t)$
+    \item 更新参数：$w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)$
+\end{enumerate}
+
+\textbf{具体数值}：
+\begin{itemize}
+    \item 假设 $\delta_t = 0.5$（TD误差为正）
+    \item 假设 $\beta = 0.01$（学习率）
+    \item 假设 $\nabla_w \hat{v}(S_t, w_t)$ 的某个元素是 $0.3$
+    \item 该参数的更新量：$\beta \delta_t \times 0.3 = 0.01 \times 0.5 \times 0.3 = 0.0015$
+\end{itemize}
+
+\subsection{例子3：Gridworld}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 状态：$S_t = (2, 3)$（Gridworld中的位置）
+    \item 动作：向右移动
+    \item 奖励：$R_{t+1} = -1$（每步的代价）
+    \item 下一状态：$S_{t+1} = (2, 4)$
+    \item 折扣因子：$\gamma = 0.9$
+\end{itemize}
+
+\textbf{价值函数}：
+\begin{itemize}
+    \item 使用表格形式：$\hat{v}(s, w) = w[s]$（每个状态一个参数）
+    \item 参数：$w$ 是一个字典，$w[(2, 3)] = 5.0, w[(2, 4)] = 6.0$
+\end{itemize}
+
+\textbf{计算梯度}：
+\begin{itemize}
+    \item 对于表格形式，$\nabla_w \hat{v}(S_t, w_t)$ 是一个稀疏向量
+    \item 只有对应状态 $S_t$ 的位置是 $1$，其他位置是 $0$
+    \item 例如：如果 $S_t = (2, 3)$，则 $\nabla_w \hat{v}(S_t, w_t)[(2, 3)] = 1$，其他为 $0$
+\end{itemize}
+
+\textbf{计算TD误差}：
+\begin{align}
+\delta_t &= R_{t+1} + \gamma \hat{v}(S_{t+1}, w_t) - \hat{v}(S_t, w_t) \\
+         &= -1 + 0.9 \times 6.0 - 5.0 \\
+         &= -1 + 5.4 - 5.0 \\
+         &= -0.6
+\end{align}
+
+\textbf{更新参数}：
+\begin{align}
+w_{t+1}[(2, 3)] &= w_t[(2, 3)] + \beta \delta_t \times 1 \\
+                 &= 5.0 + 0.01 \times (-0.6) \times 1 \\
+                 &= 5.0 - 0.006 \\
+                 &= 4.994
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 只有状态 $(2, 3)$ 的参数被更新
+    \item 其他状态的参数保持不变
+    \item 状态 $(2, 3)$ 的价值从 $5.0$ 降到 $4.994$
+\end{itemize}
+
+\section{更新方向分析}
+
+\subsection{TD误差为正的情况}
+
+\textbf{场景}：$\delta_t > 0$
+
+\textbf{含义}：
+\begin{itemize}
+    \item 实际回报比预期好
+    \item 价值估计偏低
+    \item 需要提高价值估计
+\end{itemize}
+
+\textbf{更新}：
+\begin{equation}
+w_{t+1} = w_t + \beta \times (\text{正数}) \times \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\textbf{结果}：
+\begin{itemize}
+    \item 更新方向与梯度方向相同
+    \item 会增加 $\hat{v}(S_t, w_t)$
+    \item 提高当前状态的价值估计
+\end{itemize}
+
+\subsection{TD误差为负的情况}
+
+\textbf{场景}：$\delta_t < 0$
+
+\textbf{含义}：
+\begin{itemize}
+    \item 实际回报比预期差
+    \item 价值估计偏高
+    \item 需要降低价值估计
+\end{itemize}
+
+\textbf{更新}：
+\begin{equation}
+w_{t+1} = w_t + \beta \times (\text{负数}) \times \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\textbf{结果}：
+\begin{itemize}
+    \item 更新方向与梯度方向相反
+    \item 会减少 $\hat{v}(S_t, w_t)$
+    \item 降低当前状态的价值估计
+\end{itemize}
+
+\subsection{TD误差为零的情况}
+
+\textbf{场景}：$\delta_t = 0$
+
+\textbf{含义}：
+\begin{itemize}
+    \item 实际回报与预期一致
+    \item 价值估计准确
+    \item 不需要更新
+\end{itemize}
+
+\textbf{更新}：
+\begin{equation}
+w_{t+1} = w_t + \beta \times 0 \times \nabla_w \hat{v}(S_t, w_t) = w_t
+\end{equation}
+
+\textbf{结果}：
+\begin{itemize}
+    \item 参数保持不变
+    \item 价值估计已经准确
+\end{itemize}
+
+\section{与Actor更新的对比}
+
+\subsection{Actor更新}
+
+\textbf{公式}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\label{eq:actor_update}
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 使用策略梯度：$\nabla_\theta \ln \pi(A_t|S_t, \theta_t)$
+    \item 学习率：$\alpha$（通常较小）
+    \item 目标：最大化期望回报
+\end{itemize}
+
+\subsection{Critic更新}
+
+\textbf{公式}：
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 使用价值函数梯度：$\nabla_w \hat{v}(S_t, w_t)$
+    \item 学习率：$\beta$（通常较大）
+    \item 目标：最小化价值估计误差
+\end{itemize}
+
+\subsection{对比}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{特征} & \textbf{Actor更新} & \textbf{Critic更新} \\
+\midrule
+参数 & $\theta$（策略参数） & $w$（价值函数参数） \\
+梯度 & $\nabla_\theta \ln \pi(A_t|S_t, \theta_t)$ & $\nabla_w \hat{v}(S_t, w_t)$ \\
+学习率 & $\alpha$（通常较小） & $\beta$（通常较大） \\
+目标 & 最大化期望回报 & 最小化价值估计误差 \\
+\bottomrule
+\end{tabular}
+\caption{Actor和Critic更新的对比}
+\label{tab:comparison}
+\end{table}
+
+\section{总结}
+
+\subsection{公式}
+
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\subsection{组成部分}
+
+\begin{itemize}
+    \item $w_t$：当前时刻的价值函数参数
+    \item $w_{t+1}$：更新后的价值函数参数
+    \item $\beta$：学习率（Critic的学习率）
+    \item $\delta_t$：TD误差（$R_{t+1} + \gamma \hat{v}(S_{t+1}, w_t) - \hat{v}(S_t, w_t)$）
+    \item $\nabla_w \hat{v}(S_t, w_t)$：价值函数关于参数 $w$ 的梯度
+\end{itemize}
+
+\subsection{更新原理}
+
+\begin{quote}
+\textbf{Critic的更新原理}：
+\begin{itemize}
+    \item 目标：最小化TD误差的平方
+    \item 方法：梯度下降（半梯度方法）
+    \item 更新方向：沿着价值函数梯度的方向
+    \item 更新幅度：由TD误差和学习率决定
+\end{itemize}
+\end{quote}
+
+\subsection{直观理解}
+
+\begin{itemize}
+    \item \textbf{$\delta_t > 0$}：实际回报比预期好，提高价值估计
+    \item \textbf{$\delta_t < 0$}：实际回报比预期差，降低价值估计
+    \item \textbf{$\delta_t = 0$}：价值估计准确，不更新
+\end{itemize}
+
+\subsection{关键公式}
+
+\textbf{TD误差}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w_t) - \hat{v}(S_t, w_t)
+\end{equation}
+
+\textbf{Critic更新}：
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\textbf{Actor更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\end{document}
+

@@ -1,0 +1,399 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{价值函数与策略一致详解}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+"使价值函数与当前策略一致"是策略评估（Policy Evaluation）过程的核心目标，也是广义策略迭代（GPI）中两个关键过程之一。理解这个概念对于掌握强化学习算法至关重要。
+
+\section{基本定义}
+
+\subsection{什么是一致性？}
+
+\begin{definition}[价值函数与策略一致]
+价值函数 $V$ 与策略 $\pi$ \textbf{一致}（consistent），当且仅当 $V$ 等于策略 $\pi$ 的真实价值函数 $v_\pi$，即：
+\begin{equation}
+V = v_\pi
+\label{eq:consistency}
+\end{equation}
+\end{definition}
+
+\textbf{数学表达}：
+\begin{equation}
+V(s) = v_\pi(s) \quad \text{对所有 } s \in \mathcal{S}
+\end{equation}
+
+\subsection{策略的真实价值函数}
+
+\textbf{策略 $\pi$ 的状态价值函数}：
+\begin{equation}
+v_\pi(s) = \mathbb{E}_\pi[G_t | S_t = s]
+\end{equation}
+
+即：从状态 $s$ 开始，遵循策略 $\pi$，获得的期望回报。
+
+\textbf{贝尔曼方程}：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\label{eq:bellman_equation}
+\end{equation}
+
+\section{一致性的含义}
+
+\subsection{直观理解}
+
+\textbf{"使价值函数与当前策略一致"意味着}：
+
+\begin{enumerate}
+    \item \textbf{给定策略}：我们有一个固定的策略 $\pi$
+    
+    \item \textbf{计算价值}：计算在这个策略下，每个状态的真实价值
+    
+    \item \textbf{满足方程}：价值函数 $V$ 必须满足贝尔曼方程（\ref{eq:bellman_equation}）
+    
+    \item \textbf{准确反映}：$V(s)$ 准确反映了在策略 $\pi$ 下从状态 $s$ 开始的期望回报
+\end{enumerate}
+
+\subsection{具体例子}
+
+\textbf{例子1：简单Gridworld}
+
+考虑一个简单的3×3 Gridworld，策略 $\pi$ 是等概率随机策略（每个动作概率 $0.25$）。
+
+\textbf{状态 $s_5$（中心）}：
+\begin{itemize}
+    \item 策略 $\pi$：上、下、左、右各 $0.25$ 概率
+    \item 如果价值函数 $V$ 与策略 $\pi$ 一致，则：
+    \begin{equation}
+    V(s_5) = 0.25 \times [r_{\text{上}} + \gamma V(s_2)] + 0.25 \times [r_{\text{下}} + \gamma V(s_8)] + 0.25 \times [r_{\text{左}} + \gamma V(s_4)] + 0.25 \times [r_{\text{右}} + \gamma V(s_6)]
+    \end{equation}
+    \item 这个等式对所有状态都成立
+\end{itemize}
+
+\textbf{例子2：不一致的情况}
+
+假设我们有一个策略 $\pi$，但价值函数 $V$ 还没有更新到与 $\pi$ 一致：
+
+\textbf{初始状态}：
+\begin{itemize}
+    \item 策略 $\pi$：在状态 $s$ 选择动作"上"的概率是 $0.8$，选择"下"的概率是 $0.2$
+    \item 价值函数 $V(s) = 0$（初始值，可能不一致）
+\end{itemize}
+
+\textbf{策略评估过程}：
+\begin{itemize}
+    \item 迭代更新 $V$，使其满足：
+    \begin{equation}
+    V(s) = 0.8 \times [r_{\text{上}} + \gamma V(s_{\text{上}})] + 0.2 \times [r_{\text{下}} + \gamma V(s_{\text{下}})]
+    \end{equation}
+    \item 当 $V$ 不再改变时，$V = v_\pi$（价值函数与策略一致）
+\end{itemize}
+
+\section{策略评估过程}
+
+\subsection{迭代策略评估}
+
+\textbf{目标}：给定策略 $\pi$，计算 $v_\pi$
+
+\textbf{方法}：迭代更新价值函数，直到收敛
+
+\textbf{更新规则}：
+\begin{equation}
+V^{k+1}(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V^k(s')]
+\label{eq:iterative_evaluation}
+\end{equation}
+
+\textbf{收敛条件}：
+\begin{equation}
+V^k(s) = V^{k+1}(s) \quad \text{对所有 } s \in \mathcal{S}
+\end{equation}
+
+当收敛时，$V^k = v_\pi$，即价值函数与策略一致。
+
+\subsection{具体计算过程}
+
+\textbf{第0次迭代}（初始化）：
+\begin{equation}
+V^0(s) = 0 \quad \text{对所有 } s
+\end{equation}
+
+\textbf{第1次迭代}：
+\begin{equation}
+V^1(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V^0(s')]
+\end{equation}
+
+由于 $V^0(s') = 0$：
+\begin{equation}
+V^1(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) \cdot r
+\end{equation}
+
+\textbf{第2次迭代}：
+\begin{equation}
+V^2(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V^1(s')]
+\end{equation}
+
+\textbf{继续迭代}，直到 $V^k(s) = V^{k+1}(s)$ 对所有 $s$ 成立。
+
+\section{一致性的数学条件}
+
+\subsection{贝尔曼方程}
+
+价值函数 $V$ 与策略 $\pi$ 一致，当且仅当 $V$ 满足策略 $\pi$ 的贝尔曼方程：
+
+\begin{equation}
+V(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')] \quad \text{对所有 } s \in \mathcal{S}
+\label{eq:bellman_consistency}
+\end{equation}
+
+\textbf{等价表述}：
+\begin{equation}
+V = \mathcal{T}_\pi V
+\end{equation}
+
+其中 $\mathcal{T}_\pi$ 是策略 $\pi$ 的贝尔曼算子（Bellman Operator）。
+
+\subsection{不动点性质}
+
+\textbf{关键洞察}：
+\begin{itemize}
+    \item 策略 $\pi$ 的价值函数 $v_\pi$ 是贝尔曼方程的唯一不动点
+    \item 迭代策略评估收敛到这个不动点
+    \item 当 $V = v_\pi$ 时，我们说价值函数与策略一致
+\end{itemize}
+
+\section{不一致的情况}
+
+\subsection{什么是不一致？}
+
+\textbf{不一致}意味着：
+\begin{equation}
+V(s) \neq v_\pi(s) \quad \text{对某些 } s \in \mathcal{S}
+\end{equation}
+
+\textbf{可能的原因}：
+\begin{enumerate}
+    \item \textbf{价值函数未收敛}：策略评估过程还没有完成
+    \item \textbf{价值函数过时}：策略已经改变，但价值函数还没有更新
+    \item \textbf{初始值}：价值函数是随机初始化的，还没有反映策略的真实价值
+\end{enumerate}
+
+\subsection{例子：策略改变后的不一致}
+
+\textbf{初始状态}：
+\begin{itemize}
+    \item 策略 $\pi_0$：随机策略
+    \item 价值函数 $V = v_{\pi_0}$（一致）
+\end{itemize}
+
+\textbf{策略改进后}：
+\begin{itemize}
+    \item 新策略 $\pi_1$：基于 $V$ 改进得到
+    \item 价值函数仍然是 $V$（还没有更新）
+    \item 此时 $V \neq v_{\pi_1}$（不一致！）
+\end{itemize}
+
+\textbf{需要重新评估}：
+\begin{itemize}
+    \item 使用策略评估计算 $v_{\pi_1}$
+    \item 更新 $V \gets v_{\pi_1}$
+    \item 现在 $V = v_{\pi_1}$（再次一致）
+\end{itemize}
+
+\section{在GPI中的作用}
+
+\subsection{两个过程的交互}
+
+\textbf{过程1：策略评估}（使价值函数与策略一致）
+\begin{equation}
+V \to v_\pi
+\end{equation}
+
+\textbf{过程2：策略改进}（使策略相对于价值函数贪婪）
+\begin{equation}
+\pi \to \text{greedy}(V)
+\end{equation}
+
+\subsection{竞争性}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 使策略贪婪通常会使价值函数对改变后的策略不正确
+    \item 使价值函数与策略一致通常会使策略不再贪婪
+    \item 两个过程"拉向相反的方向"
+\end{itemize}
+
+\textbf{例子}：
+\begin{enumerate}
+    \item \textbf{初始}：$V = v_{\pi_0}$，$\pi_0$ 是随机策略
+    \item \textbf{策略改进}：$\pi_1 = \text{greedy}(V)$，现在 $\pi_1 \neq \text{greedy}(v_{\pi_1})$（不一致）
+    \item \textbf{策略评估}：计算 $v_{\pi_1}$，更新 $V \gets v_{\pi_1}$，现在 $V = v_{\pi_1}$（一致）
+    \item \textbf{但}：$\pi_1$ 可能不再是相对于 $V$ 的贪婪策略
+    \item \textbf{继续迭代}：直到两个过程都稳定
+\end{enumerate}
+
+\subsection{收敛条件}
+
+\textbf{同时稳定}：
+\begin{align}
+V &= v_\pi \quad \text{（价值函数与策略一致）} \\
+\pi &= \text{greedy}(V) \quad \text{（策略相对于价值函数贪婪）}
+\end{align}
+
+\textbf{这意味着}：
+\begin{equation}
+\pi = \text{greedy}(v_\pi)
+\end{equation}
+
+这等价于贝尔曼最优性方程，因此 $\pi$ 和 $v_\pi$ 都是最优的。
+
+\section{具体例子：Gridworld}
+
+\subsection{问题设置}
+
+考虑一个简单的3×3 Gridworld：
+\begin{center}
+\begin{tabular}{|c|c|c|}
+\hline
+终止 & $s_2$ & $s_3$ \\
+\hline
+$s_4$ & $s_5$ & $s_6$ \\
+\hline
+$s_7$ & $s_8$ & 终止 \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{策略 $\pi$}：等概率随机策略
+\begin{equation}
+\pi(a|s) = \frac{1}{4} \quad \text{对所有 } s, a
+\end{equation}
+
+\textbf{奖励}：所有转移的奖励都是 $-1$
+
+\textbf{折扣因子}：$\gamma = 0.9$
+
+\subsection{策略评估过程}
+
+\textbf{第0次迭代}：
+\begin{equation}
+V^0(s) = 0 \quad \text{对所有 } s
+\end{equation}
+
+\textbf{第1次迭代}：
+
+对于状态 $s_5$（中心）：
+\begin{align}
+V^1(s_5) &= \sum_{a} \frac{1}{4} \sum_{s', r} p(s', r | s_5, a) [r + \gamma V^0(s')] \\
+         &= \frac{1}{4} \times [-1 + 0.9 \times 0] + \frac{1}{4} \times [-1 + 0.9 \times 0] + \frac{1}{4} \times [-1 + 0.9 \times 0] + \frac{1}{4} \times [-1 + 0.9 \times 0] \\
+         &= -1
+\end{align}
+
+\textbf{第2次迭代}：
+
+对于状态 $s_5$：
+\begin{align}
+V^2(s_5) &= \sum_{a} \frac{1}{4} \sum_{s', r} p(s', r | s_5, a) [r + \gamma V^1(s')] \\
+         &= \frac{1}{4} \times [-1 + 0.9 \times V^1(s_2)] + \frac{1}{4} \times [-1 + 0.9 \times V^1(s_8)] + \frac{1}{4} \times [-1 + 0.9 \times V^1(s_4)] + \frac{1}{4} \times [-1 + 0.9 \times V^1(s_6)]
+\end{align}
+
+\textbf{继续迭代}，直到 $V^k(s) = V^{k+1}(s)$ 对所有 $s$ 成立。
+
+\textbf{收敛后}：
+\begin{equation}
+V^k = v_\pi
+\end{equation}
+
+此时，价值函数 $V$ 与策略 $\pi$ 一致。
+
+\section{不同方法中的体现}
+
+\subsection{动态规划}
+
+\textbf{策略迭代}：
+\begin{enumerate}
+    \item \textbf{策略评估}：迭代直到 $V = v_\pi$
+    \item \textbf{策略改进}：基于 $V$ 改进策略
+\end{enumerate}
+
+\subsection{蒙特卡洛方法}
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 从样本回报估计 $v_\pi(s)$
+    \item 当样本足够多时，$V(s) \approx v_\pi(s)$
+    \item 使价值函数与策略一致
+\end{itemize}
+
+\subsection{时序差分学习}
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 使用TD更新估计 $v_\pi(s)$
+    \item 每个时间步更新：$V(S_t) \gets V(S_t) + \alpha [R_{t+1} + \gamma V(S_{t+1}) - V(S_t)]$
+    \item 逐渐使价值函数与策略一致
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{定义}：价值函数 $V$ 与策略 $\pi$ 一致，当且仅当 $V = v_\pi$
+    
+    \item \textbf{数学条件}：$V$ 满足策略 $\pi$ 的贝尔曼方程
+    
+    \item \textbf{过程}：策略评估就是使价值函数与当前策略一致的过程
+    
+    \item \textbf{在GPI中}：这是两个核心过程之一，与策略改进过程交互
+    
+    \item \textbf{收敛}：当价值函数与策略一致，且策略相对于价值函数贪婪时，达到最优
+\end{enumerate}
+
+\subsection{关键公式}
+
+\textbf{一致性条件}：
+\begin{equation}
+V(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V(s')] \quad \text{对所有 } s
+\end{equation}
+
+\textbf{迭代更新}：
+\begin{equation}
+V^{k+1}(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma V^k(s')]
+\end{equation}
+
+\textbf{收敛条件}：
+\begin{equation}
+V^k = V^{k+1} \implies V^k = v_\pi
+\end{equation}
+
+\subsection{直观理解}
+
+\begin{quote}
+\textbf{"使价值函数与当前策略一致"}意味着：给定一个策略，计算这个策略下每个状态的\textbf{真实价值}，使得价值函数准确反映在策略下从每个状态开始的期望回报。这通过迭代更新价值函数，使其满足该策略的贝尔曼方程来实现。
+\end{quote}
+
+\end{document}
+

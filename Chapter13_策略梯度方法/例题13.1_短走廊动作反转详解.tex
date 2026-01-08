@@ -1,0 +1,458 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tikz}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{例题13.1：短走廊动作反转详解}
+\subtitle{策略参数化 vs 动作价值参数化}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题描述}
+
+\subsection{环境设置}
+
+\textbf{短走廊Gridworld}：
+
+\begin{center}
+\begin{tikzpicture}[scale=1.5]
+    \draw[thick] (0,0) rectangle (4,1);
+    \node at (0.5,0.5) {S};
+    \node at (1.5,0.5) {$s_1$};
+    \node at (2.5,0.5) {$s_2$};
+    \node at (3.5,0.5) {G};
+    \draw[->] (0.7,0.5) -- (1.3,0.5);
+    \draw[->] (1.7,0.5) -- (2.3,0.5);
+    \draw[->] (2.7,0.5) -- (3.3,0.5);
+    \node[below] at (1,0) {左：不动};
+    \node[below] at (2,0) {左$\leftrightarrow$右};
+    \node[below] at (3,0) {正常};
+\end{tikzpicture}
+\end{center}
+
+\textbf{状态空间}：
+\begin{itemize}
+    \item $S$：起始状态
+    \item $s_1$：第1个非终止状态
+    \item $s_2$：第2个非终止状态
+    \item $G$：终止状态（目标）
+\end{itemize}
+
+\textbf{动作空间}：
+\begin{itemize}
+    \item 每个状态只有两个动作：\textbf{左}（left）和\textbf{右}（right）
+\end{itemize}
+
+\textbf{奖励}：
+\begin{itemize}
+    \item 每步奖励：$R = -1$
+    \item 到达终止状态时episode结束
+\end{itemize}
+
+\subsection{关键特性：动作反转}
+
+\textbf{状态 $S$（起始状态）}：
+\begin{itemize}
+    \item \textbf{右}：正常移动到 $s_1$
+    \item \textbf{左}：撞墙，状态不变（仍在 $S$）
+\end{itemize}
+
+\textbf{状态 $s_1$（第1个非终止状态）}：
+\begin{itemize}
+    \item \textbf{关键}：动作被\textbf{反转}了！
+    \item \textbf{右}：实际移动到\textbf{左}（移动到 $S$）
+    \item \textbf{左}：实际移动到\textbf{右}（移动到 $s_2$）
+\end{itemize}
+
+\textbf{状态 $s_2$（第2个非终止状态）}：
+\begin{itemize}
+    \item \textbf{右}：正常移动到 $G$（终止状态）
+    \item \textbf{左}：正常移动到 $s_1$
+\end{itemize}
+
+\section{函数逼近的挑战}
+
+\subsection{特征定义}
+
+\textbf{动作特征}：
+\begin{align}
+x(s, \text{right}) &= [1, 0]^T \quad \text{对所有 } s \\
+x(s, \text{left}) &= [0, 1]^T \quad \text{对所有 } s
+\end{align}
+
+\textbf{关键问题}：
+\begin{itemize}
+    \item 所有状态的特征表示\textbf{完全相同}
+    \item 无法区分不同状态
+    \item 函数逼近器认为所有状态是相同的
+\end{itemize}
+
+\subsection{为什么这很困难？}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 在状态 $s_1$，动作"右"和"左"的效果被反转了
+    \item 但在其他状态（$S$ 和 $s_2$），动作是正常的
+    \item 由于所有状态的特征相同，函数逼近器无法区分它们
+    \item 必须对所有状态使用相同的策略
+\end{itemize}
+
+\textbf{挑战}：
+\begin{itemize}
+    \item 动作价值方法（如Q-learning）需要为每个状态-动作对学习不同的价值
+    \item 但由于特征相同，所有状态的动作价值必须相同
+    \item 这限制了策略的选择
+\end{itemize}
+
+\section{动作价值方法的限制}
+
+\subsection{$\varepsilon$-贪婪方法的限制}
+
+\textbf{动作价值参数化}：
+\begin{equation}
+Q(s, a) = \theta^T x(s, a)
+\end{equation}
+
+由于 $x(s, \text{right}) = [1, 0]^T$ 和 $x(s, \text{left}) = [0, 1]^T$ 对所有 $s$ 相同：
+\begin{align}
+Q(s, \text{right}) &= \theta_1 \quad \text{对所有 } s \\
+Q(s, \text{left}) &= \theta_2 \quad \text{对所有 } s
+\end{align}
+
+\textbf{$\varepsilon$-贪婪策略}：
+\begin{itemize}
+    \item 如果 $\theta_1 > \theta_2$：在所有状态以概率 $1 - \varepsilon/2$ 选择"右"
+    \item 如果 $\theta_2 > \theta_1$：在所有状态以概率 $1 - \varepsilon/2$ 选择"左"
+    \item 如果 $\theta_1 = \theta_2$：在所有状态等概率选择
+\end{itemize}
+
+\textbf{限制}：
+\begin{itemize}
+    \item 只能选择两种策略之一：
+    \begin{enumerate}
+        \item 在所有状态以高概率选择"右"（概率 $1 - \varepsilon/2$）
+        \item 在所有状态以高概率选择"左"（概率 $1 - \varepsilon/2$）
+    \end{enumerate}
+    \item 无法学习状态特定的概率
+    \item 如果 $\varepsilon = 0.1$，则选择"右"的概率是 $0.95$，选择"左"的概率是 $0.05$
+\end{itemize}
+
+\subsection{性能分析}
+
+\textbf{策略1：在所有状态以高概率选择"右"}（$\varepsilon = 0.1$，概率 $0.95$）
+
+\textbf{路径分析}：
+\begin{enumerate}
+    \item 从 $S$ 开始
+    \item 在 $S$：以概率 $0.95$ 选择"右" $\to$ 移动到 $s_1$（奖励 $-1$）
+    \item 在 $s_1$：以概率 $0.95$ 选择"右" $\to$ 但动作反转，实际移动到 $S$（奖励 $-1$）
+    \item 可能陷入循环：$S \to s_1 \to S \to s_1 \to \cdots$
+    \item 偶尔（概率 $0.05$）选择"左"，可能到达 $s_2$，然后到达 $G$
+    \item 期望步数很大，价值 $v(S) < -44$
+\end{enumerate}
+
+\textbf{策略2：在所有状态以高概率选择"左"}（$\varepsilon = 0.1$，概率 $0.95$）
+
+\textbf{路径分析}：
+\begin{enumerate}
+    \item 从 $S$ 开始
+    \item 在 $S$：以概率 $0.95$ 选择"左" $\to$ 撞墙，状态不变（奖励 $-1$）
+    \item 可能长时间停留在 $S$，无法前进
+    \item 偶尔（概率 $0.05$）选择"右"，可能到达 $s_1$，然后可能到达 $s_2$，最后到达 $G$
+    \item 期望步数更大，价值 $v(S) < -82$
+\end{enumerate}
+
+\section{策略参数化的优势}
+
+\subsection{策略参数化}
+
+\textbf{策略参数化}：
+\begin{equation}
+\pi(a|s, \theta) = \frac{e^{h(s, a, \theta)}}{\sum_{b} e^{h(s, b, \theta)}}
+\end{equation}
+
+\textbf{关键}：
+\begin{itemize}
+    \item 即使特征相同，策略参数化可以学习状态特定的概率
+    \item 可以通过调整参数 $\theta$ 来改变每个状态选择动作的概率
+    \item 不需要为每个状态学习不同的动作价值
+\end{itemize}
+
+\subsection{最优随机策略}
+
+\textbf{问题}：在所有状态，应该以什么概率选择"右"？
+
+\textbf{分析}：
+\begin{itemize}
+    \item 由于所有状态特征相同，策略必须在所有状态使用相同的概率
+    \item 但可以通过调整这个概率来优化性能
+    \item 最优概率不是 $0.95$（$\varepsilon$-贪婪）或 $0.05$，而是某个中间值
+\end{itemize}
+
+\textbf{最优概率}：
+\begin{itemize}
+    \item 通过计算，最优概率约为 $0.59$
+    \item 即：在所有状态以概率 $0.59$ 选择"右"，以概率 $0.41$ 选择"左"
+    \item 这个策略的价值：$v(S) \approx -11.6$
+\end{itemize}
+
+\textbf{为什么这个概率最优？}
+\begin{itemize}
+    \item 概率 $0.59$ 平衡了不同路径的期望回报
+    \item 既不会像"总是右"那样陷入循环
+    \item 也不会像"总是左"那样无法前进
+    \item 找到了一个平衡点，使得期望步数最小
+\end{itemize}
+
+\section{详细计算}
+
+\subsection{策略定义}
+
+\textbf{策略}：在所有状态以概率 $p$ 选择"右"，以概率 $1-p$ 选择"左"
+
+\begin{equation}
+\pi(\text{right}|s, p) = p, \quad \pi(\text{left}|s, p) = 1-p \quad \text{对所有 } s
+\end{equation}
+
+\subsection{状态价值函数}
+
+\textbf{状态 $G$（终止状态）}：
+\begin{equation}
+v(G) = 0
+\end{equation}
+
+\textbf{状态 $s_2$}：
+\begin{align}
+v(s_2) &= \pi(\text{right}|s_2) \times [R + \gamma v(G)] + \pi(\text{left}|s_2) \times [R + \gamma v(s_1)] \\
+       &= p \times [-1 + 0] + (1-p) \times [-1 + \gamma v(s_1)] \\
+       &= -1 + (1-p) \gamma v(s_1)
+\end{align}
+
+\textbf{状态 $s_1$}（动作反转）：
+\begin{align}
+v(s_1) &= \pi(\text{right}|s_1) \times [R + \gamma v(S)] + \pi(\text{left}|s_1) \times [R + \gamma v(s_2)] \\
+       &= p \times [-1 + \gamma v(S)] + (1-p) \times [-1 + \gamma v(s_2)] \\
+       &= -1 + p \gamma v(S) + (1-p) \gamma v(s_2)
+\end{align}
+
+注意：在 $s_1$，动作"右"实际移动到 $S$，动作"左"实际移动到 $s_2$。
+
+\textbf{状态 $S$（起始状态）}：
+\begin{align}
+v(S) &= \pi(\text{right}|S) \times [R + \gamma v(s_1)] + \pi(\text{left}|S) \times [R + \gamma v(S)] \\
+     &= p \times [-1 + \gamma v(s_1)] + (1-p) \times [-1 + \gamma v(S)] \\
+     &= -1 + p \gamma v(s_1) + (1-p) \gamma v(S)
+\end{align}
+
+注意：在 $S$，动作"左"撞墙，状态不变。
+
+\subsection{求解最优概率}
+
+\textbf{目标}：找到 $p$ 使得 $v(S)$ 最大（或使得期望步数最小）
+
+\textbf{方法}：
+\begin{itemize}
+    \item 对于每个 $p$，求解线性方程组得到 $v(S)$
+    \item 找到使 $v(S)$ 最大的 $p$
+\end{itemize}
+
+\textbf{结果}：
+\begin{itemize}
+    \item 最优概率：$p^* \approx 0.59$
+    \item 最优价值：$v^*(S) \approx -11.6$
+\end{itemize}
+
+\subsection{性能对比}
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{方法} & \textbf{策略} & \textbf{价值 $v(S)$} \\
+\hline
+$\varepsilon$-贪婪（右） & $p = 0.95$ & $< -44$ \\
+\hline
+$\varepsilon$-贪婪（左） & $p = 0.05$ & $< -82$ \\
+\hline
+\textbf{最优随机策略} & $p = 0.59$ & $\approx -11.6$ \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{关键观察}：
+\begin{itemize}
+    \item 最优随机策略（$p = 0.59$）比 $\varepsilon$-贪婪方法好得多
+    \item 策略参数化可以学习这个最优概率
+    \item 动作价值方法（$\varepsilon$-贪婪）无法学习这个最优概率
+\end{itemize}
+
+\section{为什么策略参数化更好？}
+
+\subsection{灵活性}
+
+\textbf{策略参数化}：
+\begin{itemize}
+    \item 可以直接学习任意概率分布
+    \item 可以学习 $p = 0.59$ 这样的最优概率
+    \item 不受 $\varepsilon$-贪婪的限制
+\end{itemize}
+
+\textbf{动作价值参数化}：
+\begin{itemize}
+    \item 受限于 $\varepsilon$-贪婪策略
+    \item 只能选择 $p = 1 - \varepsilon/2$ 或 $p = \varepsilon/2$
+    \item 无法学习中间的最优概率
+\end{itemize}
+
+\subsection{问题本质}
+
+\textbf{这个问题的特点}：
+\begin{itemize}
+    \item 所有状态在函数逼近下看起来相同
+    \item 但不同状态需要不同的动作（由于动作反转）
+    \item 最优策略是随机的，且概率是特定的（$p = 0.59$）
+\end{itemize}
+
+\textbf{策略参数化的优势}：
+\begin{itemize}
+    \item 可以学习随机最优策略
+    \item 可以学习特定的概率值
+    \item 不受动作价值估计的限制
+\end{itemize}
+
+\section{策略梯度方法的应用}
+
+\subsection{REINFORCE在这个问题中}
+
+\textbf{策略参数化}：
+\begin{equation}
+\pi(\text{right}|s, \theta) = \frac{e^{\theta}}{e^{\theta} + e^{-\theta}} = \frac{1}{1 + e^{-2\theta}}
+\end{equation}
+
+这是一个简化的参数化，其中：
+\begin{itemize}
+    \item $\theta$ 控制选择"右"的概率
+    \item 如果 $\theta = 0$，则 $p = 0.5$（等概率）
+    \item 如果 $\theta > 0$，则 $p > 0.5$（偏向"右"）
+    \item 如果 $\theta < 0$，则 $p < 0.5$（偏向"左"）
+\end{itemize}
+
+\textbf{REINFORCE更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{学习过程}：
+\begin{itemize}
+    \item 从随机初始值 $\theta_0$ 开始
+    \item 根据回报 $G_t$ 调整 $\theta$
+    \item 逐渐收敛到最优值 $\theta^*$，使得 $p^* \approx 0.59$
+\end{itemize}
+
+\subsection{实验结果}
+
+\textbf{REINFORCE的表现}：
+\begin{itemize}
+    \item 可以学习到接近最优的策略（$p \approx 0.59$）
+    \item 价值 $v(S)$ 接近 $-11.6$
+    \item 比 $\varepsilon$-贪婪方法好得多
+\end{itemize}
+
+\textbf{带基线的REINFORCE}：
+\begin{itemize}
+    \item 使用基线可以减少方差
+    \item 学习更快，更稳定
+    \item 仍然可以学习到最优策略
+\end{itemize}
+
+\section{关键洞察}
+
+\subsection{策略参数化的优势}
+
+\textbf{1. 可以学习随机最优策略}
+\begin{itemize}
+    \item 在这个问题中，最优策略是随机的（$p = 0.59$）
+    \item 策略参数化可以学习这个随机策略
+    \item 动作价值方法无法自然地找到随机最优策略
+\end{itemize}
+
+\textbf{2. 不受动作价值估计的限制}
+\begin{itemize}
+    \item 策略参数化不依赖于动作价值的准确估计
+    \item 可以直接优化策略参数
+    \item 即使动作价值估计不准确，也可以学习好的策略
+\end{itemize}
+
+\textbf{3. 可以学习状态特定的概率}
+\begin{itemize}
+    \item 虽然在这个问题中所有状态使用相同概率
+    \item 但策略参数化可以学习状态特定的概率
+    \item 这在更复杂的问题中很有用
+\end{itemize}
+
+\subsection{动作价值方法的限制}
+
+\textbf{1. 受限于$\varepsilon$-贪婪}
+\begin{itemize}
+    \item 只能选择 $p = 1 - \varepsilon/2$ 或 $p = \varepsilon/2$
+    \item 无法学习中间的最优概率
+    \item 在这个问题中表现很差
+\end{itemize}
+
+\textbf{2. 需要准确的动作价值估计}
+\begin{itemize}
+    \item 由于特征相同，所有状态的动作价值必须相同
+    \item 这限制了策略的选择
+    \item 无法学习状态特定的策略
+\end{itemize}
+
+\section{总结}
+
+\subsection{问题要点}
+
+\begin{enumerate}
+    \item \textbf{环境}：短走廊，在中间状态动作被反转
+    
+    \item \textbf{挑战}：所有状态特征相同，无法区分
+    
+    \item \textbf{动作价值方法}：受限于 $\varepsilon$-贪婪，只能选择 $p = 0.95$ 或 $p = 0.05$，性能差（$v(S) < -44$ 或 $< -82$）
+    
+    \item \textbf{策略参数化方法}：可以学习最优概率 $p = 0.59$，性能好（$v(S) \approx -11.6$）
+\end{enumerate}
+
+\subsection{关键结论}
+
+\begin{quote}
+\textbf{策略参数化的优势}：在某些问题中，策略函数比动作价值函数更简单，策略参数化方法可以学习随机最优策略，而动作价值方法受限于 $\varepsilon$-贪婪策略，无法学习最优的随机策略。
+\end{quote}
+
+\subsection{实际意义}
+
+\begin{itemize}
+    \item 这个例子说明了策略梯度方法的一个重要优势
+    \item 在某些问题中，策略参数化比动作价值参数化更合适
+    \item 策略梯度方法可以学习随机最优策略
+    \item 这在许多实际问题中很重要（如扑克中的虚张声势）
+\end{itemize}
+
+\end{document}
+

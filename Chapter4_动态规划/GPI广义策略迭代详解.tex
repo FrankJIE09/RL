@@ -1,0 +1,524 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{tikz}
+\usepackage{booktabs}
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{GPI（广义策略迭代）详解}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{proposition}{命题}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{引言}
+
+\textbf{广义策略迭代}（Generalized Policy Iteration, GPI）是强化学习中的一个核心概念，它统一了几乎所有强化学习方法的框架。理解 GPI 对于掌握强化学习的本质至关重要。
+
+\section{什么是 GPI？}
+
+\subsection{基本定义}
+
+\begin{definition}[广义策略迭代（GPI）]
+\textbf{广义策略迭代}（Generalized Policy Iteration, GPI）是指让\textbf{策略评估}（Policy Evaluation）和\textbf{策略改进}（Policy Improvement）两个过程交互的一般思想，独立于这两个过程的粒度和其他细节。
+\end{definition}
+
+\textbf{核心思想}：
+\begin{itemize}
+    \item GPI 包含两个相互作用的进程
+    \item \textbf{策略评估}：使价值函数与当前策略一致
+    \item \textbf{策略改进}：使策略相对于当前价值函数变得贪婪
+    \item 这两个过程可以以任何方式交互，不要求完全分离
+\end{itemize}
+
+\subsection{两个核心过程}
+
+\textbf{过程1：策略评估（Policy Evaluation）}
+\begin{equation}
+V \to v_\pi
+\end{equation}
+\begin{itemize}
+    \item 给定策略 $\pi$，计算其价值函数 $v_\pi$
+    \item 使价值函数与当前策略一致
+    \item 满足贝尔曼方程：$v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]$
+\end{itemize}
+
+\textbf{过程2：策略改进（Policy Improvement）}
+\begin{equation}
+\pi \to \text{greedy}(V)
+\end{equation}
+\begin{itemize}
+    \item 给定价值函数 $V$，改进策略 $\pi$
+    \item 使策略相对于当前价值函数变得贪婪
+    \item 对每个状态选择最优动作：$\pi'(s) = \arg\max_{a} q_\pi(s, a)$
+\end{itemize}
+
+\section{经典策略迭代 vs GPI}
+
+\subsection{经典策略迭代}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 两个过程\textbf{交替}执行
+    \item 每个过程\textbf{完全完成}后才开始另一个
+    \item 策略评估：迭代直到收敛
+    \item 策略改进：基于收敛的价值函数改进策略
+\end{itemize}
+
+\textbf{流程}：
+\begin{equation}
+\pi_0 \xrightarrow{\text{完整评估}} v_{\pi_0} \xrightarrow{\text{完整改进}} \pi_1 \xrightarrow{\text{完整评估}} v_{\pi_1} \xrightarrow{\text{完整改进}} \cdots
+\end{equation}
+
+\subsection{GPI 的灵活性}
+
+\textbf{GPI 允许}：
+\begin{itemize}
+    \item 两个过程可以\textbf{以任何粒度}交互
+    \item 不需要等待一个过程完全完成
+    \item 可以只执行一次评估迭代就进行改进
+    \item 可以异步更新，甚至单个状态更新
+\end{itemize}
+
+\textbf{不同实现方式}：
+
+\begin{enumerate}
+    \item \textbf{策略迭代}：完整评估 $\to$ 完整改进 $\to$ 完整评估 $\to$ ...
+    
+    \item \textbf{价值迭代}：一次评估迭代 $\to$ 改进（合并）$\to$ 一次评估迭代 $\to$ ...
+    
+    \item \textbf{异步动态规划}：单个状态评估 $\to$ 单个状态改进 $\to$ 单个状态评估 $\to$ ...
+    
+    \item \textbf{蒙特卡洛方法}：从样本学习价值 $\to$ 改进策略 $\to$ 从样本学习价值 $\to$ ...
+    
+    \item \textbf{时序差分学习}：每个时间步更新价值 $\to$ 改进策略 $\to$ 每个时间步更新价值 $\to$ ...
+\end{enumerate}
+
+\section{GPI 的收敛性}
+
+\subsection{收敛条件}
+
+\begin{theorem}[GPI 收敛性]
+如果策略评估和策略改进两个过程都稳定（不再产生变化），那么价值函数和策略必须是最优的。
+\end{theorem}
+
+\textbf{稳定条件}：
+\begin{itemize}
+    \item \textbf{价值函数稳定}：当且仅当它与当前策略一致时
+    \item \textbf{策略稳定}：当且仅当它相对于当前价值函数是贪婪的
+    \item \textbf{同时稳定}：当且仅当策略相对于自己的评估函数是贪婪的
+\end{itemize}
+
+\textbf{数学表达}：
+\begin{align}
+V &= v_\pi \quad \text{（价值函数与策略一致）} \\
+\pi &= \text{greedy}(V) \quad \text{（策略相对于价值函数贪婪）}
+\end{align}
+
+这意味着：
+\begin{equation}
+\pi = \text{greedy}(v_\pi)
+\end{equation}
+
+这等价于贝尔曼最优性方程：
+\begin{equation}
+v_\pi(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+因此，$\pi$ 和 $v_\pi$ 都是最优的。
+
+\subsection{收敛过程}
+
+\textbf{两个过程的竞争与合作}：
+
+\textbf{竞争性}：
+\begin{itemize}
+    \item 使策略贪婪通常会使价值函数对改变后的策略不正确
+    \item 使价值函数与策略一致通常会使策略不再贪婪
+    \item 两个过程"拉向相反的方向"
+\end{itemize}
+
+\textbf{合作性}：
+\begin{itemize}
+    \item 长期来看，两个过程相互作用找到单一联合解
+    \item 最终收敛到最优价值函数和最优策略
+    \item 即使每个过程都不直接追求最优性，它们一起达到最优
+\end{itemize}
+
+\section{GPI 的几何解释}
+
+\subsection{二维约束视角}
+
+可以将 GPI 的两个过程视为两个约束或目标：
+
+\textbf{约束1：价值函数与策略一致}
+\begin{equation}
+V = v_\pi
+\end{equation}
+
+\textbf{约束2：策略相对于价值函数贪婪}
+\begin{equation}
+\pi = \text{greedy}(V)
+\end{equation}
+
+\textbf{几何解释}：
+\begin{itemize}
+    \item 每个过程驱动价值函数或策略朝向代表其中一个目标的线
+    \item 两个目标相互作用，因为两条线不是正交的
+    \item 直接朝向一个目标会导致远离另一个目标
+    \item 但联合过程最终会接近整体最优性目标
+\end{itemize}
+
+\subsection{收敛路径}
+
+\textbf{策略迭代的路径}：
+\begin{itemize}
+    \item 每个箭头完全达到其中一个目标
+    \item 完整评估 $\to$ 完整改进 $\to$ 完整评估 $\to$ ...
+\end{itemize}
+
+\textbf{GPI 的路径}：
+\begin{itemize}
+    \item 可以采取更小的、不完整的步骤朝向每个目标
+    \item 两个过程一起达到整体最优性目标
+    \item 即使每个过程都不直接追求最优性
+\end{itemize}
+
+\section{GPI 在不同方法中的体现}
+
+\subsection{动态规划中的 GPI}
+
+\subsubsection{策略迭代}
+
+\textbf{实现方式}：
+\begin{enumerate}
+    \item \textbf{策略评估}：迭代直到收敛
+    \begin{equation}
+    v_\pi^{k+1}(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi^k(s')]
+    \end{equation}
+    
+    \item \textbf{策略改进}：基于收敛的价值函数
+    \begin{equation}
+    \pi'(s) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+    \end{equation}
+\end{enumerate}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 两个过程完全分离
+    \item 每个过程完全完成
+    \item 收敛保证强
+\end{itemize}
+
+\subsubsection{价值迭代}
+
+\textbf{实现方式}：
+\begin{equation}
+v_{k+1}(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 策略评估和策略改进合并为一个操作
+    \item 每次只执行一次评估迭代
+    \item $\max$ 操作隐含地执行了策略改进
+\end{itemize}
+
+\textbf{为什么是 GPI？}
+\begin{itemize}
+    \item 仍然包含评估（计算每个动作的价值）和改进（选择最大值）
+    \item 只是以更细的粒度执行
+    \item 每次更新都同时进行部分评估和改进
+\end{itemize}
+
+\subsubsection{异步动态规划}
+
+\textbf{实现方式}：
+\begin{itemize}
+    \item 可以按任意顺序更新状态
+    \item 可以使用过时的信息
+    \item 可以只更新部分状态
+\end{itemize}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 粒度最细：单个状态更新
+    \item 不需要完整扫描所有状态
+    \item 更灵活，适合大规模问题
+\end{itemize}
+
+\subsection{蒙特卡洛方法中的 GPI}
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 从样本回报学习价值函数
+    \item 使用经验平均估计 $q_\pi(s, a)$
+    \item 不需要环境模型
+\end{itemize}
+
+\textbf{策略改进}：
+\begin{itemize}
+    \item 基于估计的动作价值函数改进策略
+    \item 使用 $\varepsilon$-贪婪策略平衡探索和利用
+\end{itemize}
+
+\textbf{GPI 框架}：
+\begin{enumerate}
+    \item 生成回合，估计 $q_\pi$
+    \item 基于 $q_\pi$ 改进策略
+    \item 重复，直到收敛
+\end{enumerate}
+
+\subsection{时序差分学习中的 GPI}
+
+\textbf{策略评估}：
+\begin{itemize}
+    \item 使用 TD 更新估计价值函数
+    \item 每个时间步都可以更新
+    \item 使用自举法（bootstrapping）
+\end{itemize}
+
+\textbf{策略改进}：
+\begin{itemize}
+    \item 基于当前价值函数改进策略
+    \item 在 SARSA 中，策略和价值函数同时更新
+\end{itemize}
+
+\textbf{GPI 框架}：
+\begin{enumerate}
+    \item 每个时间步更新 $Q(S_t, A_t)$
+    \item 基于 $Q$ 更新策略 $\pi$
+    \item 两个过程紧密交织
+\end{enumerate}
+
+\section{GPI 的统一视角}
+
+\subsection{所有方法的共同点}
+
+\textbf{几乎所有强化学习方法都可以用 GPI 描述}：
+\begin{itemize}
+    \item 都有可识别的策略和价值函数
+    \item 策略总是相对于价值函数被改进
+    \item 价值函数总是被驱动朝向策略的价值函数
+\end{itemize}
+
+\subsection{不同方法的区别}
+
+\textbf{主要区别在于}：
+\begin{enumerate}
+    \item \textbf{策略评估的方式}：
+    \begin{itemize}
+        \item 动态规划：从模型计算
+        \item 蒙特卡洛：从样本回报学习
+        \item 时序差分：从一步前瞻学习
+    \end{itemize}
+    
+    \item \textbf{策略改进的方式}：
+    \begin{itemize}
+        \item 贪婪策略
+        \item $\varepsilon$-贪婪策略
+        \item 软策略（如 Softmax）
+    \end{itemize}
+    
+    \item \textbf{两个过程的交互粒度}：
+    \begin{itemize}
+        \item 策略迭代：完整过程
+        \item 价值迭代：一次迭代
+        \item 异步方法：单个状态
+        \item TD 方法：每个时间步
+    \end{itemize}
+\end{enumerate}
+
+\section{具体例子}
+
+\subsection{例子1：策略迭代（完整 GPI）}
+
+\textbf{初始策略}：$\pi_0$（随机策略）
+
+\textbf{第1次迭代}：
+\begin{enumerate}
+    \item \textbf{策略评估}：计算 $v_{\pi_0}$（迭代直到收敛）
+    \item \textbf{策略改进}：$\pi_1 = \text{greedy}(v_{\pi_0})$
+\end{enumerate}
+
+\textbf{第2次迭代}：
+\begin{enumerate}
+    \item \textbf{策略评估}：计算 $v_{\pi_1}$（迭代直到收敛）
+    \item \textbf{策略改进}：$\pi_2 = \text{greedy}(v_{\pi_1})$
+\end{enumerate}
+
+\textbf{继续迭代}，直到 $\pi_k = \pi_{k+1}$（策略不再改变）
+
+\subsection{例子2：价值迭代（合并 GPI）}
+
+\textbf{初始价值}：$v_0(s) = 0$ 对所有 $s$
+
+\textbf{每次迭代}：
+\begin{equation}
+v_{k+1}(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_k(s')]
+\end{equation}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 每次更新同时进行部分评估和改进
+    \item 不需要显式的策略表示
+    \item 收敛后提取策略：$\pi_*(s) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]$
+\end{itemize}
+
+\subsection{例子3：SARSA（在线 GPI）}
+
+\textbf{每个时间步}：
+\begin{enumerate}
+    \item 执行动作 $A_t$，观察 $R_{t+1}, S_{t+1}$
+    \item 选择下一动作 $A_{t+1}$（根据当前策略）
+    \item \textbf{策略评估}：更新 $Q(S_t, A_t)$
+    \begin{equation}
+    Q(S_t, A_t) \gets Q(S_t, A_t) + \alpha [R_{t+1} + \gamma Q(S_{t+1}, A_{t+1}) - Q(S_t, A_t)]
+    \end{equation}
+    \item \textbf{策略改进}：更新策略 $\pi(S_t)$（基于 $Q(S_t, \cdot)$）
+\end{enumerate}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 评估和改进在每个时间步都发生
+    \item 两个过程紧密交织
+    \item 在线学习，边交互边学习
+\end{itemize}
+
+\section{GPI 的优势}
+
+\subsection{理论优势}
+
+\textbf{1. 统一框架}：
+\begin{itemize}
+    \item 几乎所有强化学习方法都可以用 GPI 描述
+    \item 提供统一的理论视角
+    \item 便于理解和比较不同方法
+\end{itemize}
+
+\textbf{2. 灵活性}：
+\begin{itemize}
+    \item 不要求两个过程完全分离
+    \item 可以根据问题特点选择交互方式
+    \item 允许细粒度的更新
+\end{itemize}
+
+\textbf{3. 收敛保证}：
+\begin{itemize}
+    \item 在适当条件下，GPI 保证收敛到最优解
+    \item 适用于多种实现方式
+    \item 为算法设计提供指导
+\end{itemize}
+
+\subsection{实践优势}
+
+\textbf{1. 算法设计}：
+\begin{itemize}
+    \item 提供清晰的算法设计框架
+    \item 可以灵活选择评估和改进的方式
+    \item 便于实现和调试
+\end{itemize}
+
+\textbf{2. 理解算法}：
+\begin{itemize}
+    \item 帮助理解不同算法的本质
+    \item 识别算法的共同点和区别
+    \item 便于学习新算法
+\end{itemize}
+
+\textbf{3. 算法改进}：
+\begin{itemize}
+    \item 可以独立改进评估或改进过程
+    \item 可以尝试不同的交互方式
+    \item 便于设计新算法
+\end{itemize}
+
+\section{总结}
+
+\subsection{核心要点}
+
+\begin{enumerate}
+    \item \textbf{GPI 定义}：策略评估和策略改进两个过程的交互
+    
+    \item \textbf{两个过程}：
+    \begin{itemize}
+        \item 策略评估：$V \to v_\pi$
+        \item 策略改进：$\pi \to \text{greedy}(V)$
+    \end{itemize}
+    
+    \item \textbf{灵活性}：两个过程可以以任何粒度交互
+    
+    \item \textbf{收敛性}：当两个过程都稳定时，达到最优解
+    
+    \item \textbf{统一性}：几乎所有强化学习方法都是 GPI 的实例
+\end{enumerate}
+
+\subsection{关键公式}
+
+\textbf{策略评估}（贝尔曼方程）：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a|s) \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{策略改进}：
+\begin{equation}
+\pi'(s) = \arg\max_{a} q_\pi(s, a) = \arg\max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\textbf{最优性条件}：
+\begin{equation}
+v_*(s) = \max_{a} \sum_{s', r} p(s', r | s, a) [r + \gamma v_*(s')]
+\end{equation}
+
+\subsection{理解 GPI 的关键}
+
+\textbf{1. 两个过程的相互作用}：
+\begin{itemize}
+    \item 竞争性：拉向相反方向
+    \item 合作性：最终达到共同目标
+\end{itemize}
+
+\textbf{2. 灵活的实现方式}：
+\begin{itemize}
+    \item 不需要完全分离两个过程
+    \item 可以根据需要选择交互粒度
+    \item 允许各种优化和变体
+\end{itemize}
+
+\textbf{3. 统一的理论框架}：
+\begin{itemize}
+    \item 几乎所有方法都遵循 GPI
+    \item 区别在于实现细节
+    \item 提供统一的理解视角
+\end{itemize}
+
+\section{进一步阅读}
+
+\begin{itemize}
+    \item 动态规划方法：策略迭代、价值迭代、异步动态规划
+    \item 蒙特卡洛方法：On-policy 和 Off-policy 控制
+    \item 时序差分学习：SARSA、Q-learning
+    \item 函数逼近：线性函数逼近、神经网络
+    \item 策略梯度方法：REINFORCE、Actor-Critic
+\end{itemize}
+
+\end{document}
+

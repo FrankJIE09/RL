@@ -1,0 +1,441 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{float}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{第13章：策略梯度方法重要公式总结}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{策略参数化}
+
+\subsection{参数化策略}
+
+\begin{equation}
+\pi(a|s, \theta) = \Pr\{A_t = a | S_t = s, \theta_t = \theta\}
+\end{equation}
+
+其中 $\theta \in \mathbb{R}^{d'}$ 是策略的参数向量。
+
+\subsection{Soft-max动作偏好参数化}
+
+\begin{equation}
+\pi(a|s, \theta) = \frac{e^{h(s, a, \theta)}}{\sum_{b} e^{h(s, b, \theta)}}
+\label{eq:softmax_policy}
+\end{equation}
+
+其中 $h(s, a, \theta) \in \mathbb{R}$ 是状态-动作对的数值偏好。
+
+\subsubsection{线性偏好}
+\begin{equation}
+h(s, a, \theta) = \theta^T x(s, a)
+\end{equation}
+
+\subsubsection{神经网络偏好}
+$h(s, a, \theta)$ 由深度神经网络计算。
+
+\section{性能指标}
+
+\subsection{回合制任务}
+
+\begin{equation}
+J(\theta) = v_{\pi_\theta}(s_0)
+\label{eq:episodic_performance}
+\end{equation}
+
+其中 $s_0$ 是起始状态，$v_{\pi_\theta}$ 是策略 $\pi_\theta$ 的真实价值函数。
+
+\subsection{持续任务}
+
+\begin{equation}
+J(\theta) = r(\pi) = \lim_{h \to \infty} \frac{1}{h} \sum_{t=1}^{h} \mathbb{E}[R_t | S_0, A_{0:t-1} \sim \pi]
+\end{equation}
+
+\section{策略梯度方法的基本更新公式}
+
+\subsection{公式13.1：基本更新}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \widehat{\nabla J}(\theta_t)
+\label{eq:13.1}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\theta_t \in \mathbb{R}^{d'}$：时刻 $t$ 的策略参数向量
+    \item $\alpha > 0$：步长参数（学习率）
+    \item $\widehat{\nabla J}(\theta_t) \in \mathbb{R}^{d'}$：性能指标 $J(\theta)$ 关于参数 $\theta_t$ 的梯度的随机估计
+    \item $\mathbb{E}[\widehat{\nabla J}(\theta_t)] \approx \nabla J(\theta_t)$：估计的期望近似等于真实梯度
+\end{itemize}
+
+\section{策略梯度定理}
+
+\subsection{策略梯度定理（回合制）}
+
+\begin{theorem}[策略梯度定理]
+对于回合制任务，性能指标的梯度为：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\label{eq:policy_gradient_theorem}
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\mu(s)$ 是在策略 $\pi$ 下的状态分布（on-policy distribution）
+    \item $q_\pi(s, a)$ 是动作价值函数
+    \item $\propto$ 表示"正比于"
+\end{itemize}
+\end{theorem}
+
+\subsection{策略梯度定理（持续问题）}
+
+\begin{theorem}[持续问题的策略梯度定理]
+对于持续问题，性能指标的梯度为：
+\begin{equation}
+\nabla_\theta J(\theta) = \sum_{s} \mu(s) \sum_{a} [q_\pi(s, a) - v_\pi(s)] \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+其中 $\mu(s)$ 是在策略 $\pi$ 下的稳态分布。
+\end{theorem}
+
+\subsection{策略梯度定理的期望形式}
+
+\begin{equation}
+\nabla_\theta J(\theta) \propto \mathbb{E}_\pi \left[\sum_{a} q_\pi(S_t, a) \nabla_\theta \pi(a|S_t, \theta)\right]
+\label{eq:policy_gradient_expectation}
+\end{equation}
+
+\section{REINFORCE：蒙特卡洛策略梯度}
+
+\subsection{REINFORCE梯度推导}
+
+\begin{align}
+\nabla_\theta J(\theta) &= \mathbb{E}_\pi \left[\sum_{a} \pi(a|S_t, \theta) q_\pi(S_t, a) \frac{\nabla_\theta \pi(a|S_t, \theta)}{\pi(a|S_t, \theta)}\right] \\
+&= \mathbb{E}_\pi \left[q_\pi(S_t, A_t) \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right] \\
+&= \mathbb{E}_\pi \left[G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta)}{\pi(A_t|S_t, \theta)}\right]
+\label{eq:reinforce_gradient}
+\end{align}
+
+其中使用了 $\mathbb{E}_\pi[G_t | S_t, A_t] = q_\pi(S_t, A_t)$。
+
+\subsection{REINFORCE更新规则}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \frac{\nabla_\theta \pi(A_t|S_t, \theta_t)}{\pi(A_t|S_t, \theta_t)}
+\label{eq:reinforce_update}
+\end{equation}
+
+\subsection{REINFORCE更新规则（对数形式）}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\label{eq:reinforce_log}
+\end{equation}
+
+其中使用了恒等式：$\nabla \ln x = \frac{\nabla x}{x}$。
+
+\subsection{资格向量}
+
+\begin{equation}
+\nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+这是策略参数化在算法中唯一出现的地方。
+
+\section{带基线的REINFORCE}
+
+\subsection{带基线的策略梯度定理}
+
+策略梯度定理可以推广到包含基线 $b(s)$：
+
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} [q_\pi(s, a) - b(s)] \nabla_\theta \pi(a|s, \theta)
+\label{eq:policy_gradient_baseline}
+\end{equation}
+
+\subsection{基线的条件}
+
+基线可以是任何函数，甚至是随机变量，只要基线不依赖于动作 $a$，等式就成立：
+
+\begin{equation}
+\sum_{a} b(s) \nabla_\theta \pi(a|s, \theta) = b(s) \nabla_\theta \sum_{a} \pi(a|s, \theta) = b(s) \nabla_\theta 1 = 0
+\end{equation}
+
+\subsection{带基线的REINFORCE更新}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [G_t - b(S_t)] \frac{\nabla_\theta \pi(A_t|S_t, \theta_t)}{\pi(A_t|S_t, \theta_t)}
+\label{eq:reinforce_baseline}
+\end{equation}
+
+\subsection{带基线的REINFORCE更新（对数形式）}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [G_t - b(S_t)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\subsection{使用状态价值函数作为基线}
+
+\begin{equation}
+b(S_t) = \hat{v}(S_t, w)
+\end{equation}
+
+其中 $w \in \mathbb{R}^d$ 是价值函数的权重向量。
+
+\section{Actor-Critic方法}
+
+\subsection{一步Actor-Critic更新规则}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\label{eq:one_step_actor_critic}
+\end{equation}
+
+\subsection{TD误差}
+
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\subsection{Actor-Critic更新规则（使用TD误差）}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\subsection{Critic更新规则}
+
+\begin{equation}
+w \gets w + \alpha_w \delta_t \nabla_w \hat{v}(S_t, w)
+\end{equation}
+
+其中 $\alpha_w > 0$ 是Critic的学习率。
+
+\section{优势函数}
+
+\subsection{优势函数定义}
+
+\begin{equation}
+A_\pi(s, a) = q_\pi(s, a) - v_\pi(s)
+\label{eq:advantage_function}
+\end{equation}
+
+\subsection{使用优势函数的策略梯度}
+
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} A_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\subsection{TD误差作为优势估计}
+
+\begin{equation}
+\delta_t = R_{t+1} + \gamma v_\pi(S_{t+1}) - v_\pi(S_t) \approx A_\pi(S_t, A_t)
+\end{equation}
+
+\section{带资格迹的Actor-Critic}
+
+\subsection{Critic资格迹更新}
+
+\begin{equation}
+z_w \gets \gamma \lambda_w z_w + \nabla_w \hat{v}(S, w)
+\end{equation}
+
+\subsection{Actor资格迹更新}
+
+\begin{equation}
+z_\theta \gets \gamma \lambda_\theta z_\theta + I \nabla_\theta \ln \pi(A|S, \theta)
+\end{equation}
+
+其中 $I$ 是折扣因子修正项。
+
+\subsection{Critic更新（使用资格迹）}
+
+\begin{equation}
+w \gets w + \alpha_w \delta z_w
+\end{equation}
+
+\subsection{Actor更新（使用资格迹）}
+
+\begin{equation}
+\theta \gets \theta + \alpha_\theta \delta z_\theta
+\end{equation}
+
+\section{连续动作的策略参数化}
+
+\subsection{高斯策略}
+
+\begin{equation}
+\pi(a|s, \theta) = \frac{1}{\sigma(s, \theta) \sqrt{2\pi}} \exp\left(-\frac{(a - \mu(s, \theta))^2}{2\sigma(s, \theta)^2}\right)
+\end{equation}
+
+其中：
+\begin{itemize}
+    \item $\mu(s, \theta)$：均值（可以是状态的函数）
+    \item $\sigma(s, \theta)$：标准差（可以是状态的函数或常数）
+\end{itemize}
+
+\subsection{参数化}
+
+\subsubsection{均值参数化}
+\begin{equation}
+\mu(s, \theta) = \theta_\mu^T x_\mu(s)
+\end{equation}
+
+或使用神经网络。
+
+\subsubsection{标准差参数化}
+\begin{equation}
+\sigma(s, \theta) = \exp(\theta_\sigma^T x_\sigma(s))
+\end{equation}
+
+保证标准差为正。
+
+\section{核心公式总结}
+
+\subsection{策略梯度定理}
+
+\textbf{回合制}：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{持续问题}：
+\begin{equation}
+\nabla_\theta J(\theta) = \sum_{s} \mu(s) \sum_{a} A_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\subsection{REINFORCE}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\subsection{带基线的REINFORCE}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha [G_t - b(S_t)] \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\subsection{一步Actor-Critic}
+
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+其中：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\subsection{优势函数}
+
+\begin{equation}
+A_\pi(s, a) = q_\pi(s, a) - v_\pi(s)
+\end{equation}
+
+\section{方法对比}
+
+\begin{table}[H]
+\centering
+\caption{策略梯度方法对比}
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{方法} & \textbf{更新规则} & \textbf{偏差} & \textbf{方差} \\
+\hline
+\textbf{REINFORCE} & $G_t \nabla_\theta \ln \pi$ & 无偏 & 高 \\
+\hline
+\textbf{REINFORCE+Baseline} & $[G_t - b(S_t)] \nabla_\theta \ln \pi$ & 无偏 & 中等 \\
+\hline
+\textbf{Actor-Critic} & $\delta_t \nabla_\theta \ln \pi$ & 有偏 & 低 \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{关键关系}
+
+\subsection{价值函数关系}
+
+\textbf{状态价值到动作价值}：
+\begin{equation}
+v_\pi(s) = \sum_{a} \pi(a|s) q_\pi(s, a)
+\end{equation}
+
+\textbf{动作价值到状态价值}：
+\begin{equation}
+q_\pi(s, a) = \sum_{s', r} p(s', r | s, a) [r + \gamma v_\pi(s')]
+\end{equation}
+
+\subsection{策略梯度与价值函数}
+
+\textbf{策略梯度定理}将性能梯度与动作价值函数联系起来：
+\begin{equation}
+\nabla_\theta J(\theta) \propto \sum_{s} \mu(s) \sum_{a} q_\pi(s, a) \nabla_\theta \pi(a|s, \theta)
+\end{equation}
+
+\textbf{关键洞察}：梯度不涉及状态分布的导数，只需要知道策略参数化和动作价值函数。
+
+\section{符号说明}
+
+\subsection{策略相关}
+\begin{itemize}
+    \item $\pi(a|s, \theta)$：参数化策略，在状态 $s$ 选择动作 $a$ 的概率
+    \item $\theta \in \mathbb{R}^{d'}$：策略参数向量
+    \item $h(s, a, \theta)$：状态-动作对的数值偏好
+    \item $\nabla_\theta \pi(a|s, \theta)$：策略关于参数的梯度
+    \item $\nabla_\theta \ln \pi(a|s, \theta)$：策略对数的梯度（资格向量）
+\end{itemize}
+
+\subsection{性能与价值}
+\begin{itemize}
+    \item $J(\theta)$：性能指标（回合制：$v_{\pi_\theta}(s_0)$，持续问题：$r(\pi)$）
+    \item $v_\pi(s)$：策略 $\pi$ 下状态 $s$ 的价值函数
+    \item $q_\pi(s, a)$：策略 $\pi$ 下状态-动作对 $(s, a)$ 的价值函数
+    \item $A_\pi(s, a)$：优势函数，$A_\pi(s, a) = q_\pi(s, a) - v_\pi(s)$
+    \item $\mu(s)$：在策略 $\pi$ 下的状态分布
+\end{itemize}
+
+\subsection{更新相关}
+\begin{itemize}
+    \item $\alpha$：步长参数（学习率）
+    \item $\alpha_\theta$：Actor的学习率
+    \item $\alpha_w$：Critic的学习率
+    \item $G_t$：从时刻 $t$ 开始的回报
+    \item $\delta_t$：TD误差
+    \item $b(s)$：基线函数
+    \item $z_\theta$：Actor的资格迹
+    \item $z_w$：Critic的资格迹
+    \item $\lambda_\theta$：Actor的资格迹衰减率
+    \item $\lambda_w$：Critic的资格迹衰减率
+\end{itemize}
+
+\subsection{其他}
+\begin{itemize}
+    \item $\gamma$：折扣因子，$\gamma \in [0, 1]$
+    \item $R_{t+1}$：时刻 $t+1$ 的奖励
+    \item $S_t$：时刻 $t$ 的状态
+    \item $A_t$：时刻 $t$ 的动作
+    \item $w \in \mathbb{R}^d$：价值函数的权重向量
+    \item $\hat{v}(s, w)$：参数化的状态价值函数估计
+\end{itemize}
+
+\end{document}
+

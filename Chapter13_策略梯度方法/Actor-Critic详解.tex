@@ -1,0 +1,512 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{Actor-Critic详解}
+\subtitle{Actor和Critic的定义及其在TD误差中的体现}
+\author{强化学习笔记}
+\date{\today}
+
+\newtheorem{definition}{定义}
+\newtheorem{theorem}{定理}
+\newtheorem{example}{示例}
+\newtheorem{remark}{注记}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{问题}
+
+\textbf{问题1}：Actor-Critic方法中，谁是Actor？谁是Critic？
+
+\textbf{问题2}：在TD误差公式中：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\label{eq:td_error}
+\end{equation}
+
+如何体现Actor和Critic的作用？
+
+\section{Actor和Critic的定义}
+
+\subsection{Actor（演员）}
+
+\textbf{定义}：
+\begin{itemize}
+    \item \textbf{Actor}是策略（policy）$\pi(a|s, \theta)$
+    \item 它负责选择动作（acting）
+    \item 参数是 $\theta$（策略参数）
+    \item 根据当前状态 $s$，输出动作概率分布或直接输出动作
+\end{itemize}
+
+\textbf{作用}：
+\begin{itemize}
+    \item 与环境交互，选择动作
+    \item 根据Critic的反馈（TD误差）更新策略参数 $\theta$
+    \item 目标是最大化期望回报
+\end{itemize}
+
+\textbf{更新规则}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\label{eq:actor_update}
+\end{equation}
+
+其中 $\delta_t$ 是TD误差，由Critic提供。
+
+\subsection{Critic（评论家）}
+
+\textbf{定义}：
+\begin{itemize}
+    \item \textbf{Critic}是价值函数（value function）$\hat{v}(s, w)$
+    \item 它负责评估状态的价值（criticizing）
+    \item 参数是 $w$（价值函数参数）
+    \item 根据当前状态 $s$，输出状态价值估计
+\end{itemize}
+
+\textbf{作用}：
+\begin{itemize}
+    \item 评估当前状态的价值
+    \item 计算TD误差 $\delta_t$，作为Actor的反馈信号
+    \item 根据TD误差更新价值函数参数 $w$
+\end{itemize}
+
+\textbf{更新规则}：
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\label{eq:critic_update}
+\end{equation}
+
+其中 $\delta_t$ 是TD误差。
+
+\subsection{TD误差}
+
+\textbf{定义}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\label{eq:td_error_def}
+\end{equation}
+
+\textbf{含义}：
+\begin{itemize}
+    \item $R_{t+1}$：即时奖励
+    \item $\gamma \hat{v}(S_{t+1}, w)$：下一状态的折扣价值
+    \item $\hat{v}(S_t, w)$：当前状态的价值估计
+    \item $\delta_t$：TD误差，表示实际回报与预期回报的差异
+\end{itemize}
+
+\textbf{作用}：
+\begin{itemize}
+    \item 作为Actor的反馈信号：$\delta_t > 0$ 表示动作好，$\delta_t < 0$ 表示动作差
+    \item 作为Critic的更新信号：用于更新价值函数参数 $w$
+\end{itemize}
+
+\section{在TD误差中体现Actor和Critic}
+
+\subsection{TD误差公式}
+
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\subsection{Critic的体现}
+
+\textbf{Critic的作用}：
+\begin{itemize}
+    \item $\hat{v}(S_t, w)$：Critic评估当前状态 $S_t$ 的价值
+    \item $\hat{v}(S_{t+1}, w)$：Critic评估下一状态 $S_{t+1}$ 的价值
+    \item 这两个值都是由Critic（价值函数）提供的
+\end{itemize}
+
+\textbf{具体体现}：
+\begin{itemize}
+    \item \textbf{当前状态价值}：$\hat{v}(S_t, w)$ 是Critic对当前状态的评估
+    \item \textbf{下一状态价值}：$\hat{v}(S_{t+1}, w)$ 是Critic对下一状态的评估
+    \item \textbf{价值函数参数}：$w$ 是Critic的参数，通过TD误差更新
+\end{itemize}
+
+\subsection{Actor的体现}
+
+\textbf{Actor的作用}：
+\begin{itemize}
+    \item Actor选择动作 $A_t$，导致状态从 $S_t$ 转移到 $S_{t+1}$
+    \item Actor获得奖励 $R_{t+1}$
+    \item Actor使用TD误差 $\delta_t$ 更新策略参数 $\theta$
+\end{itemize}
+
+\textbf{具体体现}：
+\begin{itemize}
+    \item \textbf{状态转移}：$S_t \to S_{t+1}$ 是由Actor选择的动作 $A_t$ 导致的
+    \item \textbf{即时奖励}：$R_{t+1}$ 是Actor执行动作 $A_t$ 后获得的奖励
+    \item \textbf{反馈信号}：$\delta_t$ 作为Actor的反馈，用于更新策略
+\end{itemize}
+
+\textbf{间接体现}：
+\begin{itemize}
+    \item TD误差 $\delta_t$ 反映了Actor选择的动作的质量
+    \item 如果 $\delta_t > 0$，说明实际回报比预期好，应该增加选择该动作的概率
+    \item 如果 $\delta_t < 0$，说明实际回报比预期差，应该减少选择该动作的概率
+\end{itemize}
+
+\subsection{完整的交互过程}
+
+\textbf{步骤1：Actor选择动作}
+\begin{itemize}
+    \item 在状态 $S_t$，Actor根据策略 $\pi(\cdot|S_t, \theta)$ 选择动作 $A_t$
+    \item 执行动作 $A_t$，环境转移到状态 $S_{t+1}$，获得奖励 $R_{t+1}$
+\end{itemize}
+
+\textbf{步骤2：Critic评估状态}
+\begin{itemize}
+    \item Critic评估当前状态：$\hat{v}(S_t, w)$
+    \item Critic评估下一状态：$\hat{v}(S_{t+1}, w)$
+\end{itemize}
+
+\textbf{步骤3：计算TD误差}
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\textbf{步骤4：更新Actor}
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{步骤5：更新Critic}
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\section{详细例子}
+
+\subsection{例子：Gridworld中的Actor-Critic}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 状态：$S_t = (2, 3)$（Gridworld中的位置）
+    \item 动作：$A_t = \text{右}$（向右移动）
+    \item 奖励：$R_{t+1} = -1$（每步的代价）
+    \item 下一状态：$S_{t+1} = (2, 4)$
+    \item 折扣因子：$\gamma = 0.9$
+\end{itemize}
+
+\textbf{步骤1：Actor选择动作}
+\begin{itemize}
+    \item 在状态 $S_t = (2, 3)$，Actor根据策略 $\pi(\cdot|S_t, \theta)$ 选择动作 $A_t = \text{右}$
+    \item 执行动作后，环境转移到 $S_{t+1} = (2, 4)$，获得奖励 $R_{t+1} = -1$
+\end{itemize}
+
+\textbf{步骤2：Critic评估状态}
+\begin{itemize}
+    \item Critic评估当前状态：$\hat{v}(S_t, w) = \hat{v}((2, 3), w) = 5.0$
+    \item Critic评估下一状态：$\hat{v}(S_{t+1}, w) = \hat{v}((2, 4), w) = 6.0$
+\end{itemize}
+
+\textbf{步骤3：计算TD误差}
+\begin{align}
+\delta_t &= R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w) \\
+         &= -1 + 0.9 \times 6.0 - 5.0 \\
+         &= -1 + 5.4 - 5.0 \\
+         &= -0.6
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item TD误差 $\delta_t = -0.6 < 0$，说明实际回报比预期差
+    \item 这意味着选择动作"右"的效果不如预期
+    \item Actor应该减少选择该动作的概率
+\end{itemize}
+
+\textbf{步骤4：更新Actor}
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \times (-0.6) \times \nabla_\theta \ln \pi(\text{右}|(2, 3), \theta_t)
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 因为 $\delta_t < 0$，所以更新是负的
+    \item 这会减少选择动作"右"的概率
+\end{itemize}
+
+\textbf{步骤5：更新Critic}
+\begin{equation}
+w_{t+1} = w_t + \beta \times (-0.6) \times \nabla_w \hat{v}((2, 3), w_t)
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 因为 $\delta_t < 0$，所以更新是负的
+    \item 这会降低状态 $(2, 3)$ 的价值估计
+\end{itemize}
+
+\subsection{例子：TD误差为正的情况}
+
+\textbf{场景}：
+\begin{itemize}
+    \item 状态：$S_t = (1, 1)$
+    \item 动作：$A_t = \text{下}$（向下移动）
+    \item 奖励：$R_{t+1} = 10$（到达目标）
+    \item 下一状态：$S_{t+1} = (2, 1)$（目标状态）
+    \item 折扣因子：$\gamma = 0.9$
+\end{itemize}
+
+\textbf{Critic评估}：
+\begin{itemize}
+    \item $\hat{v}(S_t, w) = \hat{v}((1, 1), w) = 8.0$
+    \item $\hat{v}(S_{t+1}, w) = \hat{v}((2, 1), w) = 0.0$（终止状态）
+\end{itemize}
+
+\textbf{计算TD误差}：
+\begin{align}
+\delta_t &= R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w) \\
+         &= 10 + 0.9 \times 0.0 - 8.0 \\
+         &= 10 - 8.0 \\
+         &= 2.0
+\end{align}
+
+\textbf{解释}：
+\begin{itemize}
+    \item TD误差 $\delta_t = 2.0 > 0$，说明实际回报比预期好
+    \item 这意味着选择动作"下"的效果比预期好
+    \item Actor应该增加选择该动作的概率
+\end{itemize}
+
+\textbf{更新Actor}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \times 2.0 \times \nabla_\theta \ln \pi(\text{下}|(1, 1), \theta_t)
+\end{equation}
+
+\textbf{解释}：
+\begin{itemize}
+    \item 因为 $\delta_t > 0$，所以更新是正的
+    \item 这会增加选择动作"下"的概率
+\end{itemize}
+
+\section{Actor和Critic的协作}
+
+\subsection{分工明确}
+
+\textbf{Actor（演员）}：
+\begin{itemize}
+    \item \textbf{职责}：选择动作，与环境交互
+    \item \textbf{参数}：$\theta$（策略参数）
+    \item \textbf{更新}：根据TD误差 $\delta_t$ 更新策略
+    \item \textbf{目标}：最大化期望回报
+\end{itemize}
+
+\textbf{Critic（评论家）}：
+\begin{itemize}
+    \item \textbf{职责}：评估状态价值，提供反馈
+    \item \textbf{参数}：$w$（价值函数参数）
+    \item \textbf{更新}：根据TD误差 $\delta_t$ 更新价值函数
+    \item \textbf{目标}：准确估计状态价值
+\end{itemize}
+
+\subsection{相互依赖}
+
+\textbf{Actor依赖Critic}：
+\begin{itemize}
+    \item Actor需要Critic提供的TD误差 $\delta_t$ 来更新策略
+    \item 没有Critic，Actor不知道动作的好坏
+    \item TD误差 $\delta_t$ 是Actor的"老师"，告诉它动作的质量
+\end{itemize}
+
+\textbf{Critic依赖Actor}：
+\begin{itemize}
+    \item Critic需要Actor选择的动作来产生状态转移和奖励
+    \item 没有Actor，Critic无法获得数据（状态转移、奖励）
+    \item Actor是Critic的"数据源"
+\end{itemize}
+
+\subsection{协同工作}
+
+\textbf{完整流程}：
+\begin{enumerate}
+    \item Actor选择动作 $A_t$，与环境交互
+    \item 环境返回状态 $S_{t+1}$ 和奖励 $R_{t+1}$
+    \item Critic评估状态 $S_t$ 和 $S_{t+1}$ 的价值
+    \item 计算TD误差 $\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)$
+    \item Actor根据 $\delta_t$ 更新策略参数 $\theta$
+    \item Critic根据 $\delta_t$ 更新价值函数参数 $w$
+    \item 重复上述过程
+\end{enumerate}
+
+\section{TD误差公式的详细分析}
+
+\subsection{公式分解}
+
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\textbf{组成部分}：
+\begin{itemize}
+    \item $R_{t+1}$：即时奖励，由Actor执行动作 $A_t$ 后获得
+    \item $\gamma \hat{v}(S_{t+1}, w)$：下一状态的折扣价值，由Critic评估
+    \item $\hat{v}(S_t, w)$：当前状态的价值，由Critic评估
+    \item $\delta_t$：TD误差，综合了Actor和Critic的信息
+\end{itemize}
+
+\subsection{Actor的贡献}
+
+\textbf{直接贡献}：
+\begin{itemize}
+    \item $R_{t+1}$：Actor执行动作 $A_t$ 后获得的即时奖励
+    \item $S_{t+1}$：Actor选择的动作导致的状态转移
+\end{itemize}
+
+\textbf{间接贡献}：
+\begin{itemize}
+    \item TD误差 $\delta_t$ 反映了Actor选择的动作的质量
+    \item 如果 $\delta_t > 0$，说明动作好，应该增加选择该动作的概率
+    \item 如果 $\delta_t < 0$，说明动作差，应该减少选择该动作的概率
+\end{itemize}
+
+\subsection{Critic的贡献}
+
+\textbf{直接贡献}：
+\begin{itemize}
+    \item $\hat{v}(S_t, w)$：Critic对当前状态的价值估计
+    \item $\hat{v}(S_{t+1}, w)$：Critic对下一状态的价值估计
+\end{itemize}
+
+\textbf{间接贡献}：
+\begin{itemize}
+    \item TD误差 $\delta_t$ 反映了Critic的价值估计的准确性
+    \item 如果 $\delta_t \neq 0$，说明价值估计不准确，需要更新
+    \item Critic通过更新参数 $w$ 来改进价值估计
+\end{itemize}
+
+\section{与其他方法的对比}
+
+\subsection{REINFORCE（只有Actor）}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 只有Actor，没有Critic
+    \item 使用完整episode的回报 $G_t$ 来更新策略
+    \item 更新规则：$\theta_{t+1} = \theta_t + \alpha G_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)$
+\end{itemize}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 需要等待episode结束才能更新
+    \item 方差大，学习慢
+    \item 没有价值函数来评估状态
+\end{itemize}
+
+\subsection{Actor-Critic（Actor + Critic）}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 有Actor和Critic两个组件
+    \item 使用TD误差 $\delta_t$ 来更新策略（不需要等待episode结束）
+    \item 更新规则：$\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)$
+\end{itemize}
+
+\textbf{优势}：
+\begin{itemize}
+    \item 可以在线学习（不需要等待episode结束）
+    \item 方差小，学习快（使用价值函数作为基线）
+    \item 有价值函数来评估状态
+\end{itemize}
+
+\subsection{价值函数方法（只有Critic）}
+
+\textbf{特点}：
+\begin{itemize}
+    \item 只有Critic，没有Actor
+    \item 使用价值函数来选择动作（例如：$\varepsilon$-greedy）
+    \item 不直接学习策略
+\end{itemize}
+
+\textbf{问题}：
+\begin{itemize}
+    \item 只能处理离散动作空间
+    \item 不能直接学习随机策略
+    \item 动作选择依赖于价值函数
+\end{itemize}
+
+\section{总结}
+
+\subsection{Actor和Critic的定义}
+
+\textbf{Actor（演员）}：
+\begin{itemize}
+    \item 是策略 $\pi(a|s, \theta)$
+    \item 负责选择动作
+    \item 参数是 $\theta$
+    \item 根据TD误差更新策略
+\end{itemize}
+
+\textbf{Critic（评论家）}：
+\begin{itemize}
+    \item 是价值函数 $\hat{v}(s, w)$
+    \item 负责评估状态价值
+    \item 参数是 $w$
+    \item 根据TD误差更新价值函数
+\end{itemize}
+
+\subsection{在TD误差中的体现}
+
+\textbf{TD误差公式}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\textbf{Critic的体现}：
+\begin{itemize}
+    \item $\hat{v}(S_t, w)$：Critic评估当前状态
+    \item $\hat{v}(S_{t+1}, w)$：Critic评估下一状态
+    \item 这两个值都是由Critic提供的
+\end{itemize}
+
+\textbf{Actor的体现}：
+\begin{itemize}
+    \item $R_{t+1}$：Actor执行动作后获得的奖励
+    \item $S_{t+1}$：Actor选择的动作导致的状态转移
+    \item $\delta_t$：作为Actor的反馈信号，用于更新策略
+\end{itemize}
+
+\subsection{协作关系}
+
+\begin{quote}
+\textbf{Actor和Critic相互依赖、协同工作}：
+\begin{itemize}
+    \item Actor需要Critic提供的TD误差来更新策略
+    \item Critic需要Actor产生的数据（状态转移、奖励）来更新价值函数
+    \item TD误差 $\delta_t$ 是两者之间的桥梁，综合了Actor和Critic的信息
+\end{itemize}
+\end{quote}
+
+\subsection{关键公式}
+
+\textbf{TD误差}：
+\begin{equation}
+\delta_t = R_{t+1} + \gamma \hat{v}(S_{t+1}, w) - \hat{v}(S_t, w)
+\end{equation}
+
+\textbf{Actor更新}：
+\begin{equation}
+\theta_{t+1} = \theta_t + \alpha \delta_t \nabla_\theta \ln \pi(A_t|S_t, \theta_t)
+\end{equation}
+
+\textbf{Critic更新}：
+\begin{equation}
+w_{t+1} = w_t + \beta \delta_t \nabla_w \hat{v}(S_t, w_t)
+\end{equation}
+
+\end{document}
+
